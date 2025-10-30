@@ -1,3 +1,8 @@
+import { Card, CardContent, CardHeader } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Edit, Trash2, Mail, Calendar } from "lucide-react";
+
 interface FlagCardProps {
   id: string;
   destination: string;
@@ -15,6 +20,18 @@ interface FlagCardProps {
   onViewOffers?: () => void;
 }
 
+const statusVariants = {
+  active: 'default',
+  hidden: 'secondary',
+  expired: 'destructive',
+} as const;
+
+const statusLabels = {
+  active: '활성',
+  hidden: '숨김',
+  expired: '만료',
+};
+
 export default function FlagCard({
   id,
   destination,
@@ -31,42 +48,33 @@ export default function FlagCard({
   onDelete,
   onViewOffers,
 }: FlagCardProps) {
-  const statusColors = {
-    active: 'bg-green-100 text-green-800',
-    hidden: 'bg-gray-100 text-gray-800',
-    expired: 'bg-red-100 text-red-800',
-  };
-
-  const statusText = {
-    active: '활성',
-    hidden: '숨김',
-    expired: '만료',
-  };
-
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 transition-all hover:shadow-md">
-      <div className="p-6">
-        {/* 헤더 */}
-        <div className="flex items-start justify-between mb-4">
+    <Card className="hover:shadow-md transition-all duration-200">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             <div className="text-2xl">{flag}</div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
                 {destination}, {country}
               </h3>
-              <p className="text-sm text-gray-500">
-                {new Date(startDate).toLocaleDateString('ko-KR')} - {new Date(endDate).toLocaleDateString('ko-KR')}
-              </p>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  {new Date(startDate).toLocaleDateString('ko-KR')} - {new Date(endDate).toLocaleDateString('ko-KR')}
+                </span>
+              </div>
             </div>
           </div>
-          <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusColors[status]}`}>
-            {statusText[status]}
-          </span>
+          <Badge variant={statusVariants[status]} className="font-medium">
+            {statusLabels[status]}
+          </Badge>
         </div>
-
+      </CardHeader>
+      <CardContent className="space-y-4">
         {/* 메모 */}
         {note && (
-          <div className="mb-4">
+          <div>
             <p className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
               {note}
             </p>
@@ -74,38 +82,36 @@ export default function FlagCard({
         )}
 
         {/* 사진 스타일 */}
-        <div className="mb-4">
+        <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">선호 사진 스타일</h4>
           <div className="flex flex-wrap gap-2">
             {styles.map((style, index) => (
-              <span
-                key={index}
-                className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
-              >
+              <Badge key={index} variant="outline" className="text-xs">
                 {style}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
 
         {/* 오퍼 정보 */}
-        <div className="mb-4">
+        <div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
+              <Mail className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">받은 오퍼</span>
             </div>
-            <span className="text-sm font-semibold text-blue-600">{offerCount}개</span>
+            <Badge variant="secondary" className="font-semibold">
+              {offerCount}개
+            </Badge>
           </div>
           {offerCount > 0 && (
-            <button
+            <Button
+              variant="link"
               onClick={onViewOffers}
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium mt-2"
+              className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm font-medium mt-2"
             >
               오퍼 보기 →
-            </button>
+            </Button>
           )}
         </div>
 
@@ -113,30 +119,37 @@ export default function FlagCard({
         <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
           {canEdit && (
             <>
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={onEdit}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+                className="flex-1"
               >
+                <Edit className="w-4 h-4 mr-2" />
                 수정하기
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={onDelete}
-                className="flex-1 border border-red-300 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-50 transition-colors text-sm"
+                className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
               >
+                <Trash2 className="w-4 h-4 mr-2" />
                 삭제하기
-              </button>
+              </Button>
             </>
           )}
           {!canEdit && status === 'active' && (
-            <button
+            <Button
               onClick={onViewOffers}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="w-full"
             >
+              <Mail className="w-4 h-4 mr-2" />
               오퍼 보기 ({offerCount})
-            </button>
+            </Button>
           )}
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
