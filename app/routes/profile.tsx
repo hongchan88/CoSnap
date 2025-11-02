@@ -1,9 +1,22 @@
 import type { Route } from "./+types/profile";
 import { useState } from "react";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
+import { Separator } from "../components/ui/separator";
 import ProfileForm from "../components/ProfileForm";
 import FocusMeter from "../components/FocusMeter";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
+import ResponsiveGrid from "../components/ui/ResponsiveGrid";
+import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
+import StatsCard from "../components/ui/StatsCard";
+import FocusChart from "../components/ui/FocusChart";
+import AnimatedNumber from "../components/ui/AnimatedNumber";
+import { NumberTicker } from "../components/ui/MagicNumberTicker";
+import GlowCard from "../components/ui/GlowCard";
+import ShimmerButton from "../components/ui/ShimmerButton";
+import { Camera, MapPin, Star, Settings, Users, TrendingUp, Calendar, Award, Smartphone } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -64,6 +77,50 @@ export default function ProfilePage() {
     }
   };
 
+  // Focus score history for chart
+  const focusHistory = [
+    { date: '2024-10-15', score: 45, event: '첫 CoSnap 완료' },
+    { date: '2024-10-20', score: 50, event: '긍정 리뷰 받음' },
+    { date: '2024-10-25', score: 55, event: '도쿄 여행 CoSnap' },
+    { date: '2024-11-01', score: 60, event: '프리미엄 보너스' },
+    { date: '2024-11-05', score: 65, event: '박철민 님과 CoSnap' },
+  ];
+
+  // Statistics
+  const stats = [
+    {
+      title: '완료된 CoSnap',
+      value: 12,
+      icon: <Users className="w-5 h-5" />,
+      color: 'blue' as const,
+      trend: { value: 20, isPositive: true }
+    },
+    {
+      title: '평균 리뷰 점수',
+      value: 4.8,
+      icon: <Star className="w-5 h-5" />,
+      color: 'green' as const,
+      suffix: '/5.0',
+      trend: { value: 5, isPositive: true }
+    },
+    {
+      title: '방문한 도시',
+      value: 8,
+      icon: <MapPin className="w-5 h-5" />,
+      color: 'purple' as const,
+      trend: { value: 15, isPositive: true }
+    }
+  ];
+
+  // Focus 히스토리
+  const focusActivities = [
+    { score: '+5', description: '박철민 님과 CoSnap 완료', time: '2일 전', type: 'positive' },
+    { score: '+5', description: '이서아 님으로부터 긍정 리뷰', time: '5일 전', type: 'positive' },
+    { score: '+10', description: '프리미엄 보너스 (월간)', time: '1주 전', type: 'bonus' },
+    { score: '-10', description: '노쇼 페널티 (취소됨)', time: '2주 전', type: 'negative' },
+    { score: '+5', description: '김민준 님과 CoSnap 완료', time: '3주 전', type: 'positive' },
+  ];
+
   const getLanguageNames = (languages: string[]): string => {
     const languageMap: { [key: string]: string } = {
       'ko': '한국어',
@@ -77,12 +134,12 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">프로필</h1>
-          <p className="text-gray-600">프로필 정보를 관리하고 CoSnap 활동을 확인하세요</p>
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">프로필</h1>
+          <p className="text-sm sm:text-base text-gray-600">프로필 정보를 관리하고 CoSnap 활동을 확인하세요</p>
         </div>
 
         {/* 알림 */}
@@ -116,193 +173,314 @@ export default function ProfilePage() {
         )}
 
         {/* 프로필 헤더 */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-start gap-6">
-            <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
-                <h2 className="text-2xl font-bold text-gray-900">@{profile.username}</h2>
-                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                  프리미엄
-                </span>
+        <Card className="mb-6 sm:mb-8">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-gray-500" />
               </div>
-              <p className="text-gray-600 mb-4">{profile.location}</p>
-              <p className="text-gray-700 mb-4">{profile.bio}</p>
+              <div className="flex-1 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">@{profile.username}</h2>
+                  <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
+                    프리미엄
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <p className="text-sm sm:text-base text-gray-600">{profile.location}</p>
+                </div>
+                <p className="text-sm sm:text-base text-gray-700 mb-4">{profile.bio}</p>
 
-              <div className="flex flex-wrap gap-2 mb-4">
-                {profile.photoStyles.map((style, index) => (
-                  <span key={index} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                    {style}
-                  </span>
-                ))}
-                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                  {getLanguageNames(profile.languages)}
-                </span>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {profile.photoStyles.map((style, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs sm:text-sm">
+                      {style}
+                    </Badge>
+                  ))}
+                  <Badge variant="outline" className="text-xs sm:text-sm">
+                    {getLanguageNames(profile.languages)}
+                  </Badge>
+                </div>
+
+                <Button
+                  onClick={() => setIsEditingProfile(true)}
+                  disabled={isLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" color="white" />
+                      로딩 중...
+                    </>
+                  ) : (
+                    '프로필 편집'
+                  )}
+                </Button>
               </div>
-
-              <button
-                onClick={() => setIsEditingProfile(true)}
-                disabled={isLoading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <LoadingSpinner size="sm" color="white" />
-                    로딩 중...
-                  </>
-                ) : (
-                  '프로필 편집'
-                )}
-              </button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* 통계 및 Focus 점수 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 sm:mb-8">
+          {/* Focus 점수 섹션 */}
+          <div className="lg:col-span-1">
+            <Card className="h-full">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Focus 점수</h3>
+                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
+                    Focus 시스템 알아보기
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <FocusMeter
+                    score={profile.focusScore}
+                    size="lg"
+                    showProgress={true}
+                    animated={true}
+                  />
+                </div>
+                <Separator />
+                <div className="space-y-2">
+                  <h4 className="font-medium text-gray-900 text-sm">최근 활동</h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {focusActivities.slice(0, 3).map((activity, index) => (
+                      <div key={index} className="flex items-center justify-between py-1">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-medium ${
+                            activity.type === 'positive' ? 'text-green-600' :
+                            activity.type === 'negative' ? 'text-red-600' :
+                            'text-blue-600'
+                          }`}>
+                            {activity.score}
+                          </span>
+                          <span className="text-xs sm:text-sm text-gray-700">{activity.description}</span>
+                        </div>
+                        <span className="text-xs text-gray-500">{activity.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Focus 점수 변화 차트 */}
+          <div className="lg:col-span-2">
+            <FocusChart data={focusHistory} />
           </div>
         </div>
 
-        {/* Focus 점수 섹션 */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        {/* Magic UI 통계 카드 */}
+        <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-gray-900">Focus 점수</h3>
-            <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-              Focus 시스템 알아보기
-            </button>
+            <h3 className="text-lg font-semibold text-gray-900">Magic UI 통계</h3>
+            <Badge variant="outline" className="text-xs">
+              ✨ Magic UI
+            </Badge>
           </div>
 
-          <div className="text-center mb-6">
-            <FocusMeter
-              score={profile.focusScore}
-              size="lg"
-              showProgress={true}
-              animated={true}
-            />
-          </div>
+          <ResponsiveGrid
+            cols={{ mobile: 1, tablet: 2, desktop: 3 }}
+            gap={{ mobile: 4, tablet: 6, desktop: 6 }}
+          >
+            {/* NumberTicker Glow Card */}
+            <ResponsiveGridItem delay={0}>
+              <GlowCard
+                glowColor="rgb(59, 130, 246)"
+                glowIntensity="high"
+                hover={true}
+                variant="gradient"
+              >
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-2">Focus 점수</div>
+                  <div className="flex items-center gap-1">
+                    <NumberTicker
+                      value={profile.focusScore}
+                      className="text-4xl font-bold text-blue-600"
+                      delay={0.5}
+                      decimalPlaces={0}
+                    />
+                    <span className="text-4xl font-bold text-blue-600">점</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">현재 레벨</div>
+                </div>
+              </GlowCard>
+            </ResponsiveGridItem>
 
-          {/* Focus 히스토리 */}
-          <div className="space-y-2">
-            <h4 className="font-medium text-gray-900 mb-3">최근 활동</h4>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600">+5</span>
-                <span className="text-sm text-gray-700">박철민 님과 CoSnap 완료</span>
-              </div>
-              <span className="text-sm text-gray-500">2일 전</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600">+5</span>
-                <span className="text-sm text-gray-700">이서아 님으로부터 긍정 리뷰</span>
-              </div>
-              <span className="text-sm text-gray-500">5일 전</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-green-600">+10</span>
-                <span className="text-sm text-gray-700">프리미엄 보너스 (월간)</span>
-              </div>
-              <span className="text-sm text-gray-500">1주 전</span>
-            </div>
-          </div>
+            {/* NumberTicker Stats Card */}
+            <ResponsiveGridItem delay={0.1}>
+              <GlowCard
+                glowColor="rgb(34, 197, 94)"
+                glowIntensity="medium"
+                hover={true}
+              >
+                <div className="text-center">
+                  <div className="text-sm text-gray-600 mb-2">완료된 CoSnap</div>
+                  <NumberTicker
+                    value={12}
+                    delay={0.3}
+                    className="text-4xl font-bold text-green-600"
+                    decimalPlaces={0}
+                  />
+                  <div className="text-xs text-gray-500 mt-2">+20% 이번 달</div>
+                </div>
+              </GlowCard>
+            </ResponsiveGridItem>
+
+            {/* Shimmer Button Card */}
+            <ResponsiveGridItem delay={0.2}>
+              <GlowCard
+                glowColor="rgb(168, 85, 247)"
+                glowIntensity="medium"
+                hover={true}
+                variant="glass"
+              >
+                <div className="text-center space-y-4">
+                  <div className="text-sm text-gray-600 mb-2">프리미엄 등급</div>
+                  <div className="text-4xl font-bold text-purple-600">Crystal</div>
+                  <ShimmerButton
+                    background="linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(59, 130, 246) 100%)"
+                    className="w-full"
+                    onClick={() => console.log('프리미엄 혜택 보기')}
+                  >
+                    혜택 보기
+                  </ShimmerButton>
+                </div>
+              </GlowCard>
+            </ResponsiveGridItem>
+          </ResponsiveGrid>
         </div>
 
-        {/* 통계 */}
-        <div className="grid md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-blue-600 mb-2">12</div>
-            <div className="text-gray-600">완료된 CoSnap</div>
+        {/* 기존 통계 카드 */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">일반 통계</h3>
           </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-green-600 mb-2">4.8</div>
-            <div className="text-gray-600">평균 리뷰 점수</div>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-            <div className="text-3xl font-bold text-purple-600 mb-2">8</div>
-            <div className="text-gray-600">방문한 도시</div>
-          </div>
+          <ResponsiveGrid
+            cols={{ mobile: 1, tablet: 2, desktop: 3 }}
+            gap={{ mobile: 4, tablet: 6, desktop: 6 }}
+          >
+            {stats.map((stat, index) => (
+              <ResponsiveGridItem key={index} delay={index * 0.1}>
+                <StatsCard
+                  title={stat.title}
+                  value={stat.value}
+                  icon={stat.icon}
+                  suffix={stat.suffix}
+                  color={stat.color}
+                  trend={stat.trend}
+                />
+              </ResponsiveGridItem>
+            ))}
+          </ResponsiveGrid>
         </div>
 
         {/* 장비 정보 */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">사진 장비</h3>
-          {profile.cameraGear ? (
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <div>
-                  <div className="font-medium text-gray-900">Canon EOS R6</div>
-                  <div className="text-sm text-gray-500">메인 카메라</div>
+        <Card className="mb-6 sm:mb-8">
+          <CardHeader>
+            <h3 className="text-lg font-semibold text-gray-900">사진 장비</h3>
+          </CardHeader>
+          <CardContent>
+            {profile.cameraGear ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <Camera className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">Canon EOS R6</div>
+                    <div className="text-sm text-gray-500">메인 카메라</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                    <Smartphone className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">iPhone 15 Pro</div>
+                    <div className="text-sm text-gray-500">모바일 촬영</div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                <div>
-                  <div className="font-medium text-gray-900">iPhone 15 Pro</div>
-                  <div className="text-sm text-gray-500">모바일 촬영</div>
-                </div>
+            ) : (
+              <div className="text-center py-8">
+                <Camera className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">
+                  장비 정보가 없습니다. 프로필 편집에서 추가해주세요.
+                </p>
               </div>
-            </div>
-          ) : (
-            <p className="text-gray-500 text-center py-4">
-              장비 정보가 없습니다. 프로필 편집에서 추가해주세요.
-            </p>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 설정 */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">설정</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div>
-                <div className="font-medium text-gray-900">알림 설정</div>
-                <div className="text-sm text-gray-500">새 오퍼, 메시지, 매치 알림</div>
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold text-gray-900">설정</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <Settings className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">알림 설정</div>
+                    <div className="text-xs sm:text-sm text-gray-500">새 오퍼, 메시지, 매치 알림</div>
+                  </div>
+                </div>
+                <Settings className="w-4 h-4 text-gray-400" />
               </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div>
-                <div className="font-medium text-gray-900">개인정보 보호</div>
-                <div className="text-sm text-gray-500">프로필 공개 설정, 데이터 관리</div>
+              <Separator />
+              <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <Award className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">개인정보 보호</div>
+                    <div className="text-xs sm:text-sm text-gray-500">프로필 공개 설정, 데이터 관리</div>
+                  </div>
+                </div>
+                <Settings className="w-4 h-4 text-gray-400" />
               </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div>
-                <div className="font-medium text-gray-900">구독 관리</div>
-                <div className="text-sm text-gray-500">프리미엄 구독, 결제 정보</div>
+              <Separator />
+              <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">구독 관리</div>
+                    <div className="text-xs sm:text-sm text-gray-500">프리미엄 구독, 결제 정보</div>
+                  </div>
+                </div>
+                <Settings className="w-4 h-4 text-gray-400" />
               </div>
-              <button className="text-gray-400 hover:text-gray-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <div>
-                <div className="font-medium text-red-600">로그아웃</div>
-                <div className="text-sm text-gray-500">계정에서 로그아웃</div>
+              <Separator />
+              <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                    <Users className="w-4 h-4 text-red-600" />
+                  </div>
+                  <div>
+                    <div className="font-medium text-red-600 text-sm sm:text-base">로그아웃</div>
+                    <div className="text-xs sm:text-sm text-gray-500">계정에서 로그아웃</div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                  로그아웃
+                </Button>
               </div>
-              <button className="text-red-600 hover:text-red-800">
-                로그아웃
-              </button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

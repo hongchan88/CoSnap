@@ -1,4 +1,16 @@
 import type { Route } from "./+types/matches";
+import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import MatchCard from "../components/ui/MatchCard";
+import ResponsiveGrid from "../components/ui/ResponsiveGrid";
+import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
+import StatsCard from "../components/ui/StatsCard";
+import GlowCard from "../components/ui/GlowCard";
+import ShimmerButton from "../components/ui/ShimmerButton";
+import { Calendar, Camera, Users, TrendingUp, MapPin, Clock, CheckCircle } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -7,160 +19,291 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+interface MatchData {
+  id: string;
+  matchName: string;
+  status: 'scheduled' | 'pending' | 'completed' | 'cancelled';
+  dateTime: string;
+  location: string;
+  destination: string;
+  travelDates: {
+    start: string;
+    end: string;
+  };
+  photoStyles: string[];
+  focusReward: number;
+  estimatedTime?: string;
+}
+
 export default function MatchesPage() {
+  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
+
+  // Mock data for matches
+  const [activeMatches, setActiveMatches] = useState<MatchData[]>([
+    {
+      id: '1',
+      matchName: '박철민 님과의 CoSnap',
+      status: 'scheduled',
+      dateTime: '2024년 12월 3일 오후 2:00',
+      location: '서울특별시 중구 명동역 1번 출구',
+      destination: '🇰🇷 서울, 부산 여행',
+      travelDates: {
+        start: '2024-12-01',
+        end: '2024-12-07'
+      },
+      photoStyles: ['도시', '야경', '음식 사진'],
+      focusReward: 5,
+      estimatedTime: '2-3시간'
+    },
+    {
+      id: '2',
+      matchName: '김민준 님과의 CoSnap',
+      status: 'pending',
+      dateTime: '시간 확정 중',
+      location: '신주쿠, 시부야',
+      destination: '🇯🇵 도쿄, 오사카 여행',
+      travelDates: {
+        start: '2024-11-15',
+        end: '2024-11-25'
+      },
+      photoStyles: ['인물', '풍경', '문화'],
+      focusReward: 8,
+      estimatedTime: '3-4시간'
+    }
+  ]);
+
+  const [pastMatches, setPastMatches] = useState<MatchData[]>([
+    {
+      id: '3',
+      matchName: '이서아 님과의 CoSnap',
+      status: 'completed',
+      dateTime: '2024-10-20',
+      location: '강남역',
+      destination: '🇰🇷 제주도 여행',
+      travelDates: {
+        start: '2024-10-15',
+        end: '2024-10-20'
+      },
+      photoStyles: ['풍경', '음식'],
+      focusReward: 5,
+      estimatedTime: '2시간'
+    }
+  ]);
+
+  // Statistics
+  const stats = [
+    {
+      title: '전체 매치',
+      value: 15,
+      icon: <Users className="w-5 h-5" />,
+      color: 'blue' as const,
+      trend: { value: 25, isPositive: true }
+    },
+    {
+      title: '완료율',
+      value: 87,
+      icon: <CheckCircle className="w-5 h-5" />,
+      color: 'green' as const,
+      trend: { value: 12, isPositive: true }
+    },
+    {
+      title: '평균 만족도',
+      value: 4.8,
+      icon: <TrendingUp className="w-5 h-5" />,
+      color: 'purple' as const,
+      suffix: '/5.0',
+      trend: { value: 5, isPositive: true }
+    }
+  ];
+
+  const handleMessageMatch = (matchId: string) => {
+    console.log('메시지 보내기:', matchId);
+  };
+
+  const handleConfirmTime = (matchId: string) => {
+    console.log('시간 확인:', matchId);
+  };
+
+  const handleViewLocation = (matchId: string) => {
+    console.log('위치 확인:', matchId);
+  };
+
+  const handleCancelMatch = (matchId: string) => {
+    console.log('매치 취소:', matchId);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">매치</h1>
-          <p className="text-gray-600">활성화된 매치와 과거 매치 기록을 확인하세요</p>
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">매치</h1>
+          <p className="text-sm sm:text-base text-gray-600">활성화된 매치와 과거 매치 기록을 확인하세요</p>
+        </div>
+
+        {/* Statistics */}
+        <div className="mb-6 sm:mb-8">
+          <ResponsiveGrid
+            cols={{ mobile: 1, tablet: 3, desktop: 3 }}
+            gap={{ mobile: 4, tablet: 6, desktop: 6 }}
+          >
+            {stats.map((stat, index) => (
+              <ResponsiveGridItem key={index} delay={index * 0.1}>
+                <StatsCard
+                  title={stat.title}
+                  value={stat.value}
+                  icon={stat.icon}
+                  suffix={stat.suffix}
+                  color={stat.color}
+                  trend={stat.trend}
+                />
+              </ResponsiveGridItem>
+            ))}
+          </ResponsiveGrid>
         </div>
 
         {/* 탭 네비게이션 */}
-        <div className="bg-white rounded-xl shadow-sm mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              <button className="py-3 px-6 border-b-2 border-blue-500 text-blue-600 font-medium">
-                활성 매치 (1)
-              </button>
-              <button className="py-3 px-6 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium">
-                지난 매치 (0)
-              </button>
-            </nav>
+        <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'active' | 'past')} className="mb-6 sm:mb-8">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="active" className="text-base sm:text-lg">
+              활성 매치
+              <Badge variant="secondary" className="ml-2">
+                {activeMatches.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="past" className="text-base sm:text-lg">
+              지난 매치
+              <Badge variant="secondary" className="ml-2">
+                {pastMatches.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="active" className="mt-6">
+            {activeMatches.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+                  <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">활성 매치가 없습니다</h3>
+                  <p className="text-sm text-gray-500 text-center max-w-sm">
+                    새로운 오퍼를 수락하여 첫 CoSnap을 시작해보세요!
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4 sm:space-y-6">
+                {activeMatches.map((match, index) => (
+                  <ResponsiveGridItem key={match.id} delay={index * 0.1}>
+                    <MatchCard
+                      {...match}
+                      onMessage={() => handleMessageMatch(match.id)}
+                      onConfirmTime={() => handleConfirmTime(match.id)}
+                      onViewLocation={() => handleViewLocation(match.id)}
+                      onCancel={() => handleCancelMatch(match.id)}
+                      isCompact={false}
+                    />
+                  </ResponsiveGridItem>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="past" className="mt-6">
+            {pastMatches.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+                  <Camera className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">지난 매치 기록이 없습니다</h3>
+                  <p className="text-sm text-gray-500 text-center max-w-sm">
+                    첫 CoSnap을 완료하면 추천과 리뷰를 받을 수 있어요
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4 sm:space-y-6">
+                {pastMatches.map((match, index) => (
+                  <ResponsiveGridItem key={match.id} delay={index * 0.1}>
+                    <MatchCard
+                      {...match}
+                      onMessage={() => handleMessageMatch(match.id)}
+                      isCompact={true}
+                    />
+                  </ResponsiveGridItem>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Magic UI 추천 매치 */}
+        <div className="mt-8 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-blue-600" />
+              추천 매치
+            </h3>
+            <Badge variant="outline" className="text-xs">
+              ✨ Magic UI
+            </Badge>
           </div>
+
+          <GlowCard
+            glowColor="rgb(59, 130, 246)"
+            glowIntensity="high"
+            hover={true}
+            variant="gradient"
+          >
+            <div className="p-6">
+              <div className="flex flex-col sm:flex-row items-start gap-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Camera className="w-8 h-8 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <h4 className="text-xl font-bold text-gray-900">🔥 인기 매치</h4>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                      긴급
+                    </Badge>
+                  </div>
+                  <p className="text-gray-700 mb-4">
+                    <strong>김서아 님</strong>과의 도쿄 타워 CoSnap 세션! 오늘 오후 3시에 가능한 동료 찾습니다.
+                    프로 사진 작가와 함께 멋진 스냅 사진을 남겨보세요.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-4 mb-4">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <MapPin className="w-4 h-4" />
+                      도쿄 타워
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Clock className="w-4 h-4" />
+                      오늘 오후 3시
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                      <TrendingUp className="w-4 h-4" />
+                      Focus +10점
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <ShimmerButton
+                      background="linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(147, 51, 234) 100%)"
+                      onClick={() => console.log('매치 수락')}
+                    >
+                      매치 수락하기
+                    </ShimmerButton>
+                    <Button variant="outline" onClick={() => console.log('프로필 보기')}>
+                      프로필 보기
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </GlowCard>
         </div>
 
-        {/* 활성 매치 */}
-        <div className="space-y-6">
-          {/* 예정된 매치 */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">박철민 님과의 CoSnap</h3>
-                  <p className="text-sm text-gray-500">2024년 12월 3일 오후 2:00</p>
-                </div>
-              </div>
-              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">예정됨</span>
-            </div>
-
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm font-medium text-gray-700">📍</span>
-                <span className="text-sm text-gray-700">서울특별시 중구 명동역 1번 출구</span>
-              </div>
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">🇰🇷 서울, 부산 여행</h4>
-                <p className="text-sm text-gray-600 mb-3">2024년 12월 1일 - 2024년 12월 7일</p>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">사진 스타일:</span>
-                    <span>도시, 야경, 음식 사진</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">예상 시간:</span>
-                    <span>2-3시간</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Focus 보상:</span>
-                    <span className="text-green-600 font-medium">+5점 (완료 시)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                메시지 보내기
-              </button>
-              <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                위치 확인
-              </button>
-              <button className="text-red-600 hover:text-red-800 font-medium">
-                매치 취소
-              </button>
-            </div>
-          </div>
-
-          {/* 확인 대기 중인 매치 */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">김민준 님과의 CoSnap</h3>
-                  <p className="text-sm text-gray-500">시간 확정 중</p>
-                </div>
-              </div>
-              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">확인 대기</span>
-            </div>
-
-            <div className="mb-4">
-              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg mb-3">
-                <p className="text-sm text-yellow-800">
-                  ⏰ 시간 조율이 필요합니다. 서로 가능한 시간을 제안해주세요.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="font-medium text-gray-900 mb-2">🇯🇵 도쿄, 오사카 여행</h4>
-                <p className="text-sm text-gray-600 mb-3">2024년 11월 15일 - 2024년 11월 25일</p>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">희망 장소:</span>
-                    <span>신주쿠, 시부야</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">상대방 제안:</span>
-                    <span>11월 18일 오후 3시 또는 19일 오전 11시</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                시간 제안하기
-              </button>
-              <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                메시지 보내기
-              </button>
-              <button className="text-red-600 hover:text-red-800 font-medium">
-                매치 취소
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 지난 매치 섹션 */}
-        <div className="mt-12">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">지난 매치</h2>
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-gray-500">지난 매치 기록이 없습니다</p>
-            <p className="text-sm text-gray-400 mt-2">첫 CoSnap을 시작해보세요!</p>
-          </div>
-        </div>
-
-        {/* 매치 팁 */}
-        <div className="mt-8 bg-blue-50 rounded-xl p-6">
+        {/* CoSnap 팁 */}
+        <div className="bg-blue-50 rounded-xl p-6">
           <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Calendar className="w-5 h-5 text-blue-600" />
             CoSnap 팁
           </h3>
           <ul className="space-y-2 text-sm text-gray-700">
