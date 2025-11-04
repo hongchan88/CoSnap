@@ -8,7 +8,9 @@ This directory contains the Drizzle ORM configuration and database schema for th
 
 Based on the CoSnap data model, we have the following tables:
 
-- **users**: User accounts, Focus scores, and profile information
+- **profiles**: Extended user profile data (separate from Supabase auth users table)
+  - Linked to Supabase auth.users via userId foreign key
+  - Contains Focus scores, roles, camera gear, preferences, etc.
 - **flags**: Travel plans and visibility settings
 - **offers**: Communication between users for potential matches
 - **matches**: Confirmed CoSnap meetings between users

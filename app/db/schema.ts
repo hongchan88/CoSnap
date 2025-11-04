@@ -1,11 +1,10 @@
 import { pgTable, uuid, varchar, text, integer, boolean, timestamp, smallint } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 
-// Users table
-export const users = pgTable('users', {
+// Profiles table (extended user profile data - separate from Supabase auth users)
+export const profiles = pgTable('profiles', {
   id: uuid('id').primaryKey().defaultRandom(),
-  email: varchar('email', { length: 255 }).unique().notNull(),
-  passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  userId: uuid('user_id').unique().notNull(), // Foreign key reference to Supabase auth.users.id
   username: varchar('username', { length: 100 }).unique().notNull(),
   role: varchar('role', { enum: ['free', 'premium', 'admin'] }).default('free').notNull(),
   focusScore: integer('focus_score').default(0).notNull(),
@@ -24,7 +23,7 @@ export const users = pgTable('users', {
 // Flags table
 export const flags = pgTable('flags', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  profileId: uuid('profile_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
   city: varchar('city', { length: 100 }).notNull(),
   country: varchar('country', { length: 100 }).notNull(),
   startDate: timestamp('start_date', { withTimezone: true }).notNull(),
@@ -42,8 +41,8 @@ export const flags = pgTable('flags', {
 // Offers table
 export const offers = pgTable('offers', {
   id: uuid('id').primaryKey().defaultRandom(),
-  senderId: uuid('sender_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  receiverId: uuid('receiver_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  senderId: uuid('sender_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
+  receiverId: uuid('receiver_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
   flagId: uuid('flag_id').references(() => flags.id, { onDelete: 'cascade' }).notNull(),
   message: text('message').notNull(),
   status: varchar('status', { enum: ['pending', 'accepted', 'declined', 'expired', 'cancelled'] }).default('pending').notNull(),
@@ -57,8 +56,8 @@ export const offers = pgTable('offers', {
 export const matches = pgTable('matches', {
   id: uuid('id').primaryKey().defaultRandom(),
   offerId: uuid('offer_id').references(() => offers.id, { onDelete: 'cascade' }).unique().notNull(),
-  userAId: uuid('user_a_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  userBId: uuid('user_b_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  userAId: uuid('user_a_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
+  userBId: uuid('user_b_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
   flagId: uuid('flag_id').references(() => flags.id, { onDelete: 'cascade' }).notNull(),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }),
   locationHint: varchar('location_hint', { length: 500 }),
@@ -74,8 +73,8 @@ export const matches = pgTable('matches', {
 export const reviews = pgTable('reviews', {
   id: uuid('id').primaryKey().defaultRandom(),
   matchId: uuid('match_id').references(() => matches.id, { onDelete: 'cascade' }).notNull(),
-  authorId: uuid('author_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  targetId: uuid('target_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  authorId: uuid('author_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
+  targetId: uuid('target_id').references(() => profiles.id, { onDelete: 'cascade' }).notNull(),
   rating: smallint('rating').notNull(),
   comment: text('comment'),
   photoSampleUrl: varchar('photo_sample_url', { length: 500 }),
@@ -83,8 +82,8 @@ export const reviews = pgTable('reviews', {
 });
 
 // Zod schemas for validation
-export const insertUserSchema = createInsertSchema(users);
-export const selectUserSchema = createSelectSchema(users);
+export const insertProfileSchema = createInsertSchema(profiles);
+export const selectProfileSchema = createSelectSchema(profiles);
 
 export const insertFlagSchema = createInsertSchema(flags);
 export const selectFlagSchema = createSelectSchema(flags);
