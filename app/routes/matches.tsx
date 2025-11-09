@@ -1,6 +1,12 @@
 import type { Route } from "./+types/matches";
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useLoaderData } from "react-router";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -10,7 +16,16 @@ import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
 import StatsCard from "../components/ui/StatsCard";
 import GlowCard from "../components/ui/GlowCard";
 import ShimmerButton from "../components/ui/ShimmerButton";
-import { Calendar, Camera, Users, TrendingUp, MapPin, Clock, CheckCircle } from "lucide-react";
+import {
+  Calendar,
+  Camera,
+  Users,
+  TrendingUp,
+  MapPin,
+  Clock,
+  CheckCircle,
+} from "lucide-react";
+import { getMatchesForUser } from "~/lib/database";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,10 +34,27 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+export async function loader({ request }: Route.LoaderArgs) {
+  // TODO: Get actual user ID from session
+  // For now, we'll simulate a user ID
+  const userId = "mock-user-id"; // This should come from authentication
+
+  try {
+    const userMatches = await getMatchesForUser(userId);
+    return {
+      active: userMatches.active || [],
+      past: userMatches.past || [],
+    };
+  } catch (error) {
+    console.error("Error loading matches:", error);
+    return { active: [], past: [] };
+  }
+}
+
 interface MatchData {
   id: string;
   matchName: string;
-  status: 'scheduled' | 'pending' | 'completed' | 'cancelled';
+  status: "scheduled" | "pending" | "completed" | "cancelled";
   dateTime: string;
   location: string;
   destination: string;
@@ -35,101 +67,99 @@ interface MatchData {
   estimatedTime?: string;
 }
 
-export default function MatchesPage() {
-  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
-
-  // Mock data for matches
-  const [activeMatches, setActiveMatches] = useState<MatchData[]>([
-    {
-      id: '1',
-      matchName: '박철민 님과의 CoSnap',
-      status: 'scheduled',
-      dateTime: '2024년 12월 3일 오후 2:00',
-      location: '서울특별시 중구 명동역 1번 출구',
-      destination: '🇰🇷 서울, 부산 여행',
-      travelDates: {
-        start: '2024-12-01',
-        end: '2024-12-07'
-      },
-      photoStyles: ['도시', '야경', '음식 사진'],
-      focusReward: 5,
-      estimatedTime: '2-3시간'
+// Adapter functions to convert database matches to UI format
+const adaptActiveMatches = (dbMatches: any[]): MatchData[] => {
+  return dbMatches.map((match) => ({
+    id: match.id,
+    matchName: "User와의 CoSnap", // TODO: Get from other user profile
+    status: match.status,
+    dateTime: match.scheduledAt
+      ? new Date(match.scheduledAt).toLocaleString("ko-KR")
+      : "시간 확정 중",
+    location: match.locationHint || "장소 확정 중",
+    destination: "📍 목적지", // TODO: Get from flag data
+    travelDates: {
+      start: "2024-01-01", // TODO: Get from flag data
+      end: "2024-01-02",
     },
-    {
-      id: '2',
-      matchName: '김민준 님과의 CoSnap',
-      status: 'pending',
-      dateTime: '시간 확정 중',
-      location: '신주쿠, 시부야',
-      destination: '🇯🇵 도쿄, 오사카 여행',
-      travelDates: {
-        start: '2024-11-15',
-        end: '2024-11-25'
-      },
-      photoStyles: ['인물', '풍경', '문화'],
-      focusReward: 8,
-      estimatedTime: '3-4시간'
-    }
-  ]);
+    photoStyles: ["사진 스타일"], // TODO: Get from profiles
+    focusReward: 5, // TODO: Calculate based on user tiers
+    estimatedTime: "2-3시간",
+  }));
+};
 
-  const [pastMatches, setPastMatches] = useState<MatchData[]>([
-    {
-      id: '3',
-      matchName: '이서아 님과의 CoSnap',
-      status: 'completed',
-      dateTime: '2024-10-20',
-      location: '강남역',
-      destination: '🇰🇷 제주도 여행',
-      travelDates: {
-        start: '2024-10-15',
-        end: '2024-10-20'
-      },
-      photoStyles: ['풍경', '음식'],
-      focusReward: 5,
-      estimatedTime: '2시간'
-    }
-  ]);
+const adaptPastMatches = (dbMatches: any[]): MatchData[] => {
+  return dbMatches.map((match) => ({
+    id: match.id,
+    matchName: "User와의 CoSnap", // TODO: Get from other user profile
+    status: match.status,
+    dateTime: match.createdAt
+      ? new Date(match.createdAt).toLocaleDateString("ko-KR")
+      : "",
+    location: match.locationHint || "장소",
+    destination: "📍 목적지", // TODO: Get from flag data
+    travelDates: {
+      start: "2024-01-01", // TODO: Get from flag data
+      end: "2024-01-02",
+    },
+    photoStyles: ["사진 스타일"], // TODO: Get from profiles
+    focusReward: 5, // TODO: Calculate based on completion
+    estimatedTime: "2시간",
+  }));
+};
+
+export default function MatchesPage() {
+  const loaderData = useLoaderData<typeof loader>();
+  const [activeTab, setActiveTab] = useState<"active" | "past">("active");
+
+  // Initialize matches from loader data with adapters
+  const [activeMatches, setActiveMatches] = useState<MatchData[]>(
+    adaptActiveMatches(loaderData.active)
+  );
+  const [pastMatches, setPastMatches] = useState<MatchData[]>(
+    adaptPastMatches(loaderData.past)
+  );
 
   // Statistics
   const stats = [
     {
-      title: '전체 매치',
+      title: "전체 매치",
       value: 15,
       icon: <Users className="w-5 h-5" />,
-      color: 'blue' as const,
-      trend: { value: 25, isPositive: true }
+      color: "blue" as const,
+      trend: { value: 25, isPositive: true },
     },
     {
-      title: '완료율',
+      title: "완료율",
       value: 87,
       icon: <CheckCircle className="w-5 h-5" />,
-      color: 'green' as const,
-      trend: { value: 12, isPositive: true }
+      color: "green" as const,
+      trend: { value: 12, isPositive: true },
     },
     {
-      title: '평균 만족도',
+      title: "평균 만족도",
       value: 4.8,
       icon: <TrendingUp className="w-5 h-5" />,
-      color: 'purple' as const,
-      suffix: '/5.0',
-      trend: { value: 5, isPositive: true }
-    }
+      color: "purple" as const,
+      suffix: "/5.0",
+      trend: { value: 5, isPositive: true },
+    },
   ];
 
   const handleMessageMatch = (matchId: string) => {
-    console.log('메시지 보내기:', matchId);
+    console.log("메시지 보내기:", matchId);
   };
 
   const handleConfirmTime = (matchId: string) => {
-    console.log('시간 확인:', matchId);
+    console.log("시간 확인:", matchId);
   };
 
   const handleViewLocation = (matchId: string) => {
-    console.log('위치 확인:', matchId);
+    console.log("위치 확인:", matchId);
   };
 
   const handleCancelMatch = (matchId: string) => {
-    console.log('매치 취소:', matchId);
+    console.log("매치 취소:", matchId);
   };
 
   return (
@@ -137,8 +167,12 @@ export default function MatchesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">매치</h1>
-          <p className="text-sm sm:text-base text-gray-600">활성화된 매치와 과거 매치 기록을 확인하세요</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            매치
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            활성화된 매치와 과거 매치 기록을 확인하세요
+          </p>
         </div>
 
         {/* Statistics */}
@@ -163,7 +197,13 @@ export default function MatchesPage() {
         </div>
 
         {/* 탭 네비게이션 */}
-        <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'active' | 'past')} className="mb-6 sm:mb-8">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value: string) =>
+            setActiveTab(value as "active" | "past")
+          }
+          className="mb-6 sm:mb-8"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="active" className="text-base sm:text-lg">
               활성 매치
@@ -184,7 +224,9 @@ export default function MatchesPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
                   <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">활성 매치가 없습니다</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    활성 매치가 없습니다
+                  </h3>
                   <p className="text-sm text-gray-500 text-center max-w-sm">
                     새로운 오퍼를 수락하여 첫 CoSnap을 시작해보세요!
                   </p>
@@ -213,7 +255,9 @@ export default function MatchesPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
                   <Camera className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">지난 매치 기록이 없습니다</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    지난 매치 기록이 없습니다
+                  </h3>
                   <p className="text-sm text-gray-500 text-center max-w-sm">
                     첫 CoSnap을 완료하면 추천과 리뷰를 받을 수 있어요
                   </p>
@@ -260,14 +304,17 @@ export default function MatchesPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
-                    <h4 className="text-xl font-bold text-gray-900">🔥 인기 매치</h4>
+                    <h4 className="text-xl font-bold text-gray-900">
+                      🔥 인기 매치
+                    </h4>
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                       긴급
                     </Badge>
                   </div>
                   <p className="text-gray-700 mb-4">
-                    <strong>김서아 님</strong>과의 도쿄 타워 CoSnap 세션! 오늘 오후 3시에 가능한 동료 찾습니다.
-                    프로 사진 작가와 함께 멋진 스냅 사진을 남겨보세요.
+                    <strong>김서아 님</strong>과의 도쿄 타워 CoSnap 세션! 오늘
+                    오후 3시에 가능한 동료 찾습니다. 프로 사진 작가와 함께 멋진
+                    스냅 사진을 남겨보세요.
                   </p>
                   <div className="flex flex-wrap items-center gap-4 mb-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -286,11 +333,14 @@ export default function MatchesPage() {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <ShimmerButton
                       background="linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(147, 51, 234) 100%)"
-                      onClick={() => console.log('매치 수락')}
+                      onClick={() => console.log("매치 수락")}
                     >
                       매치 수락하기
                     </ShimmerButton>
-                    <Button variant="outline" onClick={() => console.log('프로필 보기')}>
+                    <Button
+                      variant="outline"
+                      onClick={() => console.log("프로필 보기")}
+                    >
                       프로필 보기
                     </Button>
                   </div>
@@ -313,7 +363,9 @@ export default function MatchesPage() {
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-600 mt-1">•</span>
-              <span>서로의 사진 스타일과 원하는 피사체를 미리 이야기 나누세요</span>
+              <span>
+                서로의 사진 스타일과 원하는 피사체를 미리 이야기 나누세요
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-600 mt-1">•</span>

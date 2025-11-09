@@ -1,5 +1,6 @@
 import type { Route } from "./+types/profile";
 import { useState } from "react";
+import { useLoaderData } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -16,13 +17,48 @@ import AnimatedNumber from "../components/ui/AnimatedNumber";
 import { NumberTicker } from "../components/ui/MagicNumberTicker";
 import GlowCard from "../components/ui/GlowCard";
 import ShimmerButton from "../components/ui/ShimmerButton";
-import { Camera, MapPin, Star, Settings, Users, TrendingUp, Calendar, Award, Smartphone } from "lucide-react";
+import {
+  Camera,
+  MapPin,
+  Star,
+  Settings,
+  Users,
+  TrendingUp,
+  Calendar,
+  Award,
+  Smartphone,
+} from "lucide-react";
+import { getProfileByUserId, getStatsForProfile } from "~/lib/database";
 
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "프로필 - CoSnap" },
-    { name: "description", content: "프로필을 관리하고 Focus 점수를 확인하세요" },
+    {
+      name: "description",
+      content: "프로필을 관리하고 Focus 점수를 확인하세요",
+    },
   ];
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  // TODO: Get actual user ID from session
+  // For now, we'll simulate a user ID
+  const userId = "mock-user-id"; // This should come from authentication
+
+  try {
+    const [userProfile, userStats] = await Promise.all([
+      getProfileByUserId(userId),
+      getStatsForProfile(userId),
+    ]);
+
+    return {
+      profile: userProfile,
+      stats: userStats,
+    };
+  } catch (error) {
+    console.error("Error loading profile:", error);
+    return { profile: null, stats: null };
+  }
 }
 
 interface UserProfile {
@@ -36,31 +72,42 @@ interface UserProfile {
   focusScore: number;
 }
 
+// Adapter function to convert database profile to UI format
+const adaptUserProfile = (dbProfile: any, stats: any): UserProfile => {
+  return {
+    username: dbProfile?.username || "User",
+    bio: dbProfile?.bio || "",
+    cameraGear: dbProfile?.cameraGear || "",
+    photoStyles: dbProfile?.styles || [],
+    languages: dbProfile?.languages || [],
+    location: "위치 정보", // TODO: Add location field to profile or get from flags
+    isPremium: dbProfile?.role === "premium",
+    focusScore: stats?.focusScore || dbProfile?.focusScore || 0,
+  };
+};
+
 export default function ProfilePage() {
+  const loaderData = useLoaderData<typeof loader>();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
-  // 사용자 프로필 데이터 (시뮬레이션)
-  const [profile, setProfile] = useState<UserProfile>({
-    username: 'hongtravel',
-    bio: '여행을 사랑하는 사진 작가입니다. 새로운 사람들을 만나고 멋진 순간들을 함께 담는 것을 좋아해요. 주로 풍경과 스냅 사진을 찍습니다!',
-    cameraGear: 'Canon EOS R6, iPhone 15 Pro',
-    photoStyles: ['풍경 사진', '인물 사진', '도시 탐험'],
-    languages: ['ko', 'en'],
-    location: '서울, 한국',
-    isPremium: true,
-    focusScore: 65,
-  });
+  // Initialize profile from loader data with adapter
+  const [profile, setProfile] = useState<UserProfile>(() =>
+    adaptUserProfile(loaderData.profile, loaderData.stats)
+  );
 
   const handleUpdateProfile = async (formData: any) => {
     setIsLoading(true);
 
     try {
       // API 호출 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      setProfile(prev => ({
+      setProfile((prev) => ({
         ...prev,
         username: formData.username,
         bio: formData.bio,
@@ -69,9 +116,8 @@ export default function ProfilePage() {
         languages: formData.languages,
         location: formData.location,
       }));
-
     } catch (error) {
-      throw new Error('프로필 업데이트에 실패했습니다. 다시 시도해주세요.');
+      throw new Error("프로필 업데이트에 실패했습니다. 다시 시도해주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -79,58 +125,83 @@ export default function ProfilePage() {
 
   // Focus score history for chart
   const focusHistory = [
-    { date: '2024-10-15', score: 45, event: '첫 CoSnap 완료' },
-    { date: '2024-10-20', score: 50, event: '긍정 리뷰 받음' },
-    { date: '2024-10-25', score: 55, event: '도쿄 여행 CoSnap' },
-    { date: '2024-11-01', score: 60, event: '프리미엄 보너스' },
-    { date: '2024-11-05', score: 65, event: '박철민 님과 CoSnap' },
+    { date: "2024-10-15", score: 45, event: "첫 CoSnap 완료" },
+    { date: "2024-10-20", score: 50, event: "긍정 리뷰 받음" },
+    { date: "2024-10-25", score: 55, event: "도쿄 여행 CoSnap" },
+    { date: "2024-11-01", score: 60, event: "프리미엄 보너스" },
+    { date: "2024-11-05", score: 65, event: "박철민 님과 CoSnap" },
   ];
 
   // Statistics
   const stats = [
     {
-      title: '완료된 CoSnap',
+      title: "완료된 CoSnap",
       value: 12,
       icon: <Users className="w-5 h-5" />,
-      color: 'blue' as const,
-      trend: { value: 20, isPositive: true }
+      color: "blue" as const,
+      trend: { value: 20, isPositive: true },
     },
     {
-      title: '평균 리뷰 점수',
+      title: "평균 리뷰 점수",
       value: 4.8,
       icon: <Star className="w-5 h-5" />,
-      color: 'green' as const,
-      suffix: '/5.0',
-      trend: { value: 5, isPositive: true }
+      color: "green" as const,
+      suffix: "/5.0",
+      trend: { value: 5, isPositive: true },
     },
     {
-      title: '방문한 도시',
+      title: "방문한 도시",
       value: 8,
       icon: <MapPin className="w-5 h-5" />,
-      color: 'purple' as const,
-      trend: { value: 15, isPositive: true }
-    }
+      color: "purple" as const,
+      trend: { value: 15, isPositive: true },
+    },
   ];
 
   // Focus 히스토리
   const focusActivities = [
-    { score: '+5', description: '박철민 님과 CoSnap 완료', time: '2일 전', type: 'positive' },
-    { score: '+5', description: '이서아 님으로부터 긍정 리뷰', time: '5일 전', type: 'positive' },
-    { score: '+10', description: '프리미엄 보너스 (월간)', time: '1주 전', type: 'bonus' },
-    { score: '-10', description: '노쇼 페널티 (취소됨)', time: '2주 전', type: 'negative' },
-    { score: '+5', description: '김민준 님과 CoSnap 완료', time: '3주 전', type: 'positive' },
+    {
+      score: "+5",
+      description: "박철민 님과 CoSnap 완료",
+      time: "2일 전",
+      type: "positive",
+    },
+    {
+      score: "+5",
+      description: "이서아 님으로부터 긍정 리뷰",
+      time: "5일 전",
+      type: "positive",
+    },
+    {
+      score: "+10",
+      description: "프리미엄 보너스 (월간)",
+      time: "1주 전",
+      type: "bonus",
+    },
+    {
+      score: "-10",
+      description: "노쇼 페널티 (취소됨)",
+      time: "2주 전",
+      type: "negative",
+    },
+    {
+      score: "+5",
+      description: "김민준 님과 CoSnap 완료",
+      time: "3주 전",
+      type: "positive",
+    },
   ];
 
   const getLanguageNames = (languages: string[]): string => {
     const languageMap: { [key: string]: string } = {
-      'ko': '한국어',
-      'en': 'English',
-      'ja': '日本語',
-      'zh': '中文',
-      'fr': 'Français',
-      'es': 'Español',
+      ko: "한국어",
+      en: "English",
+      ja: "日本語",
+      zh: "中文",
+      fr: "Français",
+      es: "Español",
     };
-    return languages.map(lang => languageMap[lang] || lang).join(', ');
+    return languages.map((lang) => languageMap[lang] || lang).join(", ");
   };
 
   return (
@@ -138,8 +209,12 @@ export default function ProfilePage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">프로필</h1>
-          <p className="text-sm sm:text-base text-gray-600">프로필 정보를 관리하고 CoSnap 활동을 확인하세요</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            프로필
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            프로필 정보를 관리하고 CoSnap 활동을 확인하세요
+          </p>
         </div>
 
         {/* 알림 */}
@@ -181,20 +256,30 @@ export default function ProfilePage() {
               </div>
               <div className="flex-1 w-full">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">@{profile.username}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                    @{profile.username}
+                  </h2>
                   <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
                     프리미엄
                   </Badge>
                 </div>
                 <div className="flex items-center gap-2 mb-3 sm:mb-4">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <p className="text-sm sm:text-base text-gray-600">{profile.location}</p>
+                  <p className="text-sm sm:text-base text-gray-600">
+                    {profile.location}
+                  </p>
                 </div>
-                <p className="text-sm sm:text-base text-gray-700 mb-4">{profile.bio}</p>
+                <p className="text-sm sm:text-base text-gray-700 mb-4">
+                  {profile.bio}
+                </p>
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {profile.photoStyles.map((style, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs sm:text-sm">
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="text-xs sm:text-sm"
+                    >
                       {style}
                     </Badge>
                   ))}
@@ -214,7 +299,7 @@ export default function ProfilePage() {
                       로딩 중...
                     </>
                   ) : (
-                    '프로필 편집'
+                    "프로필 편집"
                   )}
                 </Button>
               </div>
@@ -229,8 +314,14 @@ export default function ProfilePage() {
             <Card className="h-full">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Focus 점수</h3>
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Focus 점수
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
                     Focus 시스템 알아보기
                   </Button>
                 </div>
@@ -246,21 +337,34 @@ export default function ProfilePage() {
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <h4 className="font-medium text-gray-900 text-sm">최근 활동</h4>
+                  <h4 className="font-medium text-gray-900 text-sm">
+                    최근 활동
+                  </h4>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {focusActivities.slice(0, 3).map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between py-1">
+                      <div
+                        key={index}
+                        className="flex items-center justify-between py-1"
+                      >
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-medium ${
-                            activity.type === 'positive' ? 'text-green-600' :
-                            activity.type === 'negative' ? 'text-red-600' :
-                            'text-blue-600'
-                          }`}>
+                          <span
+                            className={`text-sm font-medium ${
+                              activity.type === "positive"
+                                ? "text-green-600"
+                                : activity.type === "negative"
+                                  ? "text-red-600"
+                                  : "text-blue-600"
+                            }`}
+                          >
                             {activity.score}
                           </span>
-                          <span className="text-xs sm:text-sm text-gray-700">{activity.description}</span>
+                          <span className="text-xs sm:text-sm text-gray-700">
+                            {activity.description}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-500">{activity.time}</span>
+                        <span className="text-xs text-gray-500">
+                          {activity.time}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -278,7 +382,9 @@ export default function ProfilePage() {
         {/* Magic UI 통계 카드 */}
         <div className="mb-6 sm:mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Magic UI 통계</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Magic UI 통계
+            </h3>
             <Badge variant="outline" className="text-xs">
               ✨ Magic UI
             </Badge>
@@ -320,7 +426,9 @@ export default function ProfilePage() {
                 hover={true}
               >
                 <div className="text-center">
-                  <div className="text-sm text-gray-600 mb-2">완료된 CoSnap</div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    완료된 CoSnap
+                  </div>
                   <NumberTicker
                     value={12}
                     delay={0.3}
@@ -341,12 +449,16 @@ export default function ProfilePage() {
                 variant="glass"
               >
                 <div className="text-center space-y-4">
-                  <div className="text-sm text-gray-600 mb-2">프리미엄 등급</div>
-                  <div className="text-4xl font-bold text-purple-600">Crystal</div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    프리미엄 등급
+                  </div>
+                  <div className="text-4xl font-bold text-purple-600">
+                    Crystal
+                  </div>
                   <ShimmerButton
                     background="linear-gradient(135deg, rgb(168, 85, 247) 0%, rgb(59, 130, 246) 100%)"
                     className="w-full"
-                    onClick={() => console.log('프리미엄 혜택 보기')}
+                    onClick={() => console.log("프리미엄 혜택 보기")}
                   >
                     혜택 보기
                   </ShimmerButton>
@@ -393,7 +505,9 @@ export default function ProfilePage() {
                     <Camera className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">Canon EOS R6</div>
+                    <div className="font-medium text-gray-900">
+                      Canon EOS R6
+                    </div>
                     <div className="text-sm text-gray-500">메인 카메라</div>
                   </div>
                 </div>
@@ -402,7 +516,9 @@ export default function ProfilePage() {
                     <Smartphone className="w-6 h-6 text-green-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">iPhone 15 Pro</div>
+                    <div className="font-medium text-gray-900">
+                      iPhone 15 Pro
+                    </div>
                     <div className="text-sm text-gray-500">모바일 촬영</div>
                   </div>
                 </div>
@@ -431,8 +547,12 @@ export default function ProfilePage() {
                     <Settings className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900 text-sm sm:text-base">알림 설정</div>
-                    <div className="text-xs sm:text-sm text-gray-500">새 오퍼, 메시지, 매치 알림</div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">
+                      알림 설정
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500">
+                      새 오퍼, 메시지, 매치 알림
+                    </div>
                   </div>
                 </div>
                 <Settings className="w-4 h-4 text-gray-400" />
@@ -444,8 +564,12 @@ export default function ProfilePage() {
                     <Award className="w-4 h-4 text-purple-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900 text-sm sm:text-base">개인정보 보호</div>
-                    <div className="text-xs sm:text-sm text-gray-500">프로필 공개 설정, 데이터 관리</div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">
+                      개인정보 보호
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500">
+                      프로필 공개 설정, 데이터 관리
+                    </div>
                   </div>
                 </div>
                 <Settings className="w-4 h-4 text-gray-400" />
@@ -457,8 +581,12 @@ export default function ProfilePage() {
                     <TrendingUp className="w-4 h-4 text-green-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900 text-sm sm:text-base">구독 관리</div>
-                    <div className="text-xs sm:text-sm text-gray-500">프리미엄 구독, 결제 정보</div>
+                    <div className="font-medium text-gray-900 text-sm sm:text-base">
+                      구독 관리
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500">
+                      프리미엄 구독, 결제 정보
+                    </div>
                   </div>
                 </div>
                 <Settings className="w-4 h-4 text-gray-400" />
@@ -470,11 +598,19 @@ export default function ProfilePage() {
                     <Users className="w-4 h-4 text-red-600" />
                   </div>
                   <div>
-                    <div className="font-medium text-red-600 text-sm sm:text-base">로그아웃</div>
-                    <div className="text-xs sm:text-sm text-gray-500">계정에서 로그아웃</div>
+                    <div className="font-medium text-red-600 text-sm sm:text-base">
+                      로그아웃
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-500">
+                      계정에서 로그아웃
+                    </div>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                >
                   로그아웃
                 </Button>
               </div>
