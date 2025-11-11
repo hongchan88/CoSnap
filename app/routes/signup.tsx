@@ -1,36 +1,42 @@
-import type { Route } from './+types/signup';
-import { useState } from 'react';
-import { redirect } from 'react-router';
-import { useActionData, Form, useNavigation } from 'react-router';
-import { useAuth } from '../context/auth-context';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-
+import type { Route } from "./+types/signup";
+import { useState } from "react";
+import { redirect } from "react-router";
+import { useActionData, Form, useNavigation } from "react-router";
+import { signInWithGoogle } from "../context/auth-context";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { getServerSupabase } from "../lib/supabase";
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
-  const confirmPassword = formData.get('confirmPassword') as string;
-  const username = formData.get('username') as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+  const username = formData.get("username") as string;
 
   // 유효성 검사
   if (!email || !password || !confirmPassword || !username) {
-    return { error: '모든 필드를 입력해주세요.' };
+    return { error: "모든 필드를 입력해주세요." };
   }
 
   if (password !== confirmPassword) {
-    return { error: '비밀번호가 일치하지 않습니다.' };
+    return { error: "비밀번호가 일치하지 않습니다." };
   }
 
   if (password.length < 6) {
-    return { error: '비밀번호는 최소 6자 이상이어야 합니다.' };
+    return { error: "비밀번호는 최소 6자 이상이어야 합니다." };
   }
 
   try {
-    const { supabase } = await import('../context/auth-context');
+    const supabase = getServerSupabase();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -43,30 +49,32 @@ export async function action({ request }: Route.ActionArgs) {
     });
 
     if (error) {
-      return { error: error.message || '회원가입에 실패했습니다.' };
+      return { error: error.message || "회원가입에 실패했습니다." };
     }
 
     // 회원가입 성공 시 로그인 페이지로 리디렉션
-    return redirect('/login?message=signup_success');
+    return redirect("/login?message=signup_success");
   } catch (error) {
-    return { error: '회원가입 중 오류가 발생했습니다.' };
+    return { error: "회원가입 중 오류가 발생했습니다." };
   }
 }
 
 export function meta(): Route.MetaFunction {
   return [
-    { title: '회원가입 - CoSnap' },
-    { name: 'description', content: 'CoSnap에 가입하여 전 세계 여행자들과 사진을 교환하세요.' },
+    { title: "회원가입 - CoSnap" },
+    {
+      name: "description",
+      content: "CoSnap에 가입하여 전 세계 여행자들과 사진을 교환하세요.",
+    },
   ];
 }
 
 export default function SignupPage() {
   const actionData = useActionData<typeof action>();
-  const { signInWithGoogle } = useAuth();
   const navigation = useNavigation();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const isSubmitting = navigation.state === 'submitting';
+  const isSubmitting = navigation.state === "submitting";
   const controlsDisabled = isSubmitting || isGoogleLoading;
 
   const handleGoogleSignIn = async () => {
@@ -74,10 +82,10 @@ export default function SignupPage() {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        console.error('Google 가입 오류:', error);
+        console.error("Google 가입 오류:", error);
       }
     } catch (error) {
-      console.error('Google 가입 오류:', error);
+      console.error("Google 가입 오류:", error);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -155,7 +163,7 @@ export default function SignupPage() {
               className="w-full"
               disabled={controlsDisabled}
             >
-              {isSubmitting ? '가입 중...' : '회원가입'}
+              {isSubmitting ? "가입 중..." : "회원가입"}
             </Button>
           </Form>
 
@@ -194,12 +202,15 @@ export default function SignupPage() {
                 fill="#EA4335"
               />
             </svg>
-            {isGoogleLoading ? 'Google로 가입 중...' : 'Google로 가입'}
+            {isGoogleLoading ? "Google로 가입 중..." : "Google로 가입"}
           </Button>
 
           <div className="text-center text-sm text-gray-600">
-            이미 계정이 있으신가요?{' '}
-            <a href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            이미 계정이 있으신가요?{" "}
+            <a
+              href="/login"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               로그인
             </a>
           </div>

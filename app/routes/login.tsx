@@ -1,55 +1,65 @@
-import type { Route } from './+types/login';
-import { useState } from 'react';
-import { redirect } from 'react-router';
-import { useActionData, Form, useNavigation } from 'react-router';
-import { useAuth } from '../context/auth-context';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import type { Route } from "./+types/login";
+import { useState } from "react";
+import { redirect } from "react-router";
+import { useActionData, Form, useNavigation } from "react-router";
+import { signInWithGoogle } from "../context/auth-context";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Alert, AlertDescription } from "../components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { getServerSupabase } from "../lib/supabase";
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
 
   if (!email || !password) {
-    return { error: '이메일과 비밀번호를 모두 입력해주세요.' };
+    return { error: "이메일과 비밀번호를 모두 입력해주세요." };
   }
 
   try {
-    const { supabase } = await import('../context/auth-context');
+    const supabase = getServerSupabase();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
-      return { error: error.message || '로그인에 실패했습니다.' };
+      return { error: error.message || "로그인에 실패했습니다." };
     }
+    console.log(data, "data");
 
     // 로그인 성공 시 홈으로 리디렉션
-    return redirect('/');
+    return redirect("/");
   } catch (error) {
-    return { error: '로그인 중 오류가 발생했습니다.' };
+    return { error: "로그인 중 오류가 발생했습니다." };
   }
 }
 
 export function meta(): Route.MetaFunction {
   return [
-    { title: '로그인 - CoSnap' },
-    { name: 'description', content: 'CoSnap에 로그인하여 여행자들과 사진을 교환하세요.' },
+    { title: "로그인 - CoSnap" },
+    {
+      name: "description",
+      content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
+    },
   ];
 }
 
 export default function LoginPage() {
   const actionData = useActionData<typeof action>();
-  const { signInWithGoogle } = useAuth();
   const navigation = useNavigation();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const isSubmitting = navigation.state === 'submitting';
+  const isSubmitting = navigation.state === "submitting";
   const controlsDisabled = isSubmitting || isGoogleLoading;
 
   const handleGoogleSignIn = async () => {
@@ -57,10 +67,10 @@ export default function LoginPage() {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        console.error('Google 로그인 오류:', error);
+        console.error("Google 로그인 오류:", error);
       }
     } catch (error) {
-      console.error('Google 로그인 오류:', error);
+      console.error("Google 로그인 오류:", error);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -112,7 +122,7 @@ export default function LoginPage() {
               className="w-full"
               disabled={controlsDisabled}
             >
-              {isSubmitting ? '로그인 중...' : '로그인'}
+              {isSubmitting ? "로그인 중..." : "로그인"}
             </Button>
           </Form>
 
@@ -151,12 +161,15 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            {isGoogleLoading ? 'Google로 로그인 중...' : 'Google로 로그인'}
+            {isGoogleLoading ? "Google로 로그인 중..." : "Google로 로그인"}
           </Button>
 
           <div className="text-center text-sm text-gray-600">
-            계정이 없으신가요?{' '}
-            <a href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+            계정이 없으신가요?{" "}
+            <a
+              href="/signup"
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
               회원가입
             </a>
           </div>
