@@ -24,20 +24,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // TODO: Get actual user ID from session
-  // For now, we'll simulate a user ID
-  const userId = "mock-user-id"; // This should come from authentication
-
-  try {
-    const userOffers = await getOffersForUser(userId);
-    return {
-      sent: userOffers.sent || [],
-      received: userOffers.received || [],
-    };
-  } catch (error) {
-    console.error("Error loading offers:", error);
-    return { sent: [], received: [] };
-  }
+  // Return empty data for now - authentication will be handled client-side
+  return { sent: [], received: [] };
 }
 
 interface OfferData {

@@ -35,20 +35,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // TODO: Get actual user ID from session
-  // For now, we'll simulate a user ID
-  const userId = "mock-user-id"; // This should come from authentication
-
-  try {
-    const userMatches = await getMatchesForUser(userId);
-    return {
-      active: userMatches.active || [],
-      past: userMatches.past || [],
-    };
-  } catch (error) {
-    console.error("Error loading matches:", error);
-    return { active: [], past: [] };
-  }
+  // Return empty data for now - authentication will be handled client-side
+  return { active: [], past: [] };
 }
 
 interface MatchData {

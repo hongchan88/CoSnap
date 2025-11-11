@@ -41,24 +41,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // TODO: Get actual user ID from session
-  // For now, we'll simulate a user ID
-  const userId = "mock-user-id"; // This should come from authentication
-
-  try {
-    const [userProfile, userStats] = await Promise.all([
-      getProfileByUserId(userId),
-      getStatsForProfile(userId),
-    ]);
-
-    return {
-      profile: userProfile,
-      stats: userStats,
-    };
-  } catch (error) {
-    console.error("Error loading profile:", error);
-    return { profile: null, stats: null };
-  }
+  // Return empty data for now - authentication will be handled client-side
+  return { profile: null, stats: null };
 }
 
 interface UserProfile {
