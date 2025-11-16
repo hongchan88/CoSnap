@@ -9,7 +9,7 @@ export async function signUp(
   try {
     const supabase = createSupabaseClient();
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.client.auth.signUp({
       email,
       password,
       options: {
@@ -26,7 +26,7 @@ export async function signUp(
 
     // 프로필 생성
     if (data.user) {
-      await supabase.from("profiles").insert({
+      await supabase.client.from("profiles").insert({
         user_id: data.user.id,
         username,
         role: "free",
@@ -49,7 +49,7 @@ export async function signIn(email: string, password: string) {
   try {
     const supabase = createSupabaseClient();
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.client.auth.signInWithPassword({
       email,
       password,
     });
@@ -68,7 +68,7 @@ export async function signInWithGoogle() {
   try {
     const supabase = createSupabaseClient();
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.client.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/auth/callback`,
@@ -85,7 +85,7 @@ export async function signOut() {
   try {
     const supabase = createSupabaseClient();
 
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.client.auth.signOut();
     return { error };
   } catch (error) {
     return { error };
@@ -99,7 +99,7 @@ export async function getCurrentUser() {
     const {
       data: { session },
       error,
-    } = await supabase.auth.getSession();
+    } = await supabase.client.auth.getSession();
 
     if (error) {
       console.log(error, "error");
@@ -116,7 +116,7 @@ export async function getUserProfile(userId: string) {
   try {
     const supabase = createSupabaseClient();
 
-    const { data, error } = await supabase
+    const { data, error } = await supabase.client
       .from("profiles")
       .select("*")
       .eq("user_id", userId)

@@ -1,13 +1,13 @@
-import type { Route } from "./+types/home";
+import type { Route } from "./+types/_index";
 import { Link } from "react-router";
 import { useLoaderData } from "react-router";
-import { useEffect, useState } from "react";
-import {
-  getActiveFlags,
-  getAllProfiles,
-  getStatsForProfile,
-} from "~/lib/database";
-import { getCurrentUser, getUserProfile } from "~/context/auth-context";
+// Temporarily removing database imports to avoid errors
+// import {
+//   getActiveFlags,
+//   getAllProfiles,
+//   getStatsForProfile,
+// } from "~/lib/database";
+// import { getCurrentUser, getUserProfile } from "~/context/auth-context";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,78 +21,21 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({}: Route.LoaderArgs) {
-  try {
-    // Get real data from database
-    const [activeFlags, topProfiles] = await Promise.all([
-      getActiveFlags(6), // Get 6 recent active flags
-      getAllProfiles(6), // Get 6 top profiles by Focus score
-    ]);
-    console.log(activeFlags, topProfiles, "test");
-    // Calculate some stats
-    const totalActiveFlags = activeFlags.length;
-    const averageFocusScore =
-      topProfiles.length > 0
-        ? Math.round(
-            topProfiles.reduce((sum, profile) => sum + profile.focusScore, 0) /
-              topProfiles.length
-          )
-        : 0;
-
-    return {
-      activeFlags,
-      topProfiles,
-      stats: {
-        totalActiveFlags,
-        totalProfiles: topProfiles.length,
-        averageFocusScore,
-        totalCoSnaps: topProfiles.reduce(
-          (sum, profile) => sum + profile.focusScore / 5,
-          0
-        ), // Rough estimate
-      },
-    };
-  } catch (error) {
-    console.error("Error loading home page data:", error);
-    return {
-      activeFlags: [],
-      topProfiles: [],
-      stats: {
-        totalActiveFlags: 0,
-        totalProfiles: 0,
-        averageFocusScore: 0,
-        totalCoSnaps: 0,
-      },
-    };
-  }
+  // TODO: Replace with actual database calls when database is set up
+  return {
+    activeFlags: [],
+    topProfiles: [],
+    stats: {
+      totalActiveFlags: 0,
+      totalProfiles: 0,
+      averageFocusScore: 0,
+      totalCoSnaps: 0,
+    },
+  };
 }
 
 export default function Index() {
   const loaderData = useLoaderData<typeof loader>();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Check authentication status on mount
-  useEffect(() => {
-    console.log("test");
-    const checkAuth = async () => {
-      try {
-        const { user: currentUser } = await getCurrentUser();
-        setUser(currentUser);
-        console.log(currentUser, "current suser");
-        if (currentUser) {
-          const { profile: userProfile } = await getUserProfile(currentUser.id);
-          setProfile(userProfile);
-        }
-      } catch (error) {
-        console.error("Auth check failed:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
   return (
     <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Hero Section */}

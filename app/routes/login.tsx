@@ -14,45 +14,54 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { getServerSupabase } from "../lib/supabase";
+import { createSupabaseClient } from "../lib/supabase";
+import * as z from "zod";
 
+const formSchema = z.object({
+  email: z.string({}).email("유효한 이메일 주소를 입력해주세요."),
+  password: z.string({}).min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
+});
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!email || !password) {
-    return { error: "이메일과 비밀번호를 모두 입력해주세요." };
-  }
 
   try {
-    const supabase = getServerSupabase();
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      return { error: error.message || "로그인에 실패했습니다." };
+    const { success, data, error } = formSchema.safeParse(
+      Object.fromEntries(formData)
+    );
+    if (!success) {
+      return { formErrors: error.flatten().fieldErrors };
     }
-    console.log(data, "data");
 
-    // 로그인 성공 시 홈으로 리디렉션
-    return redirect("/");
+    const { email, password } = data;
+    const { client, headers } = createSupabaseClient(request);
+
+    const { data: logindata, error: loginError } =
+      await client.auth.signInWithPassword({
+        email,
+        password,
+      });
+    console.log(loginError, "loginError");
+    if (loginError) {
+      return { error: loginError.message || "로그인에 실패했습니다." };
+    }
+    console.log(logindata, "logindata");
+    console.log(headers, "headers");
+    // 로그인 성공 시 홈으로 리디렉션 with headers
+    return redirect("/", { headers });
   } catch (error) {
     return { error: "로그인 중 오류가 발생했습니다." };
   }
 }
 
-export function meta(): Route.MetaFunction {
-  return [
-    { title: "로그인 - CoSnap" },
-    {
-      name: "description",
-      content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
-    },
-  ];
-}
+// export function meta(): Route.MetaFunction {
+//   return [
+//     { title: "로그인 - CoSnap" },
+//     {
+//       name: "description",
+//       content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
+//     },
+//   ];
+// }
 
 export default function LoginPage() {
   const actionData = useActionData<typeof action>();

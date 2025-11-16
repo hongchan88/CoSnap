@@ -1,11 +1,13 @@
 import type { Route } from "./+types/flags";
-import { useState } from "react";
+import { use, useState } from "react";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
 import { getFlagsByUserId } from "~/lib/database";
 import { useLoaderData } from "react-router";
+import { createSupabaseClient } from "~/lib/supabase";
+import { getLoggedInUserId } from "~/users/queries";
 
 // Flag data interface for form handling
 interface FlagData {
@@ -29,10 +31,14 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export const loader = async ({ request }: Route.LoaderArgs) => {
+  const { client, headers } = createSupabaseClient(request);
+  console.log("userId in flags loader");
+  const userId = await getLoggedInUserId(client);
+  console.log("userId:", userId);
   // Return empty data for now - authentication will be handled client-side
   return { flags: [] };
-}
+};
 
 export default function FlagsPage() {
   const loaderData = useLoaderData<typeof loader>();
@@ -62,15 +68,15 @@ export default function FlagsPage() {
 
   // Convert database flags to FlagData format
   const [flags, setFlags] = useState<FlagData[]>(() =>
-    loaderData.flags.map((flag) => ({
+    loaderData.flags.map((flag: any) => ({
       id: flag.id,
       city: flag.city,
       country: flag.country,
       flag: getCountryFlag(flag.country),
-      startDate: flag.startDate.toISOString().split("T")[0],
-      endDate: flag.endDate.toISOString().split("T")[0],
+      startDate: flag.start_date || flag.startDate,
+      endDate: flag.end_date || flag.endDate,
       note: flag.note || undefined,
-      status: flag.visibilityStatus as "active" | "expired" | "hidden",
+      status: flag.visibility_status as "active" | "expired" | "hidden",
       offerCount: 0, // TODO: Calculate from offers
       styles: [], // TODO: Get from profile
       languages: [], // TODO: Get from profile

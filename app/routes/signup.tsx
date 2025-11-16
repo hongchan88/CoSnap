@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { getServerSupabase } from "../lib/supabase";
+import { createSupabaseClient } from "../lib/supabase";
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const email = formData.get("email") as string;
@@ -36,8 +36,8 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   try {
-    const supabase = getServerSupabase();
-    const { data, error } = await supabase.auth.signUp({
+    const supabase = createSupabaseClient(request);
+    const { data, error } = await supabase.client.auth.signUp({
       email,
       password,
       options: {
@@ -47,7 +47,7 @@ export async function action({ request }: Route.ActionArgs) {
         },
       },
     });
-
+    console.log(data, "data ");
     if (error) {
       return { error: error.message || "회원가입에 실패했습니다." };
     }
@@ -59,7 +59,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
-export function meta(): Route.MetaFunction {
+export function meta({}: Route.MetaArgs) {
   return [
     { title: "회원가입 - CoSnap" },
     {

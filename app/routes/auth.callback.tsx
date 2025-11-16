@@ -1,11 +1,12 @@
 import type { Route } from './+types/auth.callback';
 import { redirect } from 'react-router';
-import { supabase } from '../context/auth-context';
+import { createSupabaseClient } from '../lib/supabase';
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
+  const supabase = createSupabaseClient(request);
 
   // 오류가 있는 경우
   if (error) {
@@ -15,7 +16,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   // 인증 코드가 있는 경우
   if (code) {
     try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { data, error } = await supabase.client.auth.exchangeCodeForSession(code);
 
       if (error) {
         console.error('인증 코드 교환 오류:', error);
@@ -24,7 +25,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
       if (data.user) {
         // 사용자 프로필 확인 및 생성
-        const { data: existingProfile } = await supabase
+        const { data: existingProfile } = await supabase.client
           .from('profiles')
           .select('*')
           .eq('user_id', data.user.id)
@@ -32,7 +33,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
         if (!existingProfile && data.user.user_metadata) {
           // 프로필 생성
-          await supabase
+          await supabase.client
             .from('profiles')
             .insert({
               user_id: data.user.id,
