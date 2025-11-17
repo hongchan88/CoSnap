@@ -1,12 +1,11 @@
+import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
-import { use, useState } from "react";
+import { useState } from "react";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
-import { getFlagsByUserId } from "~/lib/database";
 import { useLoaderData } from "react-router";
-import { createSupabaseClient } from "~/lib/supabase";
 import { getLoggedInUserId } from "~/users/queries";
 
 // Flag data interface for form handling
@@ -104,7 +103,6 @@ export default function FlagsPage() {
 
     try {
       // API 호출 시뮬레이션
-      await new Promise((resolve) => setTimeout(resolve, 1500));
 
       const newFlag: FlagData = {
         id: Date.now().toString(),
