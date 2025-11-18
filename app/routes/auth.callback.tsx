@@ -28,7 +28,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         const { data: existingProfile } = await supabase.client
           .from('profiles')
           .select('*')
-          .eq('user_id', data.user.id)
+          .eq('profile_id', data.user.id)
           .single();
 
         if (!existingProfile && data.user.user_metadata) {
@@ -36,7 +36,7 @@ export async function loader({ request }: Route.LoaderArgs) {
           await supabase.client
             .from('profiles')
             .insert({
-              user_id: data.user.id,
+              profile_id: data.user.id,
               username: data.user.user_metadata.full_name ||
                        data.user.user_metadata.name ||
                        data.user.email?.split('@')[0] || 'User',

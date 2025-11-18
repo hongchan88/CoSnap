@@ -1,21 +1,20 @@
-import { useState } from 'react';
-import { Link } from 'react-router';
-import { AuthModal } from './auth';
-import { Button } from './ui/button';
+import { useState } from "react";
+import { Link } from "react-router";
+import { AuthModal } from "./auth";
+import { Button } from "./ui/button";
 
 export default function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const navigation = [
-    { name: '홈', href: '/' },
-    { name: '여행 계획', href: '/flags' },
-    { name: '오퍼', href: '/offers' },
-    { name: '매치', href: '/matches' },
-    { name: '프로필', href: '/profile' },
+    { name: "홈", href: "/" },
+    { name: "여행 계획", href: "/flags" },
+    { name: "오퍼", href: "/offers" },
+    { name: "매치", href: "/matches" },
+    { name: "프로필", href: "/profile" },
   ];
 
-  
   return (
     <>
       <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -48,7 +47,7 @@ export default function Navigation() {
               <div className="flex items-center gap-3">
                 <Button
                   onClick={() => {
-                    console.log('Login button clicked');
+                    console.log("Login button clicked");
                     setIsAuthModalOpen(true);
                   }}
                   variant="default"
@@ -56,9 +55,12 @@ export default function Navigation() {
                 >
                   로그인
                 </Button>
+                <Button asChild variant="secondary" size="sm">
+                  <Link to="/logout">로그아웃</Link>
+                </Button>
                 <Button
                   onClick={() => {
-                    console.log('Signup button clicked');
+                    console.log("Signup button clicked");
                     setIsAuthModalOpen(true);
                   }}
                   variant="outline"
@@ -120,6 +122,13 @@ export default function Navigation() {
                   >
                     로그인 / 회원가입
                   </button>
+                  <Link
+                    to="/logout"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
+                  >
+                    로그아웃
+                  </Link>
                 </div>
               </div>
             </div>

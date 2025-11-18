@@ -1,5 +1,5 @@
 {
-  "id": "7c64ccc2-f81c-4d76-96c4-35aa4048598a",
+  "id": "ddced6e8-db14-4f1f-873e-8b92a49b31c9",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -101,16 +101,15 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "flags_user_id_users_id_fk": {
-          "name": "flags_user_id_users_id_fk",
+        "flags_user_id_profiles_profile_id_fk": {
+          "name": "flags_user_id_profiles_profile_id_fk",
           "tableFrom": "flags",
-          "tableTo": "users",
-          "schemaTo": "auth",
+          "tableTo": "profiles",
           "columnsFrom": [
             "user_id"
           ],
           "columnsTo": [
-            "id"
+            "profile_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
@@ -127,6 +126,15 @@
             "authenticated"
           ],
           "withCheck": "(select auth.uid()) = \"flags\".\"user_id\""
+        },
+        "flags_select_policy": {
+          "name": "flags_select_policy",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "(select auth.uid()) = \"flags\".\"user_id\""
         }
       },
       "checkConstraints": {},
@@ -541,6 +549,15 @@
             "authenticated"
           ],
           "withCheck": "(select auth.uid()) = \"profiles\".\"profile_id\""
+        },
+        "profile_select_policy": {
+          "name": "profile_select_policy",
+          "as": "PERMISSIVE",
+          "for": "SELECT",
+          "to": [
+            "authenticated"
+          ],
+          "using": "(select auth.uid()) = \"profiles\".\"profile_id\""
         }
       },
       "checkConstraints": {},

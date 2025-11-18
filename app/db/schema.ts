@@ -53,6 +53,12 @@ export const profiles = pgTable(
       as: "permissive",
       withCheck: sql`${authUid} = ${table.profile_id}`,
     }),
+    pgPolicy("profile_select_policy", {
+      for: "select",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.profile_id}`,
+    }),
   ]
 );
 
@@ -61,7 +67,7 @@ export const flags = pgTable(
   "flags",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    user_id: uuid("user_id").references(() => authUsers.id, {
+    user_id: uuid("user_id").references(() => profiles.profile_id, {
       onDelete: "cascade",
     }),
     city: varchar("city", { length: 100 }).notNull(),
@@ -97,6 +103,12 @@ export const flags = pgTable(
       to: authenticatedRole,
       as: "permissive",
       withCheck: sql`${authUid} = ${table.user_id}`,
+    }),
+    pgPolicy("flags_select_policy", {
+      for: "select",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.user_id}`,
     }),
   ]
 );

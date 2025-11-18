@@ -1,12 +1,14 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
 import { useState } from "react";
+import { useActionData, useNavigation } from "react-router";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
 import { useLoaderData } from "react-router";
-import { getLoggedInUserId } from "~/users/queries";
+import { getLoggedInUserId, getUserFlags } from "~/users/queries";
+import { createFlag, updateFlag, deleteFlag } from "~/users/mutations";
 
 // Flag data interface for form handling
 interface FlagData {
@@ -30,24 +32,91 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export const loader = async ({ request }: Route.LoaderArgs) => {
+export const loader = async ({ request }: Route.ActionArgs) => {
   const { client, headers } = createSupabaseClient(request);
   console.log("userId in flags loader");
   const userId = await getLoggedInUserId(client);
   console.log("userId:", userId);
-  // Return empty data for now - authentication will be handled client-side
-  return { flags: [] };
+
+  // Fetch real user flags from database
+  const { success, flags, error } = await getUserFlags(client, userId);
+  console.log(success, "success in flags loader");
+  console.log(flags, "flags in flags loader");
+  if (!success) {
+    console.error("Failed to fetch user flags:", error);
+    return { flags: [], error: "Failed to fetch flags" };
+  }
+
+  return { flags, error: null };
+};
+
+export const action = async ({ request }: Route.ActionArgs) => {
+  const { client } = createSupabaseClient(request);
+  const formData = await request.formData();
+  const userId = await getLoggedInUserId(client);
+  const intent = formData.get("intent");
+  if (intent === "create") {
+    // Create flag
+    const { success, data, error } = await createFlag(client, {
+      city: formData.get("city") as string,
+      country: formData.get("country") as string,
+      startDate: formData.get("startDate") as string,
+      endDate: formData.get("endDate") as string,
+      note: (formData.get("note") as string) || undefined,
+      styles: JSON.parse((formData.get("photoStyles") as string) || "[]"),
+      languages: JSON.parse((formData.get("languages") as string) || "[]"),
+      user_id: userId,
+    });
+
+    if (!success) {
+      return { success: false, error: error || "Failed to create flag" };
+    }
+
+    return { success: true, data, action: "create" };
+  }
+
+  if (intent === "update") {
+    // Update flag
+    const flagId = formData.get("flagId") as string;
+    const { success, data, error } = await updateFlag(client, flagId, {
+      city: formData.get("city") as string,
+      country: formData.get("country") as string,
+      startDate: formData.get("startDate") as string,
+      endDate: formData.get("endDate") as string,
+      note: (formData.get("note") as string) || undefined,
+      styles: JSON.parse((formData.get("photoStyles") as string) || "[]"),
+      languages: JSON.parse((formData.get("languages") as string) || "[]"),
+    });
+
+    if (!success) {
+      return { success: false, error: error || "Failed to update flag" };
+    }
+
+    return { success: true, data, action: "update" };
+  }
+
+  if (intent === "delete") {
+    // Delete flag
+    const flagId = formData.get("flagId") as string;
+    const { success, error } = await deleteFlag(client, flagId, userId);
+
+    if (!success) {
+      return { success: false, error: error || "Failed to delete flag" };
+    }
+
+    return { success: true, action: "delete" };
+  }
+
+  return { success: false, error: "Invalid action" };
 };
 
 export default function FlagsPage() {
   const loaderData = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  const navigation = useNavigation();
   const [isCreatingFlag, setIsCreatingFlag] = useState(false);
   const [editingFlag, setEditingFlag] = useState<FlagData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [notification, setNotification] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const isSubmitting = navigation.state === "submitting";
 
   const getCountryFlag = (countryCode: string): string => {
     const flags: { [key: string]: string } = {
@@ -98,94 +167,22 @@ export default function FlagsPage() {
     return names[countryCode] || countryCode;
   };
 
-  const handleCreateFlag = async (formData: any) => {
-    setIsLoading(true);
-
-    try {
-      // API 호출 시뮬레이션
-
-      const newFlag: FlagData = {
-        id: Date.now().toString(),
-        city: formData.city,
-        country: formData.country,
-        flag: getCountryFlag(formData.country),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        note: formData.note,
-        status: "active",
-        offerCount: 0,
-        styles: formData.photoStyles,
-        languages: formData.languages,
-      };
-
-      setFlags((prev) => [newFlag, ...prev]);
-      setIsCreatingFlag(false);
-    } catch (error) {
-      throw new Error("Flag 생성에 실패했습니다. 다시 시도해주세요.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEditFlag = async (formData: any) => {
-    if (!editingFlag) return;
-
-    setIsLoading(true);
-
-    try {
-      // API 호출 시뮬레이션
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      const updatedFlag: FlagData = {
-        ...editingFlag,
-        city: formData.city,
-        country: formData.country,
-        flag: getCountryFlag(formData.country),
-        startDate: formData.startDate,
-        endDate: formData.endDate,
-        note: formData.note,
-        styles: formData.photoStyles,
-        languages: formData.languages,
-      };
-
-      setFlags((prev) =>
-        prev.map((flag) => (flag.id === editingFlag.id ? updatedFlag : flag))
-      );
-
-      setEditingFlag(null);
-    } catch (error) {
-      throw new Error("Flag 수정에 실패했습니다. 다시 시도해주세요.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteFlag = async (flagId: string) => {
-    if (!confirm("정말로 이 Flag를 삭제하시겠습니까?")) {
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // API 호출 시뮬레이션
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      setFlags((prev) => prev.filter((flag) => flag.id !== flagId));
-      setNotification({ type: "success", message: "Flag가 삭제되었습니다." });
-    } catch (error) {
-      setNotification({
-        type: "error",
-        message: "Flag 삭제에 실패했습니다. 다시 시도해주세요.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleEditFlagClick = (flag: FlagData) => {
     setEditingFlag(flag);
     setIsCreatingFlag(true);
+  };
+
+  const handleDeleteFlag = (flagId: string) => {
+    if (confirm("정말로 이 Flag를 삭제하시겠습니까?")) {
+      const form = document.createElement("form");
+      form.method = "post";
+      form.innerHTML = `
+        <input type="hidden" name="intent" value="delete">
+        <input type="hidden" name="flagId" value="${flagId}">
+      `;
+      document.body.appendChild(form);
+      form.submit();
+    }
   };
 
   const activeFlags = flags.filter((flag) => flag.status === "active");
@@ -207,13 +204,22 @@ export default function FlagsPage() {
         </div>
 
         {/* 알림 */}
-        {notification && (
+        {actionData && (
           <div className="mb-6">
             <Notification
-              type={notification.type}
-              message={notification.message}
-              onClose={() => setNotification(null)}
-              autoClose={true}
+              type={actionData.success ? "success" : "error"}
+              message={
+                actionData.error ||
+                (actionData.action === "create"
+                  ? "Flag가 생성되었습니다!"
+                  : actionData.action === "update"
+                    ? "Flag가 수정되었습니다!"
+                    : actionData.action === "delete"
+                      ? "Flag가 삭제되었습니다!"
+                      : "")
+              }
+              onClose={() => window.location.reload()}
+              autoClose={actionData.success}
             />
           </div>
         )}
@@ -222,7 +228,36 @@ export default function FlagsPage() {
         {isCreatingFlag && (
           <div className="mb-8">
             <FlagForm
-              onSubmit={editingFlag ? handleEditFlag : handleCreateFlag}
+              onSubmit={async (formData) => {
+                // Create a form and submit it
+                const form = document.createElement("form");
+                form.method = "post";
+                // Add hidden inputs for all form data
+                const formInputs = {
+                  intent: editingFlag ? "update" : "create",
+                  flagId: editingFlag?.id || "",
+                  city: formData.city,
+                  country: formData.country,
+                  startDate: formData.startDate,
+                  endDate: formData.endDate,
+                  note: formData.note || "",
+                  photoStyles: JSON.stringify(formData.photoStyles),
+                  languages: JSON.stringify(formData.languages),
+                };
+
+                Object.entries(formInputs).forEach(([key, value]) => {
+                  if (value) {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = key;
+                    input.value = value.toString();
+                    form.appendChild(input);
+                  }
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+              }}
               onCancel={() => {
                 setIsCreatingFlag(false);
                 setEditingFlag(null);
@@ -250,10 +285,10 @@ export default function FlagsPage() {
           <div className="mb-8">
             <button
               onClick={() => setIsCreatingFlag(true)}
-              disabled={isLoading}
+              disabled={isSubmitting}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
                   <LoadingSpinner size="sm" color="white" />
                   처리 중...

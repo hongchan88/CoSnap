@@ -18,7 +18,7 @@ function parseCookies(cookieHeader: string): Record<string, string> {
   return cookies;
 }
 
-// Supabase 클라이언트를 안전하게 생성하는 함수 (CSR용)
+// Supabase 클라이언트를 안전하게 생성하는 함수 (SSR & CSR 호환)
 export function createSupabaseClient(request?: Request) {
   const supabaseUrl = process.env.SUPABASE_URL!;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
@@ -27,6 +27,13 @@ export function createSupabaseClient(request?: Request) {
     throw new Error(
       "Missing Supabase environment variables. Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set."
     );
+  }
+
+  // 클라이언트 사이드에서는 간단한 클라이언트 생성
+  if (typeof window !== 'undefined' || !request) {
+    // Browser environment or no request provided
+    const client = createClient(supabaseUrl, supabaseAnonKey);
+    return { client };
   }
 
   // 서버 사이드에서는 쿠키 처리

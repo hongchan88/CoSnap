@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import LoadingSpinner from './ui/LoadingSpinner';
-import Notification from './ui/Notification';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { Checkbox } from './ui/checkbox';
-import { Card, CardContent, CardHeader } from './ui/card';
+import { useState, useEffect } from "react";
+import LoadingSpinner from "./ui/LoadingSpinner";
+import Notification from "./ui/Notification";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
+import { Checkbox } from "./ui/checkbox";
+import { Card, CardContent, CardHeader } from "./ui/card";
 
 interface FlagFormData {
   city: string;
@@ -26,56 +26,66 @@ interface FlagFormProps {
 }
 
 const countryOptions = [
-  { value: 'JP', label: '🇯🇵 일본' },
-  { value: 'KR', label: '🇰🇷 한국' },
-  { value: 'US', label: '🇺🇸 미국' },
-  { value: 'FR', label: '🇫🇷 프랑스' },
-  { value: 'IT', label: '🇮🇹 이탈리아' },
-  { value: 'GB', label: '🇬🇧 영국' },
-  { value: 'CN', label: '🇨🇳 중국' },
-  { value: 'TH', label: '🇹🇭 태국' },
-  { value: 'VN', label: '🇻🇳 베트남' },
-  { value: 'TW', label: '🇹🇼 대만' },
+  { value: "JP", label: "🇯🇵 일본" },
+  { value: "KR", label: "🇰🇷 한국" },
+  { value: "US", label: "🇺🇸 미국" },
+  { value: "FR", label: "🇫🇷 프랑스" },
+  { value: "IT", label: "🇮🇹 이탈리아" },
+  { value: "GB", label: "🇬🇧 영국" },
+  { value: "CN", label: "🇨🇳 중국" },
+  { value: "TH", label: "🇹🇭 태국" },
+  { value: "VN", label: "🇻🇳 베트남" },
+  { value: "TW", label: "🇹🇼 대만" },
 ];
 
 const photoStyleOptions = [
-  { value: 'portrait', label: '인물 사진', icon: '👤' },
-  { value: 'landscape', label: '풍경 사진', icon: '🏞️' },
-  { value: 'street', label: '거리 사진', icon: '🏙️' },
-  { value: 'food', label: '음식 사진', icon: '🍽️' },
-  { value: 'night', label: '야경 사진', icon: '🌃' },
-  { value: 'architecture', label: '건축 사진', icon: '🏛️' },
-  { value: 'candid', label: '자연스러운 순간', icon: '📸' },
-  { value: 'cultural', label: '문화/축제', icon: '🎭' },
+  { value: "portrait", label: "인물 사진", icon: "👤" },
+  { value: "landscape", label: "풍경 사진", icon: "🏞️" },
+  { value: "street", label: "거리 사진", icon: "🏙️" },
+  { value: "food", label: "음식 사진", icon: "🍽️" },
+  { value: "night", label: "야경 사진", icon: "🌃" },
+  { value: "architecture", label: "건축 사진", icon: "🏛️" },
+  { value: "candid", label: "자연스러운 순간", icon: "📸" },
+  { value: "cultural", label: "문화/축제", icon: "🎭" },
 ];
 
 const languageOptions = [
-  { value: 'ko', label: '한국어' },
-  { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
-  { value: 'zh', label: '中文' },
-  { value: 'fr', label: 'Français' },
-  { value: 'es', label: 'Español' },
+  { value: "ko", label: "한국어" },
+  { value: "en", label: "English" },
+  { value: "ja", label: "日本語" },
+  { value: "zh", label: "中文" },
+  { value: "fr", label: "Français" },
+  { value: "es", label: "Español" },
 ];
 
-export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = false }: FlagFormProps) {
+export default function FlagForm({
+  onSubmit,
+  onCancel,
+  initialData,
+  isEditing = false,
+}: FlagFormProps) {
   const [formData, setFormData] = useState<FlagFormData>({
-    city: '',
-    country: '',
-    startDate: '',
-    endDate: '',
-    note: '',
+    city: "",
+    country: "",
+    startDate: "",
+    endDate: "",
+    note: "",
     photoStyles: [],
-    languages: ['ko'], // 기본 언어는 한국어
+    languages: ["ko"], // 기본 언어는 한국어
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof FlagFormData, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof FlagFormData, string>>
+  >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+      setFormData((prev) => ({ ...prev, ...initialData }));
     }
   }, [initialData]);
 
@@ -83,19 +93,19 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
     const newErrors: Partial<Record<keyof FlagFormData, string>> = {};
 
     if (!formData.city.trim()) {
-      newErrors.city = '도시를 입력해주세요';
+      newErrors.city = "도시를 입력해주세요";
     }
 
     if (!formData.country) {
-      newErrors.country = '국가를 선택해주세요';
+      newErrors.country = "국가를 선택해주세요";
     }
 
     if (!formData.startDate) {
-      newErrors.startDate = '시작일을 선택해주세요';
+      newErrors.startDate = "시작일을 선택해주세요";
     }
 
     if (!formData.endDate) {
-      newErrors.endDate = '종료일을 선택해주세요';
+      newErrors.endDate = "종료일을 선택해주세요";
     }
 
     if (formData.startDate && formData.endDate) {
@@ -105,29 +115,31 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
       today.setHours(0, 0, 0, 0);
 
       if (start < today) {
-        newErrors.startDate = '시작일은 오늘 이후여야 합니다';
+        newErrors.startDate = "시작일은 오늘 이후여야 합니다";
       }
 
       if (end < start) {
-        newErrors.endDate = '종료일은 시작일 이후여야 합니다';
+        newErrors.endDate = "종료일은 시작일 이후여야 합니다";
       }
 
-      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+      const daysDiff = Math.ceil(
+        (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+      );
       if (daysDiff > 365) {
-        newErrors.endDate = '여행 기간은 1년을 초과할 수 없습니다';
+        newErrors.endDate = "여행 기간은 1년을 초과할 수 없습니다";
       }
     }
 
     if (formData.photoStyles.length === 0) {
-      newErrors.photoStyles = '선호 사진 스타일을 최소 1개 이상 선택해주세요';
+      newErrors.photoStyles = "선호 사진 스타일을 최소 1개 이상 선택해주세요";
     }
 
     if (formData.languages.length === 0) {
-      newErrors.languages = '사용 가능 언어를 최소 1개 이상 선택해주세요';
+      newErrors.languages = "사용 가능 언어를 최소 1개 이상 선택해주세요";
     }
 
     if (formData.note && formData.note.length > 500) {
-      newErrors.note = '메모는 500자를 초과할 수 없습니다';
+      newErrors.note = "메모는 500자를 초과할 수 없습니다";
     }
 
     setErrors(newErrors);
@@ -145,17 +157,24 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
 
     try {
       await onSubmit(formData);
-      setNotification({ type: 'success', message: isEditing ? 'Flag가 수정되었습니다!' : 'Flag가 생성되었습니다!' });
+      setNotification({
+        type: "success",
+        message: isEditing
+          ? "Flag가 수정되었습니다!"
+          : "Flag가 생성되었습니다!",
+      });
 
       setTimeout(() => {
         onCancel();
         setNotification(null);
       }, 1500);
-
     } catch (error) {
       setNotification({
-        type: 'error',
-        message: error instanceof Error ? error.message : `${isEditing ? '수정' : '생성'}에 실패했습니다. 다시 시도해주세요.`
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : `${isEditing ? "수정" : "생성"}에 실패했습니다. 다시 시도해주세요.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -163,39 +182,51 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
   };
 
   const handleInputChange = (field: keyof FlagFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
-  const handlePhotoStyleToggle = (style: string) => {
-    setFormData(prev => ({
+  const handlePhotoStyleToggle = (style: string, event?: React.MouseEvent) => {
+    // Prevent event bubbling when called from checkbox click
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    setFormData((prev) => ({
       ...prev,
       photoStyles: prev.photoStyles.includes(style)
-        ? prev.photoStyles.filter(s => s !== style)
-        : [...prev.photoStyles, style]
+        ? prev.photoStyles.filter((s) => s !== style)
+        : [...prev.photoStyles, style],
     }));
     if (errors.photoStyles) {
-      setErrors(prev => ({ ...prev, photoStyles: undefined }));
+      setErrors((prev) => ({ ...prev, photoStyles: undefined }));
     }
   };
 
-  const handleLanguageToggle = (lang: string) => {
-    setFormData(prev => ({
+  const handleLanguageToggle = (lang: string, event?: React.MouseEvent) => {
+    // Prevent event bubbling when called from checkbox click
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    setFormData((prev) => ({
       ...prev,
       languages: prev.languages.includes(lang)
-        ? prev.languages.filter(l => l !== lang)
-        : [...prev.languages, lang]
+        ? prev.languages.filter((l) => l !== lang)
+        : [...prev.languages, lang],
     }));
     if (errors.languages) {
-      setErrors(prev => ({ ...prev, languages: undefined }));
+      setErrors((prev) => ({ ...prev, languages: undefined }));
     }
   };
 
   const getMinStartDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    return today.toISOString().split("T")[0];
   };
 
   const getMinEndDate = () => {
@@ -206,7 +237,7 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
     <Card>
       <CardHeader>
         <h2 className="text-xl font-semibold text-gray-900">
-          {isEditing ? 'Flag 수정' : '새 Flag 만들기'}
+          {isEditing ? "Flag 수정" : "새 Flag 만들기"}
         </h2>
       </CardHeader>
       <CardContent>
@@ -233,9 +264,9 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
                 id="city"
                 type="text"
                 value={formData.city}
-                onChange={(e) => handleInputChange('city', e.target.value)}
+                onChange={(e) => handleInputChange("city", e.target.value)}
                 placeholder="예: 도쿄, 파리, 뉴욕"
-                className={errors.city ? 'border-red-500' : ''}
+                className={errors.city ? "border-red-500" : ""}
                 disabled={isSubmitting}
               />
               {errors.city && (
@@ -250,14 +281,14 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
               <select
                 id="country"
                 value={formData.country}
-                onChange={(e) => handleInputChange('country', e.target.value)}
+                onChange={(e) => handleInputChange("country", e.target.value)}
                 className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
-                  errors.country ? 'border-red-500' : ''
+                  errors.country ? "border-red-500" : ""
                 }`}
                 disabled={isSubmitting}
               >
                 <option value="">국가 선택</option>
-                {countryOptions.map(option => (
+                {countryOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -280,14 +311,14 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
                 type="date"
                 value={formData.startDate}
                 onChange={(e) => {
-                  handleInputChange('startDate', e.target.value);
+                  handleInputChange("startDate", e.target.value);
                   // 시작일이 종료일보다 늦으면 종료일도 조정
                   if (formData.endDate && e.target.value > formData.endDate) {
-                    handleInputChange('endDate', e.target.value);
+                    handleInputChange("endDate", e.target.value);
                   }
                 }}
                 min={getMinStartDate()}
-                className={errors.startDate ? 'border-red-500' : ''}
+                className={errors.startDate ? "border-red-500" : ""}
                 disabled={isSubmitting}
               />
               {errors.startDate && (
@@ -303,9 +334,9 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
                 id="endDate"
                 type="date"
                 value={formData.endDate}
-                onChange={(e) => handleInputChange('endDate', e.target.value)}
+                onChange={(e) => handleInputChange("endDate", e.target.value)}
                 min={getMinEndDate()}
-                className={errors.endDate ? 'border-red-500' : ''}
+                className={errors.endDate ? "border-red-500" : ""}
                 disabled={isSubmitting}
               />
               {errors.endDate && (
@@ -320,14 +351,15 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
               선호 사진 스타일 <span className="text-red-500">*</span>
             </Label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {photoStyleOptions.map(option => (
+              {photoStyleOptions.map((option) => (
                 <div
                   key={option.value}
                   className={`
                     flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors
-                    ${formData.photoStyles.includes(option.value)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 hover:border-gray-400'
+                    ${
+                      formData.photoStyles.includes(option.value)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:border-gray-400"
                     }
                   `}
                   onClick={() => handlePhotoStyleToggle(option.value)}
@@ -335,8 +367,13 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
                   <Checkbox
                     id={`photo-${option.value}`}
                     checked={formData.photoStyles.includes(option.value)}
-                    onChange={() => handlePhotoStyleToggle(option.value)}
                     disabled={isSubmitting}
+                    onCheckedChange={(checked) => {
+                      if (checked !== undefined) {
+                        handlePhotoStyleToggle(option.value);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <span className="text-lg">{option.icon}</span>
                   <span className="text-sm font-medium">{option.label}</span>
@@ -354,14 +391,15 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
               사용 가능 언어 <span className="text-red-500">*</span>
             </Label>
             <div className="flex flex-wrap gap-3">
-              {languageOptions.map(option => (
+              {languageOptions.map((option) => (
                 <div
                   key={option.value}
                   className={`
                     flex items-center space-x-2 px-4 py-2 border rounded-full cursor-pointer transition-colors
-                    ${formData.languages.includes(option.value)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-300 hover:border-gray-400'
+                    ${
+                      formData.languages.includes(option.value)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:border-gray-400"
                     }
                   `}
                   onClick={() => handleLanguageToggle(option.value)}
@@ -369,8 +407,13 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
                   <Checkbox
                     id={`lang-${option.value}`}
                     checked={formData.languages.includes(option.value)}
-                    onChange={() => handleLanguageToggle(option.value)}
                     disabled={isSubmitting}
+                    onCheckedChange={(checked) => {
+                      if (checked !== undefined) {
+                        handleLanguageToggle(option.value);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <span className="text-sm font-medium">{option.label}</span>
                 </div>
@@ -383,15 +426,13 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
 
           {/* 메모 */}
           <div className="space-y-2">
-            <Label htmlFor="note">
-              메모 (선택사항)
-            </Label>
+            <Label htmlFor="note">메모 (선택사항)</Label>
             <Textarea
               id="note"
               value={formData.note}
-              onChange={(e) => handleInputChange('note', e.target.value)}
+              onChange={(e) => handleInputChange("note", e.target.value)}
               placeholder="특별한 요청사항이나 희망사항을 자유롭게 작성해주세요..."
-              className={errors.note ? 'border-red-500' : ''}
+              className={errors.note ? "border-red-500" : ""}
               rows={3}
               disabled={isSubmitting}
             />
@@ -399,7 +440,9 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
               {errors.note && (
                 <p className="text-sm text-red-600">{errors.note}</p>
               )}
-              <p className="text-sm text-gray-500">{formData.note.length}/500자</p>
+              <p className="text-sm text-gray-500">
+                {formData.note.length}/500자
+              </p>
             </div>
           </div>
 
@@ -414,18 +457,16 @@ export default function FlagForm({ onSubmit, onCancel, initialData, isEditing = 
             >
               취소
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1"
-            >
+            <Button type="submit" disabled={isSubmitting} className="flex-1">
               {isSubmitting ? (
                 <>
                   <LoadingSpinner size="sm" color="white" />
-                  {isEditing ? '수정 중...' : '생성 중...'}
+                  {isEditing ? "수정 중..." : "생성 중..."}
                 </>
+              ) : isEditing ? (
+                "수정하기"
               ) : (
-                isEditing ? '수정하기' : 'Flag 만들기'
+                "Flag 만들기"
               )}
             </Button>
           </div>

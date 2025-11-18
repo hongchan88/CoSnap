@@ -27,7 +27,7 @@ export async function signUp(
     // 프로필 생성
     if (data.user) {
       await supabase.client.from("profiles").insert({
-        user_id: data.user.id,
+        profile_id: data.user.id,
         username,
         role: "free",
         focus_score: 0,
@@ -119,7 +119,7 @@ export async function getUserProfile(userId: string) {
     const { data, error } = await supabase.client
       .from("profiles")
       .select("*")
-      .eq("user_id", userId)
+      .eq("profile_id", userId)
       .single();
 
     if (error && error.code !== "PGRST116") {

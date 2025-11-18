@@ -16,7 +16,7 @@ export async function getProfileByUserId(
   const result = await db
     .select()
     .from(profiles)
-    .where(eq(profiles.userId, userId))
+    .where(eq(profiles.profile_id, userId))
     .limit(1);
   return result[0] || null;
 }
@@ -63,13 +63,10 @@ export async function getActiveFlags(
 export async function getFlagsByUserId(
   userId: string
 ): Promise<(typeof flags.$inferSelect)[]> {
-  const profile = await getProfileByUserId(userId);
-  if (!profile) return [];
-
   return await db
     .select()
     .from(flags)
-    .where(eq(flags.profileId, profile.id))
+    .where(eq(flags.user_id, userId))
     .orderBy(desc(flags.createdAt));
 }
 
@@ -78,19 +75,16 @@ export async function getOffersForUser(userId: string): Promise<{
   sent: (typeof offers.$inferSelect)[];
   received: (typeof offers.$inferSelect)[];
 }> {
-  const profile = await getProfileByUserId(userId);
-  if (!profile) return { sent: [], received: [] };
-
   const sent = await db
     .select()
     .from(offers)
-    .where(eq(offers.senderId, profile.id))
+    .where(eq(offers.senderId, userId))
     .orderBy(desc(offers.sentAt));
 
   const received = await db
     .select()
     .from(offers)
-    .where(eq(offers.receiverId, profile.id))
+    .where(eq(offers.receiverId, userId))
     .orderBy(desc(offers.sentAt));
 
   return { sent, received };
@@ -101,13 +95,10 @@ export async function getMatchesForUser(userId: string): Promise<{
   active: (typeof matches.$inferSelect)[];
   past: (typeof matches.$inferSelect)[];
 }> {
-  const profile = await getProfileByUserId(userId);
-  if (!profile) return { active: [], past: [] };
-
   const allMatches = await db
     .select()
     .from(matches)
-    .where(or(eq(matches.userAId, profile.id), eq(matches.userBId, profile.id)))
+    .where(or(eq(matches.userAId, userId), eq(matches.userBId, userId)))
     .orderBy(desc(matches.createdAt));
 
   const active = allMatches.filter((match) => match.status === "scheduled");
@@ -126,13 +117,10 @@ export async function getMatchesForUser(userId: string): Promise<{
 export async function getReviewsForProfile(
   userId: string
 ): Promise<(typeof reviews.$inferSelect)[]> {
-  const profile = await getProfileByUserId(userId);
-  if (!profile) return [];
-
   return await db
     .select()
     .from(reviews)
-    .where(eq(reviews.targetId, profile.id))
+    .where(eq(reviews.targetId, userId))
     .orderBy(desc(reviews.createdAt));
 }
 
