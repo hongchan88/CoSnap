@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { createSupabaseClient } from "../lib/supabase";
+import { sendWelcomeEmail } from "../lib/resend";
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const email = formData.get("email") as string;
@@ -52,7 +53,9 @@ export async function action({ request }: Route.ActionArgs) {
       return { error: error.message || "회원가입에 실패했습니다." };
     }
 
-    // 회원가입 성공 시 로그인 페이지로 리디렉션
+    await sendWelcomeEmail(email, username);
+
+    // 회원가입 성공 시 로그인 페이지로 리디렉션 (환영 이메일 발송됨)
     return redirect("/login?message=signup_success");
   } catch (error) {
     return { error: "회원가입 중 오류가 발생했습니다." };
