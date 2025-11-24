@@ -21,18 +21,19 @@ const formSchema = z.object({
   email: z.string({}).email("유효한 이메일 주소를 입력해주세요."),
   password: z.string({}).min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
 });
+
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
 
   try {
-    const { success, data, error } = formSchema.safeParse(
+    const { success, data: parsedData, error } = formSchema.safeParse(
       Object.fromEntries(formData)
     );
     if (!success) {
       return { formErrors: error.flatten().fieldErrors };
     }
 
-    const { email, password } = data;
+    const { email, password } = parsedData;
     const { client, headers } = createSupabaseClient(request);
 
     const { data: logindata, error: loginError } =
@@ -40,12 +41,11 @@ export async function action({ request }: Route.ActionArgs) {
         email,
         password,
       });
-    console.log(loginError, "loginError");
+
     if (loginError) {
       return { error: loginError.message || "로그인에 실패했습니다." };
     }
-    console.log(logindata, "logindata");
-    console.log(headers, "headers");
+
     // 로그인 성공 시 홈으로 리디렉션 with headers
     return redirect("/", { headers });
   } catch (error) {
@@ -53,15 +53,15 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
-// export function meta(): Route.MetaFunction {
-//   return [
-//     { title: "로그인 - CoSnap" },
-//     {
-//       name: "description",
-//       content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
-//     },
-//   ];
-// }
+export function meta(): Route.MetaFunction {
+  return [
+    { title: "로그인 - CoSnap" },
+    {
+      name: "description",
+      content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
+    },
+  ];
+}
 
 export default function LoginPage() {
   const actionData = useActionData<typeof action>();

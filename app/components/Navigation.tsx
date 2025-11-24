@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { AuthModal } from "./auth";
 import { Button } from "./ui/button";
+import type { User } from "@supabase/supabase-js";
 
-export default function Navigation() {
+interface NavigationProps {
+  user: User | null;
+}
+
+export default function Navigation({ user }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const navigation = [
     { name: "홈", href: "/" },
@@ -45,29 +48,20 @@ export default function Navigation() {
             <div className="flex items-center gap-3">
               {/* Login/Signup buttons */}
               <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => {
-                    console.log("Login button clicked");
-                    setIsAuthModalOpen(true);
-                  }}
-                  variant="default"
-                  size="sm"
-                >
-                  로그인
-                </Button>
-                <Button asChild variant="secondary" size="sm">
-                  <Link to="/logout">로그아웃</Link>
-                </Button>
-                <Button
-                  onClick={() => {
-                    console.log("Signup button clicked");
-                    setIsAuthModalOpen(true);
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  회원가입
-                </Button>
+                {user ? (
+                  <Button asChild variant="secondary" size="sm">
+                    <Link to="/logout">로그아웃</Link>
+                  </Button>
+                ) : (
+                  <>
+                    <Button asChild variant="default" size="sm">
+                      <Link to="/login">로그인</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/signup">회원가입</Link>
+                    </Button>
+                  </>
+                )}
               </div>
 
               {/* Mobile menu button */}
@@ -113,34 +107,38 @@ export default function Navigation() {
 
                 {/* Mobile auth buttons */}
                 <div className="border-t border-gray-200 mt-2 pt-2 space-y-1">
-                  <button
-                    onClick={() => {
-                      setIsAuthModalOpen(true);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium w-full text-left"
-                  >
-                    로그인 / 회원가입
-                  </button>
-                  <Link
-                    to="/logout"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
-                  >
-                    로그아웃
-                  </Link>
+                  {user ? (
+                    <Link
+                      to="/logout"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
+                    >
+                      로그아웃
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        to="/login"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
+                      >
+                        로그인
+                      </Link>
+                      <Link
+                        to="/signup"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
+                      >
+                        회원가입
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
       </nav>
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
     </>
   );
 }

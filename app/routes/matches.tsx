@@ -1,6 +1,8 @@
+
+import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/matches";
-import { useState } from "react";
-import { useLoaderData } from "react-router";
+import { useState, Suspense } from "react";
+import { useLoaderData, Await } from "react-router";
 import {
   Tabs,
   TabsContent,
@@ -16,6 +18,7 @@ import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
 import StatsCard from "../components/ui/StatsCard";
 import GlowCard from "../components/ui/GlowCard";
 import ShimmerButton from "../components/ui/ShimmerButton";
+import { Skeleton } from "../components/ui/skeleton";
 import {
   Calendar,
   Camera,
@@ -25,7 +28,8 @@ import {
   Clock,
   CheckCircle,
 } from "lucide-react";
-import { getMatchesForUser } from "~/lib/database";
+import { getLoggedInUserId, getUserMatches } from "~/users/queries";
+import type { MatchWithDetails } from "~/users/queries";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -35,138 +39,119 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // Return empty data for now - authentication will be handled client-side
-  return { active: [], past: [] };
-}
+  const { client } = createSupabaseClient(request);
+  const userId = await getLoggedInUserId(client);
+  
+  const matchesPromise = getUserMatches(client, userId).then(({ matches }) => {
+    const active = matches.filter((m) => m.status === "scheduled");
+    const past = matches.filter((m) => m.status !== "scheduled");
+    return { active, past };
+  });
 
-interface MatchData {
-  id: string;
-  matchName: string;
-  status: "scheduled" | "pending" | "completed" | "cancelled";
-  dateTime: string;
-  location: string;
-  destination: string;
-  travelDates: {
-    start: string;
-    end: string;
-  };
-  photoStyles: string[];
-  focusReward: number;
-  estimatedTime?: string;
+  return { matchesPromise };
 }
 
 // Adapter functions to convert database matches to UI format
-const adaptActiveMatches = (dbMatches: any[]): MatchData[] => {
-  return dbMatches.map((match) => ({
+const adaptMatchToUI = (match: MatchWithDetails) => {
+  return {
     id: match.id,
-    matchName: "User와의 CoSnap", // TODO: Get from other user profile
+    matchName: match.partner?.username ? `${match.partner.username}와의 CoSnap` : "CoSnap 매치",
     status: match.status,
-    dateTime: match.scheduledAt
-      ? new Date(match.scheduledAt).toLocaleString("ko-KR")
+    dateTime: match.scheduled_at
+      ? new Date(match.scheduled_at).toLocaleString("ko-KR")
       : "시간 확정 중",
-    location: match.locationHint || "장소 확정 중",
-    destination: "📍 목적지", // TODO: Get from flag data
+    location: match.location_hint || "장소 확정 중",
+    destination: match.flag?.city || "목적지",
     travelDates: {
-      start: "2024-01-01", // TODO: Get from flag data
-      end: "2024-01-02",
+      start: match.flag?.start_date || "",
+      end: match.flag?.end_date || "",
     },
-    photoStyles: ["사진 스타일"], // TODO: Get from profiles
-    focusReward: 5, // TODO: Calculate based on user tiers
+    photoStyles: ["사진 스타일"], // TODO: Get from profiles if available
+    focusReward: 5, // TODO: Calculate based on logic
     estimatedTime: "2-3시간",
-  }));
+    partner: match.partner,
+  };
 };
 
-const adaptPastMatches = (dbMatches: any[]): MatchData[] => {
-  return dbMatches.map((match) => ({
-    id: match.id,
-    matchName: "User와의 CoSnap", // TODO: Get from other user profile
-    status: match.status,
-    dateTime: match.createdAt
-      ? new Date(match.createdAt).toLocaleDateString("ko-KR")
-      : "",
-    location: match.locationHint || "장소",
-    destination: "📍 목적지", // TODO: Get from flag data
-    travelDates: {
-      start: "2024-01-01", // TODO: Get from flag data
-      end: "2024-01-02",
-    },
-    photoStyles: ["사진 스타일"], // TODO: Get from profiles
-    focusReward: 5, // TODO: Calculate based on completion
-    estimatedTime: "2시간",
-  }));
-};
+function MatchesSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-4 mb-6">
+        <Skeleton className="h-10 w-24 rounded-md" />
+        <Skeleton className="h-10 w-24 rounded-md" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-[300px] rounded-xl border bg-card text-card-foreground shadow">
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+              <div className="pt-4 flex gap-2">
+                <Skeleton className="h-9 flex-1" />
+                <Skeleton className="h-9 flex-1" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function MatchesPage() {
-  const loaderData = useLoaderData<typeof loader>();
+  const { matchesPromise } = useLoaderData<typeof loader>();
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
-
-  // Initialize matches from loader data with adapters
-  const [activeMatches, setActiveMatches] = useState<MatchData[]>(
-    adaptActiveMatches(loaderData.active)
-  );
-  const [pastMatches, setPastMatches] = useState<MatchData[]>(
-    adaptPastMatches(loaderData.past)
-  );
 
   // Statistics
   const stats = [
     {
-      title: "전체 매치",
-      value: 15,
-      icon: <Users className="w-5 h-5" />,
+      title: "예정된 매치",
+      value: 0, // Will be updated with real data
+      icon: <Calendar className="w-5 h-5" />,
       color: "blue" as const,
-      trend: { value: 25, isPositive: true },
     },
     {
-      title: "완료율",
-      value: 87,
+      title: "완료된 매치",
+      value: 0, // Will be updated with real data
       icon: <CheckCircle className="w-5 h-5" />,
       color: "green" as const,
-      trend: { value: 12, isPositive: true },
     },
     {
-      title: "평균 만족도",
-      value: 4.8,
+      title: "매치 성사율",
+      value: 95,
       icon: <TrendingUp className="w-5 h-5" />,
       color: "purple" as const,
-      suffix: "/5.0",
-      trend: { value: 5, isPositive: true },
+      suffix: "%",
     },
   ];
 
-  const handleMessageMatch = (matchId: string) => {
-    console.log("메시지 보내기:", matchId);
-  };
-
-  const handleConfirmTime = (matchId: string) => {
-    console.log("시간 확인:", matchId);
-  };
-
-  const handleViewLocation = (matchId: string) => {
-    console.log("위치 확인:", matchId);
-  };
-
-  const handleCancelMatch = (matchId: string) => {
-    console.log("매치 취소:", matchId);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            매치
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            활성화된 매치와 과거 매치 기록을 확인하세요
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">매치</h1>
+          <p className="text-gray-600">
+            확정된 촬영 일정과 지난 활동을 확인하세요
           </p>
         </div>
 
-        {/* Statistics */}
-        <div className="mb-6 sm:mb-8">
+        {/* Statistics - Static for now, could be streamed too */}
+        <div className="mb-8">
           <ResponsiveGrid
-            cols={{ mobile: 1, tablet: 3, desktop: 3 }}
+            cols={{ mobile: 1, tablet: 2, desktop: 3 }}
             gap={{ mobile: 4, tablet: 6, desktop: 6 }}
           >
             {stats.map((stat, index) => (
@@ -175,97 +160,109 @@ export default function MatchesPage() {
                   title={stat.title}
                   value={stat.value}
                   icon={stat.icon}
-                  suffix={stat.suffix}
                   color={stat.color}
-                  trend={stat.trend}
+                  suffix={stat.suffix}
                 />
               </ResponsiveGridItem>
             ))}
           </ResponsiveGrid>
         </div>
 
-        {/* 탭 네비게이션 */}
-        <Tabs
-          value={activeTab}
-          onValueChange={(value: string) =>
-            setActiveTab(value as "active" | "past")
-          }
-          className="mb-6 sm:mb-8"
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="active" className="text-base sm:text-lg">
-              활성 매치
-              <Badge variant="secondary" className="ml-2">
-                {activeMatches.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="past" className="text-base sm:text-lg">
-              지난 매치
-              <Badge variant="secondary" className="ml-2">
-                {pastMatches.length}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
+        <Suspense fallback={<MatchesSkeleton />}>
+          <Await resolve={matchesPromise}>
+            {(data) => {
+              const activeMatches = data.active.map(adaptMatchToUI);
+              const pastMatches = data.past.map(adaptMatchToUI);
 
-          <TabsContent value="active" className="mt-6">
-            {activeMatches.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
-                  <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    활성 매치가 없습니다
-                  </h3>
-                  <p className="text-sm text-gray-500 text-center max-w-sm">
-                    새로운 오퍼를 수락하여 첫 CoSnap을 시작해보세요!
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4 sm:space-y-6">
-                {activeMatches.map((match, index) => (
-                  <ResponsiveGridItem key={match.id} delay={index * 0.1}>
-                    <MatchCard
-                      {...match}
-                      onMessage={() => handleMessageMatch(match.id)}
-                      onConfirmTime={() => handleConfirmTime(match.id)}
-                      onViewLocation={() => handleViewLocation(match.id)}
-                      onCancel={() => handleCancelMatch(match.id)}
-                      isCompact={false}
-                    />
-                  </ResponsiveGridItem>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+              return (
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value: string) =>
+                    setActiveTab(value as "active" | "past")
+                  }
+                  className="mb-6"
+                >
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="active" className="text-base sm:text-lg">
+                      예정된 매치{" "}
+                      <Badge variant="secondary" className="ml-2">
+                        {activeMatches.length}
+                      </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="past" className="text-base sm:text-lg">
+                      지난 매치{" "}
+                      <Badge variant="secondary" className="ml-2">
+                        {pastMatches.length}
+                      </Badge>
+                    </TabsTrigger>
+                  </TabsList>
 
-          <TabsContent value="past" className="mt-6">
-            {pastMatches.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
-                  <Camera className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    지난 매치 기록이 없습니다
-                  </h3>
-                  <p className="text-sm text-gray-500 text-center max-w-sm">
-                    첫 CoSnap을 완료하면 추천과 리뷰를 받을 수 있어요
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4 sm:space-y-6">
-                {pastMatches.map((match, index) => (
-                  <ResponsiveGridItem key={match.id} delay={index * 0.1}>
-                    <MatchCard
-                      {...match}
-                      onMessage={() => handleMessageMatch(match.id)}
-                      isCompact={true}
-                    />
-                  </ResponsiveGridItem>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                  <TabsContent value="active" className="mt-6">
+                    {activeMatches.length === 0 ? (
+                      <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+                          <Calendar className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            예정된 매치가 없습니다
+                          </h3>
+                          <p className="text-sm text-gray-500 text-center max-w-sm">
+                            새로운 오퍼를 수락하여 첫 CoSnap을 시작해보세요!
+                          </p>
+                          <Button className="mt-4" variant="outline">
+                            오퍼 확인하기
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4 sm:space-y-6">
+                        {activeMatches.map((match, index) => (
+                          <ResponsiveGridItem key={match.id} delay={index * 0.1}>
+                            <MatchCard
+                              {...match}
+                              onMessage={() => console.log("Message", match.id)}
+                              onConfirmTime={() => console.log("Confirm Time", match.id)}
+                              onViewLocation={() => console.log("Location", match.id)}
+                              onCancel={() => console.log("Cancel", match.id)}
+                              isCompact={false}
+                            />
+                          </ResponsiveGridItem>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="past" className="mt-6">
+                    {pastMatches.length === 0 ? (
+                      <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12 sm:py-16">
+                          <Camera className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            지난 매치 기록이 없습니다
+                          </h3>
+                          <p className="text-sm text-gray-500 text-center max-w-sm">
+                            첫 CoSnap을 완료하면 추천과 리뷰를 받을 수 있어요
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4 sm:space-y-6">
+                        {pastMatches.map((match, index) => (
+                          <ResponsiveGridItem key={match.id} delay={index * 0.1}>
+                            <MatchCard
+                              {...match}
+                              onMessage={() => console.log("Message", match.id)}
+                              isCompact={true}
+                            />
+                          </ResponsiveGridItem>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              );
+            }}
+          </Await>
+        </Suspense>
 
         {/* Magic UI 추천 매치 */}
         <div className="mt-8 mb-8">

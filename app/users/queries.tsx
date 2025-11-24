@@ -153,3 +153,219 @@ export const getExpiredFlags = async (
     return { success: false, error: "Failed to fetch expired flags", flags: [] };
   }
 };
+
+// --- Matches ---
+
+export interface MatchWithDetails {
+  id: string;
+  offer_id: string;
+  user_a_id: string;
+  user_b_id: string;
+  flag_id: string;
+  scheduled_at: string | null;
+  location_hint: string | null;
+  verify_status: "unverified" | "geo_verified" | "photo_verified" | "both";
+  status: "scheduled" | "completed" | "no_show" | "cancelled";
+  focus_reward_applied: boolean;
+  credit_reward_applied: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  flag?: {
+    city: string;
+    country: string;
+    start_date: string;
+    end_date: string;
+  };
+  partner?: {
+    username: string;
+    avatar_url: string | null;
+    focus_score: number;
+    focus_tier: string;
+  };
+}
+
+export const getUserMatches = async (client: SupabaseClient, userId: string) => {
+  try {
+    // We need to fetch matches where user is either A or B
+    // Supabase doesn't support complex OR conditions with joins easily in one go if we want to join different profiles based on who is who.
+    // However, we can fetch all matches and then process them or use a more complex query.
+    // For simplicity, let's fetch matches and then fetch related data or use Supabase's deep nesting if possible.
+    // A better approach for "partner" info is to fetch it on the client or use a view, but here we will try to fetch enough info.
+    
+    const { data, error } = await client
+      .from("matches")
+      .select(`
+        *,
+        flag:flags (
+          city,
+          country,
+          start_date,
+          end_date
+        ),
+        user_a:profiles!matches_user_a_id_fkey (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        ),
+        user_b:profiles!matches_user_b_id_fkey (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        )
+      `)
+      .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching user matches:", error);
+      return { success: false, error: error.message, matches: [] };
+    }
+
+    // Process data to unify "partner" info
+    const matches = data.map((match: any) => {
+      const isUserA = match.user_a_id === userId;
+      const partner = isUserA ? match.user_b : match.user_a;
+      return {
+        ...match,
+        partner,
+      };
+    });
+
+    return { success: true, matches: matches as MatchWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching user matches:", error);
+    return { success: false, error: "Failed to fetch matches", matches: [] };
+  }
+};
+
+// --- Offers ---
+
+export interface OfferWithDetails {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  flag_id: string;
+  message: string;
+  status: "pending" | "accepted" | "declined" | "expired" | "cancelled";
+  sent_at: string;
+  respond_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  flag?: {
+    city: string;
+    country: string;
+    start_date: string;
+    end_date: string;
+  };
+  sender?: {
+    username: string;
+    avatar_url: string | null;
+    focus_score: number;
+    focus_tier: string;
+  };
+  receiver?: {
+    username: string;
+    avatar_url: string | null;
+  };
+}
+
+export const getUserOffers = async (client: SupabaseClient, userId: string) => {
+  try {
+    // Sent offers
+    const { data: sentData, error: sentError } = await client
+      .from("offers")
+      .select(`
+        *,
+        flag:flags (
+          city,
+          country,
+          start_date,
+          end_date
+        ),
+        receiver:profiles!offers_receiver_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .eq("sender_id", userId)
+      .order("sent_at", { ascending: false });
+
+    if (sentError) throw sentError;
+
+    // Received offers
+    const { data: receivedData, error: receivedError } = await client
+      .from("offers")
+      .select(`
+        *,
+        flag:flags (
+          city,
+          country,
+          start_date,
+          end_date
+        ),
+        sender:profiles!offers_sender_id_fkey (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        )
+      `)
+      .eq("receiver_id", userId)
+      .order("sent_at", { ascending: false });
+
+    if (receivedError) throw receivedError;
+
+    return { 
+      success: true, 
+      sent: sentData as OfferWithDetails[], 
+      received: receivedData as OfferWithDetails[] 
+    };
+  } catch (error) {
+    console.error("Unexpected error fetching user offers:", error);
+    return { success: false, error: "Failed to fetch offers", sent: [], received: [] };
+  }
+};
+
+// --- Profile ---
+
+export interface ProfileWithStats {
+  profile_id: string;
+  username: string;
+  role: "free" | "premium" | "admin";
+  focus_score: number;
+  focus_tier: "Blurry" | "Focusing" | "Clear" | "Crystal";
+  cocredit_balance: number;
+  camera_gear: string | null;
+  styles: string[] | null;
+  languages: string[] | null;
+  bio: string | null;
+  avatar_url: string | null;
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const getUserProfile = async (client: SupabaseClient, userId: string) => {
+  try {
+    const { data, error } = await client
+      .from("profiles")
+      .select("*")
+      .eq("profile_id", userId)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user profile:", error);
+      return { success: false, error: error.message, profile: null };
+    }
+
+    return { success: true, profile: data as ProfileWithStats };
+  } catch (error) {
+    console.error("Unexpected error fetching user profile:", error);
+    return { success: false, error: "Failed to fetch profile", profile: null };
+  }
+};
+

@@ -1,13 +1,6 @@
 import type { Route } from "./+types/_index";
 import { Link } from "react-router";
 import { useLoaderData } from "react-router";
-// Temporarily removing database imports to avoid errors
-// import {
-//   getActiveFlags,
-//   getAllProfiles,
-//   getStatsForProfile,
-// } from "~/lib/database";
-// import { getCurrentUser, getUserProfile } from "~/context/auth-context";
 
 export function meta({}: Route.MetaArgs) {
   return [

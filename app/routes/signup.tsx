@@ -16,6 +16,7 @@ import {
 } from "../components/ui/card";
 import { createSupabaseClient } from "../lib/supabase";
 import { sendWelcomeEmail } from "../lib/resend";
+
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const email = formData.get("email") as string;
@@ -37,8 +38,8 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   try {
-    const supabase = createSupabaseClient(request);
-    const { data, error } = await supabase.client.auth.signUp({
+    const { client, headers } = createSupabaseClient(request);
+    const { data: signUpData, error } = await client.auth.signUp({
       email,
       password,
       options: {
@@ -48,7 +49,7 @@ export async function action({ request }: Route.ActionArgs) {
         },
       },
     });
-    console.log(data, "data ");
+
     if (error) {
       return { error: error.message || "회원가입에 실패했습니다." };
     }

@@ -5,11 +5,14 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
+  data,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import Navigation from "./components/Navigation";
 import "./app.css";
+import { createSupabaseClient } from "./lib/supabase";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -23,6 +26,15 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
 ];
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const { client, headers } = createSupabaseClient(request);
+  const {
+    data: { session },
+  } = await client.auth.getSession();
+
+  return data({ user: session?.user || null }, { headers });
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -43,9 +55,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { user } = useLoaderData<typeof loader>();
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
+      <Navigation user={user} />
       <Outlet />
     </div>
   );

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { signUp, signIn, signInWithGoogle } from '../context/auth-context';
+import React, { useState, useEffect } from 'react';
+import { useFetcher } from 'react-router';
+import { signInWithGoogle } from '../context/auth-context';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,10 +14,37 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-  const [loading, setLoading] = useState(false);
+  const loginFetcher = useFetcher();
+  const signupFetcher = useFetcher();
+  
   const [error, setError] = useState<string | null>(null);
 
-  console.log('AuthModal isOpen:', isOpen); // Debug
+  // Reset error when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setError(null);
+    }
+  }, [isOpen]);
+
+  // Handle Login Success/Error
+  useEffect(() => {
+    if (loginFetcher.data?.success) {
+      onClose();
+      window.location.reload(); // Reload to update UI with new session
+    } else if (loginFetcher.data?.error) {
+      setError(loginFetcher.data.error);
+    }
+  }, [loginFetcher.data, onClose]);
+
+  // Handle Signup Success/Error
+  useEffect(() => {
+    if (signupFetcher.data?.success) {
+      onClose();
+      window.location.reload(); // Reload to update UI with new session
+    } else if (signupFetcher.data?.error) {
+      setError(signupFetcher.data.error);
+    }
+  }, [signupFetcher.data, onClose]);
 
   // 회원가입 폼 상태
   const [signUpData, setSignUpData] = useState({
@@ -32,80 +60,40 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     password: '',
   });
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     // 비밀번호 확인
     if (signUpData.password !== signUpData.confirmPassword) {
       setError('비밀번호가 일치하지 않습니다.');
-      setLoading(false);
       return;
     }
 
     // 비밀번호 길이 확인
     if (signUpData.password.length < 6) {
       setError('비밀번호는 최소 6자 이상이어야 합니다.');
-      setLoading(false);
       return;
     }
 
-    const { error } = await signUp(
-      signUpData.email,
-      signUpData.password,
-      signUpData.username
-    );
-
-    if (error) {
-      setError((error as any)?.message || '회원가입에 실패했습니다.');
-    } else {
-      onClose();
-      // 폼 초기화
-      setSignUpData({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        username: '',
-      });
-    }
-
-    setLoading(false);
+    signupFetcher.submit(signUpData, { method: "post", action: "/signup" });
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
-
-    const { error } = await signIn(signInData.email, signInData.password);
-
-    if (error) {
-      setError((error as any)?.message || '로그인에 실패했습니다.');
-    } else {
-      onClose();
-      // 폼 초기화
-      setSignInData({
-        email: '',
-        password: '',
-      });
-    }
-
-    setLoading(false);
+    loginFetcher.submit(signInData, { method: "post", action: "/login" });
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
     setError(null);
-
     const { error } = await signInWithGoogle();
-
     if (error) {
       setError((error as any)?.message || 'Google 로그인에 실패했습니다.');
     }
-
-    setLoading(false);
   };
+
+  const isLoading = loginFetcher.state === "submitting" || signupFetcher.state === "submitting";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -162,9 +150,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? '로그인 중...' : '로그인'}
+                {isLoading ? '로그인 중...' : '로그인'}
               </Button>
             </form>
 
@@ -183,7 +171,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               variant="outline"
               className="w-full"
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={isLoading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
@@ -275,9 +263,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? '가입 중...' : '회원가입'}
+                {isLoading ? '가입 중...' : '회원가입'}
               </Button>
             </form>
 
@@ -296,7 +284,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               variant="outline"
               className="w-full"
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={isLoading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path

@@ -7,7 +7,7 @@ import { Calendar, MapPin, Clock, MessageCircle, User, Star, Camera } from 'luci
 interface MatchCardProps {
   id: string;
   matchName: string;
-  status: 'scheduled' | 'pending' | 'completed' | 'cancelled';
+  status: 'scheduled' | 'pending' | 'completed' | 'cancelled' | 'no_show';
   dateTime: string;
   location: string;
   destination: string;
@@ -58,6 +58,14 @@ const statusVariants = {
     textColor: 'text-red-800',
     borderColor: 'border-l-red-500',
     icon: Clock
+  },
+  no_show: {
+    color: 'gray',
+    label: '노쇼',
+    bgColor: 'bg-gray-50',
+    textColor: 'text-gray-800',
+    borderColor: 'border-l-gray-500',
+    icon: User
   }
 };
 
@@ -104,6 +112,7 @@ export default function MatchCard({
                   {status === 'pending' && '시간 확정 중'}
                   {status === 'completed' && '완료됨'}
                   {status === 'cancelled' && '취소됨'}
+                  {status === 'no_show' && '노쇼 처리됨'}
                 </p>
               </div>
             </div>
