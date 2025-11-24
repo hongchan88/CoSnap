@@ -53,7 +53,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
-export function meta(): Route.MetaFunction {
+export function meta({}: Route.MetaArgs) {
   return [
     { title: "로그인 - CoSnap" },
     {

@@ -42,7 +42,7 @@ export const getUserFlags = async (
       .from("flags")
       .select(`
         *,
-        profiles!inner (
+        profiles!flags_user_id_profiles_profile_id_fk (
           username,
           avatar_url
         )
@@ -72,7 +72,7 @@ export const getAllActiveFlags = async (
       .from("flags")
       .select(`
         *,
-        profiles!inner (
+        profiles!flags_user_id_profiles_profile_id_fk (
           username,
           avatar_url
         )
@@ -104,7 +104,7 @@ export const getFlagById = async (
       .from("flags")
       .select(`
         *,
-        profiles!inner (
+        profiles!flags_user_id_profiles_profile_id_fk (
           username,
           avatar_url,
           focus_score,
@@ -197,19 +197,19 @@ export const getUserMatches = async (client: SupabaseClient, userId: string) => 
       .from("matches")
       .select(`
         *,
-        flag:flags (
+        flag:flags!matches_flag_id_flags_id_fk (
           city,
           country,
           start_date,
           end_date
         ),
-        user_a:profiles!matches_user_a_id_fkey (
+        user_a:profiles!matches_user_a_id_profiles_profile_id_fk (
           username,
           avatar_url,
           focus_score,
           focus_tier
         ),
-        user_b:profiles!matches_user_b_id_fkey (
+        user_b:profiles!matches_user_b_id_profiles_profile_id_fk (
           username,
           avatar_url,
           focus_score,
@@ -280,13 +280,13 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
       .from("offers")
       .select(`
         *,
-        flag:flags (
+        flag:flags!offers_flag_id_flags_id_fk (
           city,
           country,
           start_date,
           end_date
         ),
-        receiver:profiles!offers_receiver_id_fkey (
+        receiver:profiles!offers_receiver_id_profiles_profile_id_fk (
           username,
           avatar_url
         )
@@ -301,13 +301,13 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
       .from("offers")
       .select(`
         *,
-        flag:flags (
+        flag:flags!offers_flag_id_flags_id_fk (
           city,
           country,
           start_date,
           end_date
         ),
-        sender:profiles!offers_sender_id_fkey (
+        sender:profiles!offers_sender_id_profiles_profile_id_fk (
           username,
           avatar_url,
           focus_score,
@@ -368,4 +368,3 @@ export const getUserProfile = async (client: SupabaseClient, userId: string) => 
     return { success: false, error: "Failed to fetch profile", profile: null };
   }
 };
-

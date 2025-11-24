@@ -17,7 +17,7 @@ interface FlagCardProps {
   canEdit?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
-  onViewOffers?: () => void;
+  offers?: any[];
 }
 
 const statusVariants = {
@@ -46,7 +46,7 @@ export default function FlagCard({
   canEdit = false,
   onEdit,
   onDelete,
-  onViewOffers,
+  offers = [],
 }: FlagCardProps) {
   return (
     <Card className="hover:shadow-md transition-all duration-200">
@@ -95,7 +95,7 @@ export default function FlagCard({
 
         {/* 오퍼 정보 */}
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-gray-400" />
               <span className="text-sm text-gray-600">받은 오퍼</span>
@@ -104,14 +104,29 @@ export default function FlagCard({
               {offerCount}개
             </Badge>
           </div>
-          {offerCount > 0 && (
-            <Button
-              variant="link"
-              onClick={onViewOffers}
-              className="p-0 h-auto text-blue-600 hover:text-blue-800 text-sm font-medium mt-2"
-            >
-              오퍼 보기 →
-            </Button>
+          
+          {/* Offers List */}
+          {offers.length > 0 && (
+            <div className="space-y-2 mt-3 bg-gray-50 p-3 rounded-lg">
+              {offers.map((offer) => (
+                <div key={offer.id} className="bg-white p-3 rounded border border-gray-100 shadow-sm">
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="font-medium text-sm">{offer.sender?.username || "Unknown User"}</span>
+                    <Badge variant={
+                      offer.status === "accepted" ? "default" :
+                      offer.status === "pending" ? "secondary" :
+                      "outline"
+                    } className="text-xs">
+                      {offer.status}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 line-clamp-2">{offer.message}</p>
+                  <div className="text-xs text-gray-400 mt-1 text-right">
+                    {new Date(offer.sent_at).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -138,15 +153,6 @@ export default function FlagCard({
                 삭제하기
               </Button>
             </>
-          )}
-          {!canEdit && status === 'active' && (
-            <Button
-              onClick={onViewOffers}
-              className="w-full"
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              오퍼 보기 ({offerCount})
-            </Button>
           )}
         </div>
       </CardContent>

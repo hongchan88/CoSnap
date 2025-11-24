@@ -7,7 +7,7 @@ import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
 import { Skeleton } from "../components/ui/skeleton";
-import { getLoggedInUserId, getUserFlags } from "~/users/queries";
+import { getLoggedInUserId, getUserFlags, getUserOffers } from "~/users/queries";
 import { createFlag, updateFlag, deleteFlag } from "~/users/mutations";
 
 // Flag data interface for form handling
@@ -23,6 +23,7 @@ interface FlagData {
   offerCount: number;
   styles: string[];
   languages: string[];
+  offers: any[];
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -36,16 +37,22 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
 
-  // Fetch real user flags from database
-  const flagsPromise = getUserFlags(client, userId).then(({ success, flags, error }) => {
-    if (!success) {
-      console.error("Failed to fetch user flags:", error);
-      return [];
+  // Fetch real user flags and offers from database
+  const dataPromise = Promise.all([
+    getUserFlags(client, userId),
+    getUserOffers(client, userId)
+  ]).then(([flagsResult, offersResult]) => {
+    if (!flagsResult.success) {
+      console.error("Failed to fetch user flags:", flagsResult.error);
+      return { flags: [], offers: [] };
     }
-    return flags;
+    return { 
+      flags: flagsResult.flags, 
+      offers: offersResult.success ? offersResult.received : [] 
+    };
   });
 
-  return { flagsPromise };
+  return { dataPromise };
 };
 
 export const action = async ({ request }: Route.ActionArgs) => {
@@ -139,7 +146,7 @@ function FlagsSkeleton() {
   );
 }
 
-function FlagsContent({ initialFlags }: { initialFlags: any[] }) {
+function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], initialOffers: any[] }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [isCreatingFlag, setIsCreatingFlag] = useState(false);
@@ -173,9 +180,10 @@ function FlagsContent({ initialFlags }: { initialFlags: any[] }) {
       endDate: flag.end_date || flag.endDate,
       note: flag.note || undefined,
       status: flag.visibility_status as "active" | "expired" | "hidden",
-      offerCount: 0, // TODO: Calculate from offers
+      offerCount: initialOffers.filter((o: any) => o.flag_id === flag.id).length,
       styles: [], // TODO: Get from profile
       languages: [], // TODO: Get from profile
+      offers: initialOffers.filter((o: any) => o.flag_id === flag.id),
     }))
   );
 
@@ -377,10 +385,7 @@ function FlagsContent({ initialFlags }: { initialFlags: any[] }) {
                   canEdit={true}
                   onEdit={() => handleEditFlagClick(flag)}
                   onDelete={() => handleDeleteFlag(flag.id)}
-                  onViewOffers={() => {
-                    // 오퍼 페이지로 이동
-                    window.location.href = "/offers";
-                  }}
+                  offers={flag.offers}
                 />
               ))}
             </div>
@@ -429,6 +434,7 @@ function FlagsContent({ initialFlags }: { initialFlags: any[] }) {
                   styles={flag.styles}
                   note={flag.note}
                   canEdit={false}
+                  offers={flag.offers}
                 />
               ))}
             </div>
@@ -457,7 +463,7 @@ function FlagsContent({ initialFlags }: { initialFlags: any[] }) {
 }
 
 export default function FlagsPage() {
-  const { flagsPromise } = useLoaderData<typeof loader>();
+  const { dataPromise } = useLoaderData<typeof loader>();
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -473,8 +479,8 @@ export default function FlagsPage() {
         </div>
 
         <Suspense fallback={<FlagsSkeleton />}>
-          <Await resolve={flagsPromise}>
-            {(flags) => <FlagsContent initialFlags={flags} />}
+          <Await resolve={dataPromise}>
+            {(data) => <FlagsContent initialFlags={data.flags} initialOffers={data.offers} />}
           </Await>
         </Suspense>
       </div>

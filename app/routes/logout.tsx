@@ -5,10 +5,10 @@ import type { Route } from "./+types/logout";
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const { client, headers } = createSupabaseClient(request);
   const {
-    data: { session },
-  } = await client.auth.getSession();
+    data: { user },
+  } = await client.auth.getUser();
 
-  if (session) {
+  if (user) {
     await client.auth.signOut();
   }
 

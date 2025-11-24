@@ -12,8 +12,8 @@ export default function Navigation({ user }: NavigationProps) {
 
   const navigation = [
     { name: "홈", href: "/" },
-    { name: "여행 계획", href: "/flags" },
-    { name: "오퍼", href: "/offers" },
+    { name: "여행자 찾기", href: "/explore" },
+    { name: "Flags 만들기", href: "/flags" },
     { name: "매치", href: "/matches" },
     { name: "프로필", href: "/profile" },
   ];
@@ -50,7 +50,9 @@ export default function Navigation({ user }: NavigationProps) {
               <div className="flex items-center gap-3">
                 {user ? (
                   <Button asChild variant="secondary" size="sm">
-                    <Link to="/logout">로그아웃</Link>
+                    <Link to="/logout" reloadDocument>
+                      로그아웃
+                    </Link>
                   </Button>
                 ) : (
                   <>

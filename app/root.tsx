@@ -30,10 +30,10 @@ export const links: Route.LinksFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   const { client, headers } = createSupabaseClient(request);
   const {
-    data: { session },
-  } = await client.auth.getSession();
+    data: { user },
+  } = await client.auth.getUser();
 
-  return data({ user: session?.user || null }, { headers });
+  return data({ user: user || null }, { headers });
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
