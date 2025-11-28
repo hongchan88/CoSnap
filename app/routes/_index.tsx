@@ -1,6 +1,7 @@
 import type { Route } from "./+types/_index";
-import { Link } from "react-router";
-import { useLoaderData } from "react-router";
+import { Link, Form, useLoaderData, useNavigate } from "react-router";
+import MapView from "~/components/MapView";
+import { POPULAR_DESTINATIONS } from "~/lib/constants";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -28,41 +29,42 @@ export async function loader({}: Route.LoaderArgs) {
 }
 
 export default function Index() {
+  const navigate = useNavigate();
   const loaderData = useLoaderData<typeof loader>();
+
+  const handleMarkerClick = (city: string) => {
+    navigate(`/explore?location=${city}`);
+  };
+
+  // Convert POPULAR_DESTINATIONS to the format MapView expects
+  const heroMarkers = POPULAR_DESTINATIONS.map(dest => ({
+    id: `popular-${dest.city}`,
+    lat: dest.lat,
+    lng: dest.lng,
+    city: dest.city,
+    country: dest.country,
+    imageUrl: dest.imageUrl,
+    count: dest.count,
+    flags: [],
+    isPopular: true
+  }));
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        <div className="text-center">
-          <div className="mb-6">
-            <span className="text-6xl">📸</span>
-          </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            여행의 순간을
-            <span className="text-blue-600 block">함께 담아요</span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            CoSnap은 여행자들이 서로의 사진을 찍어주는 커뮤니티입니다. 새로운
-            사람들을 만나고, 멋진 장소에서 함께 추억을 만들어보세요.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/flags"
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors inline-block text-center"
-            >
-              여행 계획 만들기
-            </Link>
-            <button
-              onClick={() => {
-                console.log("testing");
-              }}
-              className="border-2 cursor-pointer border-blue-600 text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-            >
-              CoSnap 알아보기
-            </button>
-          </div>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section with Globe */}
+      <div className="relative h-[600px] w-full overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <MapView 
+            flags={heroMarkers} 
+            center={{ lat: 20, lng: 150 }} 
+            zoom={1.5} 
+            interactive={true} 
+            showControls={false}
+            onMarkerClick={handleMarkerClick}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none" />
         </div>
-      </section>
+      </div>
 
       {/* How It Works */}
       <section className="py-16 bg-white">

@@ -78,7 +78,7 @@ export const getAllActiveFlags = async (
         )
       `)
       .eq("visibility_status", "active")
-      .gte("end_date", new Date().toISOString()) // Only future or current trips
+      // .gte("end_date", new Date().toISOString()) // Temporarily disable date filter for debugging
       .order("created_at", { ascending: false })
       .limit(limit);
 

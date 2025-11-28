@@ -23,8 +23,36 @@ export async function loader({ request }: Route.LoaderArgs) {
     throw new Response("Failed to load flags", { status: 500 });
   }
 
+  // Filter flags based on search params
+  const url = new URL(request.url);
+  const location = url.searchParams.get("location")?.toLowerCase();
+  const startDate = url.searchParams.get("startDate");
+  const endDate = url.searchParams.get("endDate");
+  const travelers = parseInt(url.searchParams.get("travelers") || "1");
+
+  let filteredFlags = flags;
+
+  if (location) {
+    filteredFlags = filteredFlags.filter(flag => 
+      flag.city.toLowerCase().includes(location) || 
+      flag.country.toLowerCase().includes(location)
+    );
+  }
+
+  if (startDate) {
+    filteredFlags = filteredFlags.filter(flag => 
+      new Date(flag.end_date) >= new Date(startDate)
+    );
+  }
+
+  if (endDate) {
+    filteredFlags = filteredFlags.filter(flag => 
+      new Date(flag.start_date) <= new Date(endDate)
+    );
+  }
+
   // Aggregate flags by city
-  const cityGroups = flags.reduce((acc, flag) => {
+  const cityGroups = filteredFlags.reduce((acc, flag) => {
     const key = `${flag.city}, ${flag.country}`;
     if (!acc[key]) {
       acc[key] = {
@@ -41,8 +69,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   }, {} as Record<string, { city: string; country: string; count: number; flags: any[]; imageUrl?: string }>);
 
   return { 
-    flags, 
-    cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count) 
+    flags: filteredFlags, 
+    cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
+    searchParams: { location, startDate, endDate, travelers }
   };
 }
 
@@ -85,18 +114,65 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
+import { CITY_COORDINATES, POPULAR_DESTINATIONS } from "~/lib/constants";
+
 export default function Explore() {
-  const { flags, cityGroups } = useLoaderData<typeof loader>();
+  const { flags, cityGroups, searchParams } = useLoaderData<typeof loader>();
   const [selectedCity, setSelectedCity] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams?.location || "");
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const navigation = useNavigation();
+
+  // Determine map center based on search location
+  const mapCenter = searchParams?.location 
+    ? CITY_COORDINATES[searchParams.location.trim().toLowerCase()] || { lat: 37.5665, lng: 126.978 }
+    : { lat: 37.5665, lng: 126.978 };
+  
+  const mapZoom = searchParams?.location ? 10 : 1.5;
 
   const filteredCities = cityGroups.filter(group => 
     group.city.toLowerCase().includes(searchQuery.toLowerCase()) || 
     group.country.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Prepare markers: Use filtered flags if search exists, otherwise show Popular Destinations
+  const mapMarkers = searchQuery 
+    ? filteredCities.map(group => {
+        let coords = CITY_COORDINATES[group.city.toLowerCase()] || CITY_COORDINATES[group.city];
+        if (!coords) {
+          coords = { lat: 37.5665, lng: 126.9780 }; // Fallback
+        }
+        return {
+          id: `${group.city}-${group.country}`,
+          lat: coords.lat,
+          lng: coords.lng,
+          city: group.city,
+          country: group.country,
+          imageUrl: group.imageUrl,
+          count: group.count,
+          flags: group.flags
+        };
+      }).filter(Boolean)
+    : POPULAR_DESTINATIONS.map(dest => ({
+        id: `popular-${dest.city}`,
+        lat: dest.lat,
+        lng: dest.lng,
+        city: dest.city,
+        country: dest.country,
+        imageUrl: dest.imageUrl,
+        count: dest.count, // This is a static/mock count for now as requested
+        flags: [], // No actual flags for these static markers
+        isPopular: true // Flag to indicate this is a popular destination marker
+      }));
+
+  const handleMarkerClick = (city: string) => {
+    setSearchQuery(city);
+    // Update URL without full reload
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("location", city);
+    window.history.pushState({}, "", `?${newParams.toString()}`);
+  };
 
   const handleOfferSubmit = async (offerData: any) => {
     // In a real app, we would submit via useSubmit or fetcher
@@ -109,7 +185,8 @@ export default function Explore() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col md:flex-row">
       {/* Left Panel - Search & List */}
-      <div className="w-full md:w-[400px] lg:w-[450px] flex flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden">
+      {/* Left Panel - Search & List */}
+      <div className="w-full md:w-[60%] lg:w-[65%] flex flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden">
         {/* Search Header */}
         <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Explore Flags</h1>
@@ -128,7 +205,7 @@ export default function Explore() {
         {/* City List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {filteredCities.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {filteredCities.map((group) => (
                 <CityCard
                   key={`${group.city}-${group.country}`}
@@ -140,16 +217,21 @@ export default function Explore() {
             </div>
           ) : (
             <div className="text-center py-10 text-gray-500">
-              No destinations found matching "{searchQuery}"
+              {searchQuery ? `No destinations found matching "${searchQuery}"` : "Search for a city to find travel buddies!"}
             </div>
           )}
         </div>
       </div>
 
       {/* Right Panel - Map */}
-      <div className="hidden md:block flex-1 bg-gray-100 relative">
+      <div className="hidden md:block w-[40%] lg:w-[35%] bg-gray-100 relative">
         <div className="absolute inset-0 p-4">
-          <MapView flags={flags} />
+          <MapView 
+            flags={mapMarkers} 
+            center={mapCenter} 
+            zoom={mapZoom} 
+            onMarkerClick={handleMarkerClick}
+          />
         </div>
         
         {/* Floating Action Button for Mobile (if needed) */}
