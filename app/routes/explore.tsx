@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { useLoaderData, Form, useNavigation } from "react-router";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getLoggedInUserId } from "~/users/queries";
 import type { Route } from "./+types/explore";
 import CityCard from "~/components/CityCard";
-import MapView from "~/components/MapView";
 import OfferModal from "~/components/OfferModal";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { createOffer } from "~/users/mutations";
+
+// Lazy load MapView to avoid SSR issues with Leaflet
+const MapView = lazy(() => import("~/components/MapView"));
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { client, headers } = createSupabaseClient(request);
@@ -60,13 +62,21 @@ export async function loader({ request }: Route.LoaderArgs) {
         country: flag.country,
         count: 0,
         flags: [],
-        imageUrl: flag.avatar_url // Using user avatar as placeholder if no city image
+        imageUrl: flag.avatar_url, // Using user avatar as placeholder if no city image
+        lat: flag.latitude,
+        lng: flag.longitude
       };
     }
+    // If the group doesn't have coordinates yet but this flag does, update it
+    if ((!acc[key].lat || !acc[key].lng) && flag.latitude && flag.longitude) {
+      acc[key].lat = flag.latitude;
+      acc[key].lng = flag.longitude;
+    }
+    
     acc[key].count++;
     acc[key].flags.push(flag);
     return acc;
-  }, {} as Record<string, { city: string; country: string; count: number; flags: any[]; imageUrl?: string }>);
+  }, {} as Record<string, { city: string; country: string; count: number; flags: any[]; imageUrl?: string; lat?: number; lng?: number }>);
 
   return { 
     flags: filteredFlags, 
@@ -136,35 +146,36 @@ export default function Explore() {
     group.country.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Prepare markers: Use filtered flags if search exists, otherwise show Popular Destinations
-  const mapMarkers = searchQuery 
-    ? filteredCities.map(group => {
-        let coords = CITY_COORDINATES[group.city.toLowerCase()] || CITY_COORDINATES[group.city];
-        if (!coords) {
-          coords = { lat: 37.5665, lng: 126.9780 }; // Fallback
-        }
-        return {
-          id: `${group.city}-${group.country}`,
-          lat: coords.lat,
-          lng: coords.lng,
-          city: group.city,
-          country: group.country,
-          imageUrl: group.imageUrl,
-          count: group.count,
-          flags: group.flags
-        };
-      }).filter(Boolean)
-    : POPULAR_DESTINATIONS.map(dest => ({
-        id: `popular-${dest.city}`,
-        lat: dest.lat,
-        lng: dest.lng,
-        city: dest.city,
-        country: dest.country,
-        imageUrl: dest.imageUrl,
-        count: dest.count, // This is a static/mock count for now as requested
-        flags: [], // No actual flags for these static markers
-        isPopular: true // Flag to indicate this is a popular destination marker
-      }));
+  // Prepare markers: Use filtered flags (real data)
+  const mapMarkers = filteredCities.map(group => {
+    let lat = group.lat;
+    let lng = group.lng;
+    
+    // Fallback to CITY_COORDINATES if no lat/lng in data
+    if (!lat || !lng) {
+      const coords = CITY_COORDINATES[group.city.toLowerCase()] || CITY_COORDINATES[group.city];
+      if (coords) {
+        lat = coords.lat;
+        lng = coords.lng;
+      } else {
+        // Last resort fallback (e.g. Seoul) or skip? 
+        // For now, let's use Seoul as safe fallback to avoid crash, but ideally we should skip.
+        lat = 37.5665; 
+        lng = 126.9780;
+      }
+    }
+
+    return {
+      id: `${group.city}-${group.country}`,
+      lat: lat,
+      lng: lng,
+      city: group.city,
+      country: group.country,
+      imageUrl: group.imageUrl,
+      count: group.count,
+      flags: group.flags
+    };
+  });
 
   const handleMarkerClick = (city: string) => {
     setSearchQuery(city);
@@ -226,12 +237,14 @@ export default function Explore() {
       {/* Right Panel - Map */}
       <div className="hidden md:block w-[40%] lg:w-[35%] bg-gray-100 relative">
         <div className="absolute inset-0 p-4">
-          <MapView 
-            flags={mapMarkers} 
-            center={mapCenter} 
-            zoom={mapZoom} 
-            onMarkerClick={handleMarkerClick}
-          />
+          <Suspense fallback={<div className="w-full h-full flex items-center justify-center text-gray-400">Loading Map...</div>}>
+            <MapView 
+              flags={mapMarkers} 
+              center={mapCenter} 
+              zoom={mapZoom} 
+              onMarkerClick={handleMarkerClick}
+            />
+          </Suspense>
         </div>
         
         {/* Floating Action Button for Mobile (if needed) */}

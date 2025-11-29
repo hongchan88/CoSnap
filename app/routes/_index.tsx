@@ -1,7 +1,9 @@
+import { Suspense, lazy } from "react";
 import type { Route } from "./+types/_index";
 import { Link, Form, useLoaderData, useNavigate } from "react-router";
-import MapView from "~/components/MapView";
 import { POPULAR_DESTINATIONS } from "~/lib/constants";
+
+const MapView = lazy(() => import("~/components/MapView"));
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -54,14 +56,20 @@ export default function Index() {
       {/* Hero Section with Globe */}
       <div className="relative h-[600px] w-full overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <MapView 
-            flags={heroMarkers} 
-            center={{ lat: 20, lng: 150 }} 
-            zoom={1.5} 
-            interactive={true} 
-            showControls={false}
-            onMarkerClick={handleMarkerClick}
-          />
+          <Suspense fallback={<div className="w-full h-full bg-gray-100" />}>
+            <MapView 
+              flags={heroMarkers} 
+              center={{ lat: 20, lng: 150 }} 
+              zoom={1.5} 
+              interactive={true} 
+              showControls={false}
+              onMarkerClick={handleMarkerClick}
+              maxZoom={4}
+              minZoom={1.5}
+              maxBounds={[[-90, -180], [90, 180]]}
+              noWrap={false}
+            />
+          </Suspense>
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none" />
         </div>
       </div>
