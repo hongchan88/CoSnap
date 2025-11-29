@@ -30,6 +30,8 @@ export interface FlagWithDetails {
   updated_at: string;
   username?: string;
   avatar_url?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 // Get all flags for a specific user

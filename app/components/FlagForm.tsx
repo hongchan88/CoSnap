@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense, lazy, useId } from "react";
 import LoadingSpinner from "./ui/LoadingSpinner";
 import Notification from "./ui/Notification";
 import { Button } from "./ui/button";
@@ -8,6 +8,9 @@ import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { Card, CardContent, CardHeader } from "./ui/card";
 
+// Lazy load LocationPickerMap to avoid SSR issues with Leaflet
+const LocationPickerMap = lazy(() => import("./LocationPickerMap"));
+
 interface FlagFormData {
   city: string;
   country: string;
@@ -16,6 +19,8 @@ interface FlagFormData {
   note: string;
   photoStyles: string[];
   languages: string[];
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface FlagFormProps {
@@ -72,8 +77,9 @@ export default function FlagForm({
     note: "",
     photoStyles: [],
     languages: ["ko"], // 기본 언어는 한국어
+    latitude: null,
+    longitude: null,
   });
-
   const [errors, setErrors] = useState<
     Partial<Record<keyof FlagFormData, string>>
   >({});
@@ -82,6 +88,12 @@ export default function FlagForm({
     type: "success" | "error";
     message: string;
   } | null>(null);
+  const [flyToRequest, setFlyToRequest] = useState<{
+    city: string;
+    country: string;
+    requestId: number;
+  } | null>(null);
+  const requestPrefix = useId();
 
   useEffect(() => {
     if (initialData) {
@@ -232,7 +244,7 @@ export default function FlagForm({
   const getMinEndDate = () => {
     return formData.startDate || getMinStartDate();
   };
-
+  console.log(formData, "formdata");
   return (
     <Card>
       <CardHeader>
@@ -255,31 +267,13 @@ export default function FlagForm({
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 여행지 정보 */}
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
             <div className="space-y-2">
-              <Label htmlFor="city">
-                도시 <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="city"
-                type="text"
-                value={formData.city}
-                onChange={(e) => handleInputChange("city", e.target.value)}
-                placeholder="예: 도쿄, 파리, 뉴욕"
-                className={errors.city ? "border-red-500" : ""}
-                disabled={isSubmitting}
-              />
-              {errors.city && (
-                <p className="text-sm text-red-600 mt-1">{errors.city}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="country">
+              <Label htmlFor={`${requestPrefix}-country`}>
                 국가 <span className="text-red-500">*</span>
               </Label>
               <select
-                id="country"
+                id={`${requestPrefix}-country`}
                 value={formData.country}
                 onChange={(e) => handleInputChange("country", e.target.value)}
                 className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
@@ -298,6 +292,88 @@ export default function FlagForm({
                 <p className="text-sm text-red-600 mt-1">{errors.country}</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={`${requestPrefix}-city`}>
+                도시 <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id={`${requestPrefix}-city`}
+                type="text"
+                value={formData.city}
+                onChange={(e) => handleInputChange("city", e.target.value)}
+                placeholder="예: 도쿄, 파리, 뉴욕"
+                className={errors.city ? "border-red-500" : ""}
+                disabled={isSubmitting}
+              />
+              {errors.city && (
+                <p className="text-sm text-red-600 mt-1">{errors.city}</p>
+              )}
+            </div>
+
+            <div className="pb-0 md:pb-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isSubmitting || !formData.country}
+                onClick={() => {
+                  if (!formData.country) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      country: "국가를 먼저 선택해주세요",
+                    }));
+                    return;
+                  }
+                  // Clear existing coordinates so user picks a fresh point after fly-to
+                  setFormData((prev) => ({
+                    ...prev,
+                    latitude: null,
+                    longitude: null,
+                  }));
+                  setFlyToRequest({
+                    city: formData.city,
+                    country: formData.country,
+                    requestId: Date.now(),
+                  });
+                }}
+              >
+                이 지역으로 이동
+              </Button>
+            </div>
+          </div>
+
+          {/* 지도 위치 선택 */}
+          <div className="space-y-2">
+            <Label>위치 상세 설정</Label>
+            <Suspense
+              fallback={
+                <div className="w-full h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center text-gray-400">
+                  지도 로딩 중...
+                </div>
+              }
+            >
+              <LocationPickerMap
+                city={formData.city}
+                country={formData.country}
+                initialLat={formData.latitude}
+                initialLng={formData.longitude}
+                flyToRequest={flyToRequest}
+                onLocationSelect={(lat, lng) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    latitude: lat,
+                    longitude: lng,
+                  }));
+                }}
+                onAddressSelect={(city, country) => {
+                  setFormData((prev) => ({ ...prev, city, country }));
+                }}
+              />
+            </Suspense>
+            <p className="text-xs text-gray-500">
+              지도에서 정확한 위치를 클릭하거나 드래그하여 설정하세요.
+            </p>
           </div>
 
           {/* 여행 날짜 */}

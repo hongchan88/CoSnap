@@ -1,0 +1,1 @@
+ALTER TABLE "flags" ALTER COLUMN "latitude" SET DATA TYPE real;

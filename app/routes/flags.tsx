@@ -24,6 +24,8 @@ interface FlagData {
   styles: string[];
   languages: string[];
   offers: any[];
+  latitude?: number;
+  longitude?: number;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -62,9 +64,37 @@ export const action = async ({ request }: Route.ActionArgs) => {
   const intent = formData.get("intent");
   if (intent === "create") {
     // Create flag
+    const city = formData.get("city") as string;
+    const country = formData.get("country") as string;
+    
+    // Get coordinates from form (client-side picker) or fallback to server-side geocoding
+    let lat = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
+    let lng = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
+
+    // Fallback Geocoding if no coordinates provided
+    if (!lat || !lng) {
+      const mapboxToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
+      try {
+        const query = `${city}, ${country}`;
+        const response = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxToken}&limit=1`
+        );
+        const data = await response.json();
+        if (data.features && data.features.length > 0) {
+          const [longitude, latitude] = data.features[0].center;
+          lat = latitude;
+          lng = longitude;
+        }
+      } catch (e) {
+        console.error("Geocoding failed:", e);
+      }
+    }
+
     const { success, data, error } = await createFlag(client, {
-      city: formData.get("city") as string,
-      country: formData.get("country") as string,
+      city: city,
+      country: country,
+      latitude: lat,
+      longitude: lng,
       startDate: formData.get("startDate") as string,
       endDate: formData.get("endDate") as string,
       note: (formData.get("note") as string) || undefined,
@@ -83,9 +113,21 @@ export const action = async ({ request }: Route.ActionArgs) => {
   if (intent === "update") {
     // Update flag
     const flagId = formData.get("flagId") as string;
+    
+    // Check if coordinates are updated
+    let lat = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : undefined;
+    let lng = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : undefined;
+
+    // If city/country changed but no coordinates sent (unlikely with new form, but possible), 
+    // we might want to re-geocode? 
+    // For now, assume client sends coordinates if they picked a location. 
+    // If they just changed text, client form should have updated coordinates via map.
+    
     const { success, data, error } = await updateFlag(client, flagId, {
       city: formData.get("city") as string,
       country: formData.get("country") as string,
+      latitude: lat,
+      longitude: lng,
       startDate: formData.get("startDate") as string,
       endDate: formData.get("endDate") as string,
       note: (formData.get("note") as string) || undefined,
@@ -184,6 +226,8 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
       styles: [], // TODO: Get from profile
       languages: [], // TODO: Get from profile
       offers: initialOffers.filter((o: any) => o.flag_id === flag.id),
+      latitude: flag.latitude,
+      longitude: flag.longitude,
     }))
   );
 
@@ -297,6 +341,8 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
                     note: editingFlag.note,
                     photoStyles: editingFlag.styles,
                     languages: editingFlag.languages,
+                    latitude: (editingFlag as any).latitude, // Need to ensure latitude is in FlagData interface
+                    longitude: (editingFlag as any).longitude,
                   }
                 : undefined
             }

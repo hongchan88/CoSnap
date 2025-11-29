@@ -5,6 +5,8 @@ export interface CreateFlagInput {
   user_id: string;
   city: string;
   country: string;
+  latitude?: number | null;
+  longitude?: number | null;
   startDate: string;
   endDate: string;
   note?: string;
@@ -15,6 +17,8 @@ export interface CreateFlagInput {
 export interface UpdateFlagInput {
   city?: string;
   country?: string;
+  latitude?: number;
+  longitude?: number;
   startDate?: string;
   endDate?: string;
   note?: string;
@@ -33,6 +37,8 @@ export const createFlag = async (
         user_id: flagData.user_id,
         city: flagData.city,
         country: flagData.country,
+        latitude: flagData.latitude,
+        longitude: flagData.longitude,
         start_date: flagData.startDate,
         end_date: flagData.endDate,
         note: flagData.note || null,
@@ -66,6 +72,8 @@ export const updateFlag = async (
 
     if (flagData.city) updateData.city = flagData.city;
     if (flagData.country) updateData.country = flagData.country;
+    if (flagData.latitude !== undefined) updateData.latitude = flagData.latitude;
+    if (flagData.longitude !== undefined) updateData.longitude = flagData.longitude;
     if (flagData.startDate) updateData.start_date = flagData.startDate;
     if (flagData.endDate) updateData.end_date = flagData.endDate;
     if (flagData.note !== undefined) updateData.note = flagData.note;

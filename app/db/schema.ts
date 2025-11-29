@@ -9,6 +9,7 @@ import {
   timestamp,
   smallint,
   pgPolicy,
+  real,
 } from "drizzle-orm/pg-core";
 import { authUsers, authUid, authenticatedRole } from "drizzle-orm/supabase";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -72,6 +73,9 @@ export const flags = pgTable(
     }),
     city: varchar("city", { length: 100 }).notNull(),
     country: varchar("country", { length: 100 }).notNull(),
+    latitude: real("latitude"),
+    longitude: real("longitude"),
+
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),
     note: text("note"),
