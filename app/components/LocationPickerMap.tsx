@@ -3,9 +3,9 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix for default marker icon in React Leaflet
-// @ts-ignore
-if (typeof window !== 'undefined') {
+// Fix for default marker icon in React Leaflet - only run on client
+if (typeof window !== "undefined") {
+  // @ts-ignore
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl:

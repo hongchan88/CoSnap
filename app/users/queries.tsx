@@ -290,10 +290,16 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
       .select(`
         *,
         flag:flags!offers_flag_id_flags_id_fk (
+          id,
+          user_id,
           city,
           country,
           start_date,
-          end_date
+          end_date,
+          note,
+          visibility_status,
+          latitude,
+          longitude
         ),
         receiver:profiles!offers_receiver_id_profiles_profile_id_fk (
           username,
@@ -336,6 +342,60 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
   } catch (error) {
     console.error("Unexpected error fetching user offers:", error);
     return { success: false, error: "Failed to fetch offers", sent: [], received: [] };
+  }
+};
+
+export const getOffersByFlag = async (
+  client: SupabaseClient,
+  flagId: string
+) => {
+  try {
+    const { data, error } = await client
+      .from("offers")
+      .select(`
+        *,
+        sender:profiles!offers_sender_id_profiles_profile_id_fk (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        )
+      `)
+      .eq("flag_id", flagId)
+      .order("sent_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching offers by flag:", error);
+      return { success: false, error: error.message, offers: [] };
+    }
+
+    return { success: true, offers: data as OfferWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching offers by flag:", error);
+    return { success: false, error: "Failed to fetch offers", offers: [] };
+  }
+};
+
+export const getOfferCountByFlag = async (
+  client: SupabaseClient,
+  flagId: string
+) => {
+  try {
+    const { count, error } = await client
+      .from("offers")
+      .select("*", { count: "exact", head: true })
+      .eq("flag_id", flagId)
+      .eq("status", "pending"); // Usually we only care about pending offers count for the badge
+
+    if (error) {
+      console.error("Error fetching offer count:", error);
+      return { success: false, error: error.message, count: 0 };
+    }
+
+    return { success: true, count: count || 0 };
+  } catch (error) {
+    console.error("Unexpected error fetching offer count:", error);
+    return { success: false, error: "Failed to fetch offer count", count: 0 };
   }
 };
 

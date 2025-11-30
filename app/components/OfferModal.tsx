@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFetcher } from 'react-router';
 import Modal from './ui/Modal';
 import LoadingSpinner from './ui/LoadingSpinner';
 import Notification from './ui/Notification';
-import Dropdown from './ui/Dropdown';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -21,7 +21,7 @@ interface OfferModalProps {
     endDate: string;
     ownerName: string;
   };
-  onSubmit: (offerData: OfferFormData) => Promise<void>;
+  onSubmit?: (offerData: any) => void; // Optional now as we use fetcher
 }
 
 interface OfferFormData {
@@ -42,7 +42,8 @@ const photoStyleOptions = [
   { value: 'cultural', label: '문화/축제', icon: '🎭' },
 ];
 
-export default function OfferModal({ isOpen, onClose, flagData, onSubmit }: OfferModalProps) {
+export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProps) {
+  const fetcher = useFetcher();
   const [formData, setFormData] = useState<OfferFormData>({
     message: '',
     preferredDates: [],
@@ -51,8 +52,29 @@ export default function OfferModal({ isOpen, onClose, flagData, onSubmit }: Offe
   });
 
   const [errors, setErrors] = useState<Partial<OfferFormData>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const isSubmitting = fetcher.state === "submitting";
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data) {
+      if (fetcher.data.success) {
+        setNotification({ type: 'success', message: '오퍼가 성공적으로 전송되었습니다!' });
+        setFormData({
+          message: '',
+          preferredDates: [],
+          photoStyles: [],
+          location: '',
+        });
+        setTimeout(() => {
+          onClose();
+          setNotification(null);
+        }, 2000);
+      } else if (fetcher.data.error) {
+        setNotification({ type: 'error', message: fetcher.data.error });
+      }
+    }
+  }, [fetcher.state, fetcher.data, onClose]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<OfferFormData> = {};
@@ -61,8 +83,6 @@ export default function OfferModal({ isOpen, onClose, flagData, onSubmit }: Offe
       newErrors.message = '메시지를 입력해주세요';
     } else if (formData.message.length < 20) {
       newErrors.message = '메시지는 최소 20자 이상이어야 합니다';
-    } else if (formData.message.length > 500) {
-      newErrors.message = '메시지는 500자를 초과할 수 없습니다';
     }
 
     if (formData.preferredDates.length === 0) {
@@ -81,41 +101,31 @@ export default function OfferModal({ isOpen, onClose, flagData, onSubmit }: Offe
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
 
-    setIsSubmitting(true);
+    // Format the message to include all details
+    const formattedMessage = `
+${formData.message}
 
-    try {
-      await onSubmit(formData);
-      setNotification({ type: 'success', message: '오퍼가 성공적으로 전송되었습니다!' });
+---
+📍 희망 장소: ${formData.location}
+📅 희망 날짜: ${formData.preferredDates.join(', ')}
+📸 선호 스타일: ${formData.photoStyles.map(s => photoStyleOptions.find(opt => opt.value === s)?.label).join(', ')}
+    `.trim();
 
-      // 폼 초기화
-      setFormData({
-        message: '',
-        preferredDates: [],
-        photoStyles: [],
-        location: '',
-      });
-
-      // 2초 후 모달 닫기
-      setTimeout(() => {
-        onClose();
-        setNotification(null);
-      }, 2000);
-
-    } catch (error) {
-      setNotification({
-        type: 'error',
-        message: error instanceof Error ? error.message : '오퍼 전송에 실패했습니다. 다시 시도해주세요.'
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    fetcher.submit(
+      {
+        intent: "create_offer",
+        flagId: flagData.id,
+        message: formattedMessage,
+      },
+      { method: "post", action: "/explore" }
+    );
   };
 
   const handleDateChange = (date: string, checked: boolean) => {

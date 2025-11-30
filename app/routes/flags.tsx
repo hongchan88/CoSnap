@@ -26,6 +26,7 @@ interface FlagData {
   offers: any[];
   latitude?: number;
   longitude?: number;
+  isSentOfferFlag?: boolean;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -42,15 +43,30 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
   // Fetch real user flags and offers from database
   const dataPromise = Promise.all([
     getUserFlags(client, userId),
-    getUserOffers(client, userId)
-  ]).then(([flagsResult, offersResult]) => {
+    getUserOffers(client, userId),
+    // Debug: Check total offers in database
+    client.from("offers").select("*", { count: "exact", head: true })
+  ]).then(([flagsResult, offersResult, offersCount]) => {
     if (!flagsResult.success) {
       console.error("Failed to fetch user flags:", flagsResult.error);
-      return { flags: [], offers: [] };
+      return { flags: [], receivedOffers: [], sentOffers: [], userId };
     }
+    
+    console.log("=== FLAGS LOADER DEBUG ===");
+    console.log("User ID:", userId);
+    console.log("User Flags:", flagsResult.flags.length);
+    console.log("Received Offers:", offersResult.received?.length || 0);
+    console.log("Sent Offers:", offersResult.sent?.length || 0);
+    console.log("Total Offers in DB:", offersCount.count);
+    console.log("Sent Offers Data:", JSON.stringify(offersResult.sent?.slice(0, 2), null, 2));
+    console.log("Offers Result Success:", offersResult.success);
+    console.log("Offers Result Error:", offersResult.error);
+    
     return { 
       flags: flagsResult.flags, 
-      offers: offersResult.success ? offersResult.received : [] 
+      receivedOffers: offersResult.success ? offersResult.received : [],
+      sentOffers: offersResult.success ? offersResult.sent : [],
+      userId
     };
   });
 
@@ -188,7 +204,7 @@ function FlagsSkeleton() {
   );
 }
 
-function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], initialOffers: any[] }) {
+function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { initialFlags: any[], receivedOffers: any[], sentOffers: any[], userId: string }) {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [isCreatingFlag, setIsCreatingFlag] = useState(false);
@@ -211,24 +227,58 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
     return flags[countryCode] || "🌍";
   };
 
-  // Convert database flags to FlagData format
-  const [flags, setFlags] = useState<FlagData[]>(() =>
-    initialFlags.map((flag: any) => ({
-      id: flag.id,
-      city: flag.city,
-      country: flag.country,
-      flag: getCountryFlag(flag.country),
-      startDate: flag.start_date || flag.startDate,
-      endDate: flag.end_date || flag.endDate,
-      note: flag.note || undefined,
-      status: flag.visibility_status as "active" | "expired" | "hidden",
-      offerCount: initialOffers.filter((o: any) => o.flag_id === flag.id).length,
-      styles: [], // TODO: Get from profile
-      languages: [], // TODO: Get from profile
-      offers: initialOffers.filter((o: any) => o.flag_id === flag.id),
-      latitude: flag.latitude,
-      longitude: flag.longitude,
-    }))
+  // Group received offers by flag
+  const receivedOffersByFlag = receivedOffers.reduce((acc: any, offer: any) => {
+    if (!acc[offer.flag_id]) {
+      acc[offer.flag_id] = [];
+    }
+    acc[offer.flag_id].push(offer);
+    return acc;
+  }, {});
+
+  // Group sent offers by flag
+  const sentOffersByFlag = sentOffers.reduce((acc: any, offer: any) => {
+    if (!acc[offer.flag_id]) {
+      acc[offer.flag_id] = [];
+    }
+    acc[offer.flag_id].push(offer);
+    return acc;
+  }, {});
+
+  console.log("=== SENT OFFERS DEBUG ===");
+  console.log("Total sent offers:", sentOffers.length);
+  console.log("Sample sent offer:", sentOffers[0]);
+  console.log("User ID:", userId);
+
+  // Get flags where user sent offers (but doesn't own)
+  const flagsWithSentOffers = sentOffers
+    .filter((offer: any) => {
+      const hasFlag = !!offer.flag;
+      const flagUserId = offer.flag?.user_id;
+      const isNotOwner = flagUserId && flagUserId !== userId;
+      
+      console.log("Offer filter:", {
+        offerId: offer.id,
+        hasFlag,
+        flagUserId,
+        currentUserId: userId,
+        isNotOwner,
+        flagCity: offer.flag?.city
+      });
+      
+      return hasFlag && isNotOwner;
+    })
+    .map((offer: any) => ({
+      ...offer.flag,
+      sentOffers: sentOffersByFlag[offer.flag_id] || [],
+      isSentOfferFlag: true,
+    }));
+
+  console.log("Flags with sent offers:", flagsWithSentOffers.length);
+
+  // Remove duplicates
+  const uniqueFlagsWithSentOffers = Array.from(
+    new Map(flagsWithSentOffers.map((flag: any) => [flag.id, flag])).values()
   );
 
   const getCountryName = (countryCode: string): string => {
@@ -246,6 +296,48 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
     };
     return names[countryCode] || countryCode;
   };
+
+  // Convert database flags to FlagData format
+  const [flags, setFlags] = useState<FlagData[]>(() => {
+    // Combine user's own flags with flags they sent offers to
+    const allFlags = [
+      ...initialFlags.map((flag: any) => ({
+        id: flag.id,
+        city: flag.city,
+        country: flag.country,
+        flag: getCountryFlag(flag.country),
+        startDate: flag.start_date || flag.startDate,
+        endDate: flag.end_date || flag.endDate,
+        note: flag.note || undefined,
+        status: flag.visibility_status as "active" | "expired" | "hidden",
+        offerCount: (receivedOffersByFlag[flag.id] || []).length,
+        styles: flag.styles || [],
+        languages: flag.languages || [],
+        offers: receivedOffersByFlag[flag.id] || [],
+        latitude: flag.latitude,
+        longitude: flag.longitude,
+        isSentOfferFlag: false,
+      })),
+      ...uniqueFlagsWithSentOffers.map((flag: any) => ({
+        id: flag.id,
+        city: flag.city,
+        country: flag.country,
+        flag: getCountryFlag(flag.country),
+        startDate: flag.start_date || flag.startDate,
+        endDate: flag.end_date || flag.endDate,
+        note: flag.note || undefined,
+        status: flag.visibility_status as "active" | "expired" | "hidden",
+        offerCount: (flag.sentOffers || []).length,
+        styles: flag.styles || [],
+        languages: flag.languages || [],
+        offers: flag.sentOffers || [],
+        latitude: flag.latitude,
+        longitude: flag.longitude,
+        isSentOfferFlag: true,
+      })),
+    ];
+    return allFlags;
+  });
 
   const handleEditFlagClick = (flag: FlagData) => {
     setEditingFlag(flag);
@@ -265,10 +357,19 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
     }
   };
 
-  const activeFlags = flags.filter((flag) => flag.status === "active");
+  // Combine user's own flags with flags they sent offers to
+  const allActiveFlags = [
+    ...flags
+      .filter((flag) => flag.status === "active" && !flag.isSentOfferFlag), // User's own active flags
+    ...flags
+      .filter((flag) => flag.status === "active" && flag.isSentOfferFlag), // Active flags where user sent offers
+  ];
+
+  const activeFlags = allActiveFlags.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
   const pastFlags = flags.filter(
     (flag) => flag.status === "expired" || new Date(flag.endDate) < new Date()
-  );
+  ).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()); // Sort past flags by end date descending
 
   return (
     <>
@@ -425,13 +526,14 @@ function FlagsContent({ initialFlags, initialOffers }: { initialFlags: any[], in
                   startDate={flag.startDate}
                   endDate={flag.endDate}
                   status={flag.status}
-                  offerCount={flag.offerCount}
+                  offerCount={flag.isSentOfferFlag ? (flag.sentOffers || []).length : flag.offerCount}
                   styles={flag.styles}
                   note={flag.note}
-                  canEdit={true}
-                  onEdit={() => handleEditFlagClick(flag)}
-                  onDelete={() => handleDeleteFlag(flag.id)}
-                  offers={flag.offers}
+                  canEdit={!flag.isSentOfferFlag}
+                  onEdit={!flag.isSentOfferFlag ? () => handleEditFlagClick(flag) : undefined}
+                  onDelete={!flag.isSentOfferFlag ? () => handleDeleteFlag(flag.id) : undefined}
+                  offers={flag.isSentOfferFlag ? (flag.sentOffers || []) : (flag.offers || [])}
+                  isSentOfferFlag={flag.isSentOfferFlag}
                 />
               ))}
             </div>
@@ -526,7 +628,7 @@ export default function FlagsPage() {
 
         <Suspense fallback={<FlagsSkeleton />}>
           <Await resolve={dataPromise}>
-            {(data) => <FlagsContent initialFlags={data.flags} initialOffers={data.offers} />}
+            {(data) => <FlagsContent initialFlags={data.flags} receivedOffers={data.receivedOffers} sentOffers={data.sentOffers} userId={data.userId} />}
           </Await>
         </Suspense>
       </div>

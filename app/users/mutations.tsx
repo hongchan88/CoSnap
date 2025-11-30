@@ -230,6 +230,15 @@ export const createOffer = async (
   offerData: CreateOfferInput
 ) => {
   try {
+    // Validation
+    if (offerData.senderId === offerData.receiverId) {
+      return { success: false, error: "Cannot send offer to yourself" };
+    }
+
+    // Check if flag exists and is active (optional, but good practice)
+    // For now, we assume the UI handles this or the FK constraint will fail if flag doesn't exist.
+    // But checking active status might be needed.
+
     const { data, error } = await client
       .from("offers")
       .insert({
@@ -251,6 +260,63 @@ export const createOffer = async (
   } catch (error) {
     console.error("Unexpected error creating offer:", error);
     return { success: false, error: "Failed to create offer" };
+  }
+};
+
+export const updateOffer = async (
+  client: SupabaseClient,
+  offerId: string,
+  message: string,
+  userId: string // Sender ID
+) => {
+  try {
+    const { data, error } = await client
+      .from("offers")
+      .update({ 
+        message, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", offerId)
+      .eq("sender_id", userId) // RLS should handle this, but extra safety
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating offer:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Unexpected error updating offer:", error);
+    return { success: false, error: "Failed to update offer" };
+  }
+};
+
+export const cancelOffer = async (
+  client: SupabaseClient,
+  offerId: string,
+  userId: string // Sender ID
+) => {
+  try {
+    const { error } = await client
+      .from("offers")
+      .update({ 
+        status: "cancelled", 
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", offerId)
+      .eq("sender_id", userId);
+
+    if (error) {
+      console.error("Error cancelling offer:", error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Unexpected error cancelling offer:", error);
+    return { success: false, error: "Failed to cancel offer" };
   }
 };
 

@@ -1,0 +1,1 @@
+ALTER POLICY "offers_select_policy" ON "offers" TO authenticated USING ((select auth.uid()) = "offers"."sender_id" OR (select auth.uid()) = "offers"."receiver_id");

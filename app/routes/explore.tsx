@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useLoaderData, Form, useNavigation } from "react-router";
+import { useLoaderData, Form, useNavigation, redirect } from "react-router";
 import type { LatLngBounds } from "leaflet";
 import { createSupabaseClient } from "~/lib/supabase";
-import { getAllActiveFlags, getLoggedInUserId } from "~/users/queries";
+import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
 import type { Route } from "./+types/explore";
 import CityCard from "~/components/CityCard";
 import OfferModal from "~/components/OfferModal";
@@ -23,7 +23,7 @@ const MapView = lazy(() => import("~/components/MapView"));
 export async function loader({ request }: Route.LoaderArgs) {
   const { client, headers } = createSupabaseClient(request);
   // Require authentication similar to flags page
-  await getLoggedInUserId(client);
+  const userId = await getLoggedInUserId(client).catch(() => null);
 
   // Fetch active flags
   const { success, flags, error } = await getAllActiveFlags(client, 100);
@@ -31,6 +31,20 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!success) {
     console.error("Failed to fetch flags:", error);
     throw new Response("Failed to load flags", { status: 500 });
+  }
+
+  // If user is logged in, fetch offer counts for their flags
+  let flagsWithCounts = flags;
+  if (userId) {
+    flagsWithCounts = await Promise.all(
+      flags.map(async (flag) => {
+        if (flag.user_id === userId) {
+          const { count } = await getOfferCountByFlag(client, flag.id);
+          return { ...flag, offer_count: count };
+        }
+        return flag;
+      })
+    );
   }
 
   // Parse search params to pass back to client
@@ -42,7 +56,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // No server-side filtering - return all active flags
   // Aggregate flags by city for map markers
-  const cityGroups = flags.reduce(
+  const cityGroups = flagsWithCounts.reduce(
     (acc, flag) => {
       const key = `${flag.city}, ${flag.country}`;
       if (!acc[key]) {
@@ -81,9 +95,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   );
 
   return {
-    flags,
+    flags: flagsWithCounts,
     cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
     searchParams: { location, startDate, endDate, travelers },
+    currentUserId: userId,
   };
 }
 
@@ -100,11 +115,9 @@ export async function action({ request }: Route.ActionArgs) {
     const {
       data: { user },
     } = await client.auth.getUser();
-    if (!user)
-      return {
-        success: false,
-        error: "You must be logged in to send an offer",
-      };
+    if (!user) {
+      return redirect("/login");
+    }
 
     const { data: flag } = await client
       .from("flags")
@@ -129,7 +142,7 @@ export async function action({ request }: Route.ActionArgs) {
 import { CITY_COORDINATES, POPULAR_DESTINATIONS } from "~/lib/constants";
 
 export default function Explore() {
-  const { flags, cityGroups, searchParams } = useLoaderData<typeof loader>();
+  const { flags, cityGroups, searchParams, currentUserId } = useLoaderData<typeof loader>();
 
   // Initialize selectedCity from URL param if it matches a popular destination
   const initialCity = useMemo(() => {
@@ -434,18 +447,31 @@ export default function Explore() {
                             </span>
                           ))}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-blue-600 hover:text-blue-800 p-0 h-auto font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedFlag(flag);
-                        setIsOfferModalOpen(true);
-                      }}
-                    >
-                      오퍼 보내기 →
-                    </Button>
+                    
+                    {currentUserId === flag.user_id ? (
+                      <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
+                        <span className="text-xs font-medium text-yellow-700">
+                          받은 오퍼 {(flag as any).offer_count || 0}개
+                        </span>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-800 p-0 h-auto font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!currentUserId) {
+                            window.location.href = "/login";
+                            return;
+                          }
+                          setSelectedFlag(flag);
+                          setIsOfferModalOpen(true);
+                        }}
+                      >
+                        오퍼 보내기 →
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

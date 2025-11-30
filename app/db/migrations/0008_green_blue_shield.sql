@@ -1,0 +1,2 @@
+ALTER POLICY "flags_select_policy" ON "flags" TO public USING (true);--> statement-breakpoint
+ALTER POLICY "offers_select_policy" ON "offers" TO authenticated USING ((select auth.uid()) = "offers"."sender_id" OR (select auth.uid()) = "offers"."receiver_id");

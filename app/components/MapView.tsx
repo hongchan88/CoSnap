@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
 import { renderToString } from "react-dom/server";
 import { useRef } from "react";
 import { POPULAR_DESTINATIONS } from "~/lib/constants";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
-// Fix for default marker icon
-// @ts-ignore
+// Fix for default marker icon - only run on client
 if (typeof window !== "undefined") {
+  // @ts-ignore
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
     iconRetinaUrl:

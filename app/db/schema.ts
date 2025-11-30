@@ -58,7 +58,14 @@ export const profiles = pgTable(
       for: "select",
       to: authenticatedRole,
       as: "permissive",
+      using: sql`true`,
+    }),
+    pgPolicy("profile_update_policy", {
+      for: "update",
+      to: authenticatedRole,
+      as: "permissive",
       using: sql`${authUid} = ${table.profile_id}`,
+      withCheck: sql`${authUid} = ${table.profile_id}`,
     }),
   ]
 );
@@ -110,6 +117,30 @@ export const flags = pgTable(
     }),
     pgPolicy("flags_select_policy", {
       for: "select",
+      to: "public",
+      as: "permissive",
+      using: sql`true`,
+    }),
+    pgPolicy("flags_select_offer_participant_policy", {
+      for: "select",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`exists (
+        select 1
+        from offers
+        where offers.flag_id = ${table.id}
+          and (${authUid} = offers.sender_id or ${authUid} = offers.receiver_id)
+      )`,
+    }),
+    pgPolicy("flags_update_policy", {
+      for: "update",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.user_id}`,
+      withCheck: sql`${authUid} = ${table.user_id}`,
+    }),
+    pgPolicy("flags_delete_policy", {
+      for: "delete",
       to: authenticatedRole,
       as: "permissive",
       using: sql`${authUid} = ${table.user_id}`,
@@ -118,32 +149,69 @@ export const flags = pgTable(
 );
 
 // Offers table
-export const offers = pgTable("offers", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  senderId: uuid("sender_id")
-    .references(() => profiles.profile_id, { onDelete: "cascade" })
-    .notNull(),
-  receiverId: uuid("receiver_id")
-    .references(() => profiles.profile_id, { onDelete: "cascade" })
-    .notNull(),
-  flagId: uuid("flag_id")
-    .references(() => flags.id, { onDelete: "cascade" })
-    .notNull(),
-  message: text("message").notNull(),
-  status: varchar("status", {
-    enum: ["pending", "accepted", "declined", "expired", "cancelled"],
-  })
-    .default("pending")
-    .notNull(),
-  sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
-  respondBy: timestamp("respond_by", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-});
+export const offers = pgTable(
+  "offers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    senderId: uuid("sender_id")
+      .references(() => profiles.profile_id, { onDelete: "cascade" })
+      .notNull(),
+    receiverId: uuid("receiver_id")
+      .references(() => profiles.profile_id, { onDelete: "cascade" })
+      .notNull(),
+    flagId: uuid("flag_id")
+      .references(() => flags.id, { onDelete: "cascade" })
+      .notNull(),
+    message: text("message").notNull(),
+    status: varchar("status", {
+      enum: ["pending", "accepted", "declined", "expired", "cancelled"],
+    })
+      .default("pending")
+      .notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+    respondBy: timestamp("respond_by", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    pgPolicy("offers_insert_policy", {
+      for: "insert",
+      to: authenticatedRole,
+      as: "permissive",
+      withCheck: sql`${authUid} = ${table.senderId}`,
+    }),
+    pgPolicy("offers_select_policy", {
+      for: "select",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.senderId} OR ${authUid} = ${table.receiverId}`,
+    }),
+    pgPolicy("offers_update_sender_policy", {
+      for: "update",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.senderId}`,
+      withCheck: sql`${authUid} = ${table.senderId}`,
+    }),
+    pgPolicy("offers_update_receiver_policy", {
+      for: "update",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.receiverId}`,
+      withCheck: sql`${authUid} = ${table.receiverId}`,
+    }),
+    pgPolicy("offers_delete_policy", {
+      for: "delete",
+      to: authenticatedRole,
+      as: "permissive",
+      using: sql`${authUid} = ${table.senderId}`,
+    }),
+  ]
+);
 
 // Matches table
 export const matches = pgTable("matches", {

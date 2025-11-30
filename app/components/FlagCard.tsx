@@ -18,6 +18,7 @@ interface FlagCardProps {
   onEdit?: () => void;
   onDelete?: () => void;
   offers?: any[];
+  isSentOfferFlag?: boolean;
 }
 
 const statusVariants = {
@@ -47,6 +48,7 @@ export default function FlagCard({
   onEdit,
   onDelete,
   offers = [],
+  isSentOfferFlag = false,
 }: FlagCardProps) {
   return (
     <Card className="hover:shadow-md transition-all duration-200">
@@ -98,7 +100,7 @@ export default function FlagCard({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">받은 오퍼</span>
+              <span className="text-sm text-gray-600">{isSentOfferFlag ? "보낸 오퍼" : "받은 오퍼"}</span>
             </div>
             <Badge variant="secondary" className="font-semibold">
               {offerCount}개

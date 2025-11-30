@@ -1,0 +1,1 @@
+ALTER POLICY "offers_select_policy" ON "offers" TO public USING (true);
