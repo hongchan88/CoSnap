@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy, useId } from "react";
+import { useState, Suspense, lazy, useId } from "react";
 import LoadingSpinner from "./ui/LoadingSpinner";
 import Notification from "./ui/Notification";
 import { Button } from "./ui/button";
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 const LocationPickerMap = lazy(() => import("./LocationPickerMap"));
 
 interface FlagFormData {
+  id?: string;
   city: string;
   country: string;
   startDate: string;
@@ -26,8 +27,9 @@ interface FlagFormData {
 interface FlagFormProps {
   onSubmit: (data: FlagFormData) => Promise<void>;
   onCancel: () => void;
-  initialData?: Partial<FlagFormData>;
+  initialData?: Partial<FlagFormData> & { id?: string };
   isEditing?: boolean;
+  onCardClick?: () => void;
 }
 
 const countryOptions = [
@@ -79,6 +81,7 @@ export default function FlagForm({
     languages: ["ko"], // 기본 언어는 한국어
     latitude: null,
     longitude: null,
+    ...initialData,
   });
   const [errors, setErrors] = useState<
     Partial<Record<keyof FlagFormData, string>>
@@ -94,12 +97,6 @@ export default function FlagForm({
     requestId: number;
   } | null>(null);
   const requestPrefix = useId();
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData((prev) => ({ ...prev, ...initialData }));
-    }
-  }, [initialData]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FlagFormData, string>> = {};

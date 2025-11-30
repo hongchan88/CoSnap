@@ -139,7 +139,10 @@ export default function FlagCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onEdit}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.();
+                }}
                 className="flex-1"
               >
                 <Edit className="w-4 h-4 mr-2" />
@@ -148,7 +151,10 @@ export default function FlagCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onDelete}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete?.();
+                }}
                 className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
               >
                 <Trash2 className="w-4 h-4 mr-2" />

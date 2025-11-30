@@ -82,6 +82,8 @@ export const flags = pgTable(
     country: varchar("country", { length: 100 }).notNull(),
     latitude: real("latitude"),
     longitude: real("longitude"),
+    styles: text("styles").array(),
+    languages: text("languages").array(),
 
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),

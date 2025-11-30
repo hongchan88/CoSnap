@@ -42,6 +42,8 @@ export const createFlag = async (
         start_date: flagData.startDate,
         end_date: flagData.endDate,
         note: flagData.note || null,
+        styles: flagData.styles || [],
+        languages: flagData.languages || [],
         visibility_status: "active",
         source_policy_type: "free", // Default to free, can be updated based on user role
         exposure_policy: "default",
@@ -77,6 +79,8 @@ export const updateFlag = async (
     if (flagData.startDate) updateData.start_date = flagData.startDate;
     if (flagData.endDate) updateData.end_date = flagData.endDate;
     if (flagData.note !== undefined) updateData.note = flagData.note;
+    if (flagData.styles) updateData.styles = flagData.styles;
+    if (flagData.languages) updateData.languages = flagData.languages;
 
     updateData.updated_at = new Date().toISOString();
 
@@ -401,4 +405,3 @@ export const declineOffer = async (
     return { success: false, error: "Failed to decline offer" };
   }
 };
-

@@ -32,7 +32,8 @@ export interface FlagWithDetails {
   avatar_url?: string;
   latitude?: number;
   longitude?: number;
-  photo_styles?: string[];
+  styles?: string[] | null;
+  languages?: string[] | null;
   profiles?: {
     username: string;
     avatar_url: string | null;

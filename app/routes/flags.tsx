@@ -1,12 +1,13 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useMemo } from "react";
 import { useActionData, useNavigation, useLoaderData, Await } from "react-router";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
 import { Skeleton } from "../components/ui/skeleton";
+import Modal from "../components/ui/Modal";
 import { getLoggedInUserId, getUserFlags, getUserOffers } from "~/users/queries";
 import { createFlag, updateFlag, deleteFlag } from "~/users/mutations";
 
@@ -245,27 +246,12 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
     return acc;
   }, {});
 
-  console.log("=== SENT OFFERS DEBUG ===");
-  console.log("Total sent offers:", sentOffers.length);
-  console.log("Sample sent offer:", sentOffers[0]);
-  console.log("User ID:", userId);
-
   // Get flags where user sent offers (but doesn't own)
   const flagsWithSentOffers = sentOffers
     .filter((offer: any) => {
       const hasFlag = !!offer.flag;
       const flagUserId = offer.flag?.user_id;
       const isNotOwner = flagUserId && flagUserId !== userId;
-      
-      console.log("Offer filter:", {
-        offerId: offer.id,
-        hasFlag,
-        flagUserId,
-        currentUserId: userId,
-        isNotOwner,
-        flagCity: offer.flag?.city
-      });
-      
       return hasFlag && isNotOwner;
     })
     .map((offer: any) => ({
@@ -273,8 +259,6 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
       sentOffers: sentOffersByFlag[offer.flag_id] || [],
       isSentOfferFlag: true,
     }));
-
-  console.log("Flags with sent offers:", flagsWithSentOffers.length);
 
   // Remove duplicates
   const uniqueFlagsWithSentOffers = Array.from(
@@ -298,6 +282,9 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
   };
 
   // Convert database flags to FlagData format
+  const formatDateOnly = (value: string | undefined) =>
+    value ? new Date(value).toISOString().slice(0, 10) : "";
+
   const [flags, setFlags] = useState<FlagData[]>(() => {
     // Combine user's own flags with flags they sent offers to
     const allFlags = [
@@ -306,8 +293,8 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         city: flag.city,
         country: flag.country,
         flag: getCountryFlag(flag.country),
-        startDate: flag.start_date || flag.startDate,
-        endDate: flag.end_date || flag.endDate,
+        startDate: formatDateOnly(flag.start_date || flag.startDate),
+        endDate: formatDateOnly(flag.end_date || flag.endDate),
         note: flag.note || undefined,
         status: flag.visibility_status as "active" | "expired" | "hidden",
         offerCount: (receivedOffersByFlag[flag.id] || []).length,
@@ -323,8 +310,8 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         city: flag.city,
         country: flag.country,
         flag: getCountryFlag(flag.country),
-        startDate: flag.start_date || flag.startDate,
-        endDate: flag.end_date || flag.endDate,
+        startDate: formatDateOnly(flag.start_date || flag.startDate),
+        endDate: formatDateOnly(flag.end_date || flag.endDate),
         note: flag.note || undefined,
         status: flag.visibility_status as "active" | "expired" | "hidden",
         offerCount: (flag.sentOffers || []).length,
@@ -339,9 +326,42 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
     return allFlags;
   });
 
+  const handleSubmitFlag = async (formData: any) => {
+    // Create a form and submit it
+    const form = document.createElement("form");
+    form.method = "post";
+    // Add hidden inputs for all form data
+    const formInputs = {
+      intent: editingFlag ? "update" : "create",
+      flagId: editingFlag?.id || "",
+      city: formData.city,
+      country: formData.country,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      note: formData.note || "",
+      photoStyles: JSON.stringify(formData.photoStyles),
+      languages: JSON.stringify(formData.languages),
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+    };
+
+    Object.entries(formInputs).forEach(([key, value]) => {
+      if (value) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = value.toString();
+        form.appendChild(input);
+      }
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+  };
+
   const handleEditFlagClick = (flag: FlagData) => {
     setEditingFlag(flag);
-    setIsCreatingFlag(true);
+    setIsCreatingFlag(false);
   };
 
   const handleDeleteFlag = (flagId: string) => {
@@ -371,6 +391,23 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
     (flag) => flag.status === "expired" || new Date(flag.endDate) < new Date()
   ).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()); // Sort past flags by end date descending
 
+  const formInitialData = useMemo(() => 
+    editingFlag
+      ? {
+          id: editingFlag.id,
+          city: editingFlag.city.split(", ")[0],
+          country: editingFlag.country,
+          startDate: formatDateOnly(editingFlag.startDate),
+          endDate: formatDateOnly(editingFlag.endDate),
+          note: editingFlag.note,
+          photoStyles: editingFlag.styles,
+          languages: editingFlag.languages,
+          latitude: (editingFlag as any).latitude,
+          longitude: (editingFlag as any).longitude,
+        }
+      : undefined,
+  [editingFlag]);
+
   return (
     <>
       {/* 알림 */}
@@ -394,69 +431,29 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         </div>
       )}
 
-      {/* Flag 생성/편집 폼 */}
-      {isCreatingFlag && (
+      {/* Flag 생성 폼 (상단) */}
+      {isCreatingFlag && !editingFlag && (
         <div className="mb-8">
           <FlagForm
-            onSubmit={async (formData) => {
-              // Create a form and submit it
-              const form = document.createElement("form");
-              form.method = "post";
-              // Add hidden inputs for all form data
-              const formInputs = {
-                intent: editingFlag ? "update" : "create",
-                flagId: editingFlag?.id || "",
-                city: formData.city,
-                country: formData.country,
-                startDate: formData.startDate,
-                endDate: formData.endDate,
-                note: formData.note || "",
-                photoStyles: JSON.stringify(formData.photoStyles),
-                languages: JSON.stringify(formData.languages),
-              };
-
-              Object.entries(formInputs).forEach(([key, value]) => {
-                if (value) {
-                  const input = document.createElement("input");
-                  input.type = "hidden";
-                  input.name = key;
-                  input.value = value.toString();
-                  form.appendChild(input);
-                }
-              });
-
-              document.body.appendChild(form);
-              form.submit();
-            }}
+            key="create"
+            onSubmit={handleSubmitFlag}
             onCancel={() => {
               setIsCreatingFlag(false);
               setEditingFlag(null);
             }}
-            initialData={
-              editingFlag
-                ? {
-                    city: editingFlag.city.split(", ")[0],
-                    country: editingFlag.country,
-                    startDate: editingFlag.startDate,
-                    endDate: editingFlag.endDate,
-                    note: editingFlag.note,
-                    photoStyles: editingFlag.styles,
-                    languages: editingFlag.languages,
-                    latitude: (editingFlag as any).latitude, // Need to ensure latitude is in FlagData interface
-                    longitude: (editingFlag as any).longitude,
-                  }
-                : undefined
-            }
-            isEditing={!!editingFlag}
+            isEditing={false}
           />
         </div>
       )}
 
       {/* 새 Flag 만들기 버튼 */}
-      {!isCreatingFlag && (
+      {!isCreatingFlag && !editingFlag && (
         <div className="mb-8">
           <button
-            onClick={() => setIsCreatingFlag(true)}
+            onClick={() => {
+              setIsCreatingFlag(true);
+              setEditingFlag(null);
+            }}
             disabled={isSubmitting}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
@@ -517,24 +514,36 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
           ) : (
             <div className="space-y-4">
               {activeFlags.map((flag) => (
-                <FlagCard
-                  key={flag.id}
-                  id={flag.id}
-                  destination={flag.city}
-                  country={getCountryName(flag.country)}
-                  flag={flag.flag}
-                  startDate={flag.startDate}
-                  endDate={flag.endDate}
-                  status={flag.status}
-                  offerCount={flag.isSentOfferFlag ? (flag.sentOffers || []).length : flag.offerCount}
-                  styles={flag.styles}
-                  note={flag.note}
-                  canEdit={!flag.isSentOfferFlag}
-                  onEdit={!flag.isSentOfferFlag ? () => handleEditFlagClick(flag) : undefined}
-                  onDelete={!flag.isSentOfferFlag ? () => handleDeleteFlag(flag.id) : undefined}
-                  offers={flag.isSentOfferFlag ? (flag.sentOffers || []) : (flag.offers || [])}
-                  isSentOfferFlag={flag.isSentOfferFlag}
-                />
+                editingFlag?.id === flag.id ? (
+                  <div key={flag.id} className="border rounded-xl p-4 bg-white shadow-sm ring-2 ring-blue-500 ring-offset-2">
+                    <FlagForm
+                      key={flag.id}
+                      onSubmit={handleSubmitFlag}
+                      onCancel={() => setEditingFlag(null)}
+                      initialData={formInitialData}
+                      isEditing={true}
+                    />
+                  </div>
+                ) : (
+                  <FlagCard
+                    key={flag.id}
+                    id={flag.id}
+                    destination={flag.city}
+                    country={getCountryName(flag.country)}
+                    flag={flag.flag}
+                    startDate={flag.startDate}
+                    endDate={flag.endDate}
+                    status={flag.status}
+                    offerCount={flag.isSentOfferFlag ? (flag.sentOffers || []).length : flag.offerCount}
+                    styles={flag.styles}
+                    note={flag.note}
+                    canEdit={!flag.isSentOfferFlag}
+                    onEdit={!flag.isSentOfferFlag ? () => handleEditFlagClick(flag) : undefined}
+                    onDelete={!flag.isSentOfferFlag ? () => handleDeleteFlag(flag.id) : undefined}
+                    offers={flag.isSentOfferFlag ? (flag.sentOffers || []) : (flag.offers || [])}
+                    isSentOfferFlag={flag.isSentOfferFlag}
+                  />
+                )
               ))}
             </div>
           )}
