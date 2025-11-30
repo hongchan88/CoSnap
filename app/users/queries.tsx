@@ -32,6 +32,12 @@ export interface FlagWithDetails {
   avatar_url?: string;
   latitude?: number;
   longitude?: number;
+  photo_styles?: string[];
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+    focus_score?: number;
+  };
 }
 
 // Get all flags for a specific user
@@ -76,7 +82,8 @@ export const getAllActiveFlags = async (
         *,
         profiles!flags_user_id_profiles_profile_id_fk (
           username,
-          avatar_url
+          avatar_url,
+          focus_score
         )
       `)
       .eq("visibility_status", "active")

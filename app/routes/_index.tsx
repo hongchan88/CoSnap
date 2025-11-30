@@ -16,13 +16,24 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-export async function loader({}: Route.LoaderArgs) {
-  // TODO: Replace with actual database calls when database is set up
+import { createSupabaseClient } from "~/lib/supabase";
+import { getAllActiveFlags } from "~/users/queries";
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const response = new Response();
+  const { client } = createSupabaseClient(request);
+  
+  // Fetch active flags for the map
+  const { flags: activeFlags = [] } = await getAllActiveFlags(client);
+
+  console.log(activeFlags ,"flags")
+
+  // TODO: Fetch top profiles and stats from DB
   return {
-    activeFlags: [],
+    activeFlags,
     topProfiles: [],
     stats: {
-      totalActiveFlags: 0,
+      totalActiveFlags: activeFlags.length,
       totalProfiles: 0,
       averageFocusScore: 0,
       totalCoSnaps: 0,
@@ -33,12 +44,21 @@ export async function loader({}: Route.LoaderArgs) {
 export default function Index() {
   const navigate = useNavigate();
   const loaderData = useLoaderData<typeof loader>();
-
   const handleMarkerClick = (city: string) => {
-    navigate(`/explore?location=${city}`);
+    console.log("click handle marker click")
+    // Navigate to explore page with location filter
+    // If city is actually a country name (from country cluster), it works too
+    navigate(`/explore?location=${encodeURIComponent(city)}`);
   };
 
-  // Convert POPULAR_DESTINATIONS to the format MapView expects
+  // Calculate flag counts per country
+  const countryCounts = loaderData.activeFlags.reduce((acc: Record<string, number>, flag: any) => {
+    const country = flag.country;
+    acc[country] = (acc[country] || 0) + 1;
+    return acc;
+  }, {});
+console.log(countryCounts,"country count")
+  // Merge POPULAR_DESTINATIONS with real counts
   const heroMarkers = POPULAR_DESTINATIONS.map(dest => ({
     id: `popular-${dest.city}`,
     lat: dest.lat,
@@ -46,7 +66,7 @@ export default function Index() {
     city: dest.city,
     country: dest.country,
     imageUrl: dest.imageUrl,
-    count: dest.count,
+    count: countryCounts[dest.country_code] || 0, // Use real DB count for the country
     flags: [],
     isPopular: true
   }));
@@ -68,6 +88,7 @@ export default function Index() {
               minZoom={1.5}
               maxBounds={[[-90, -180], [90, 180]]}
               noWrap={false}
+              clusteringThreshold={10} // Always show country clusters on home page
             />
           </Suspense>
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none" />
