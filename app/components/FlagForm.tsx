@@ -202,6 +202,7 @@ export default function FlagForm({
 
   const handlePhotoStyleToggle = (style: string, event?: React.MouseEvent) => {
     // Prevent event bubbling when called from checkbox click
+
     if (event) {
       event.preventDefault();
       event.stopPropagation();
@@ -438,16 +439,14 @@ export default function FlagForm({
                         : "border-gray-300 hover:border-gray-400"
                     }
                   `}
-                  onClick={() => handlePhotoStyleToggle(option.value)}
                 >
                   <Checkbox
                     id={`photo-${option.value}`}
                     checked={formData.photoStyles.includes(option.value)}
                     disabled={isSubmitting}
                     onCheckedChange={(checked) => {
-                      if (checked !== undefined) {
-                        handlePhotoStyleToggle(option.value);
-                      }
+                      if (checked === undefined) return;
+                      handlePhotoStyleToggle(option.value);
                     }}
                     onClick={(e) => e.stopPropagation()}
                   />
