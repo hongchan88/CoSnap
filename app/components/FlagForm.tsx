@@ -7,6 +7,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { Card, CardContent, CardHeader } from "./ui/card";
+import { getPhotoStyleOptions } from "~/lib/constants";
 
 // Lazy load LocationPickerMap to avoid SSR issues with Leaflet
 const LocationPickerMap = lazy(() => import("./LocationPickerMap"));
@@ -45,16 +46,6 @@ const countryOptions = [
   { value: "TW", label: "🇹🇼 대만" },
 ];
 
-const photoStyleOptions = [
-  { value: "portrait", label: "인물 사진", icon: "👤" },
-  { value: "landscape", label: "풍경 사진", icon: "🏞️" },
-  { value: "street", label: "거리 사진", icon: "🏙️" },
-  { value: "food", label: "음식 사진", icon: "🍽️" },
-  { value: "night", label: "야경 사진", icon: "🌃" },
-  { value: "architecture", label: "건축 사진", icon: "🏛️" },
-  { value: "candid", label: "자연스러운 순간", icon: "📸" },
-  { value: "cultural", label: "문화/축제", icon: "🎭" },
-];
 
 const languageOptions = [
   { value: "ko", label: "한국어" },
@@ -425,7 +416,7 @@ export default function FlagForm({
               선호 사진 스타일 <span className="text-red-500">*</span>
             </Label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {photoStyleOptions.map((option) => (
+              {getPhotoStyleOptions().map((option) => (
                 <div
                   key={option.value}
                   className={`

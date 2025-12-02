@@ -158,7 +158,7 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
-import { CITY_COORDINATES, POPULAR_DESTINATIONS } from "~/lib/constants";
+import { CITY_COORDINATES, POPULAR_DESTINATIONS, getPhotoStyleIcon } from "~/lib/constants";
 
 export default function Explore() {
   const { flags, cityGroups, searchParams, currentUserId } = useLoaderData<typeof loader>();
@@ -628,22 +628,6 @@ export default function Explore() {
                     {/* Expanded content */}
                     {isExpanded && (
                       <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-                        {/* User Profile Details */}
-                        {flag.profiles && (
-                          <div className="bg-gray-50 rounded-lg p-3">
-                            <h4 className="text-sm font-semibold text-gray-700 mb-2">프로필 정보</h4>
-                            <div className="text-xs text-gray-600">
-                              <div>
-                                <span className="font-medium">사용자명:</span> {flag.profiles.username}
-                              </div>
-                              {flag.profiles.focus_score && (
-                                <div>
-                                  <span className="font-medium">Focus 점수:</span> {flag.profiles.focus_score}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
 
                         {/* Photo Styles */}
                         {flag.styles && flag.styles.length > 0 && (
@@ -653,8 +637,9 @@ export default function Explore() {
                               {flag.styles.map((style: string, idx: number) => (
                                 <span
                                   key={idx}
-                                  className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full"
+                                  className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1"
                                 >
+                                  <span>{getPhotoStyleIcon(style) || '📷'}</span>
                                   {style}
                                 </span>
                               ))}
@@ -681,15 +666,6 @@ export default function Explore() {
                           </div>
                         </div>
 
-                        {/* Location */}
-                        {(flag.latitude && flag.longitude) && (
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-2">위치 정보</h4>
-                            <div className="text-xs text-gray-600">
-                              <span className="font-medium">좌표:</span> {flag.latitude.toFixed(6)}, {flag.longitude.toFixed(6)}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -701,8 +677,9 @@ export default function Explore() {
                             .map((style: string, idx: number) => (
                               <span
                                 key={idx}
-                                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
+                                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded flex items-center gap-1"
                               >
+                                <span>{getPhotoStyleIcon(style) || '📷'}</span>
                                 {style}
                               </span>
                             ))}

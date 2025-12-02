@@ -49,3 +49,74 @@ export const POPULAR_DESTINATIONS = [
   { city: "Singapore", country: "Singapore", country_code: "SG", lat: 1.3521, lng: 103.8198, imageUrl: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=500&h=300&fit=crop", count: 58 },
   { city: "Sydney", country: "Australia", country_code: "AU", lat: -33.8688, lng: 151.2093, imageUrl: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=500&h=300&fit=crop", count: 45 },
 ];
+
+// Photo style constants - unified structure for maximum reusability
+export const PHOTO_STYLES = {
+  portrait: {
+    value: "portrait",
+    label: "인물 사진",
+    icon: "👤",
+    description: "사람을 중심으로 한 사진",
+  },
+  landscape: {
+    value: "landscape",
+    label: "풍경 사진",
+    icon: "🏞️",
+    description: "자연 경치를 담은 사진",
+  },
+  street: {
+    value: "street",
+    label: "거리 사진",
+    icon: "🏙️",
+    description: "도시의 일상적인 풍경 사진",
+  },
+  food: {
+    value: "food",
+    label: "음식 사진",
+    icon: "🍽️",
+    description: "음식과 다이닝 사진",
+  },
+  night: {
+    value: "night",
+    label: "야경 사진",
+    icon: "🌃",
+    description: "밤의 도시 풍경 사진",
+  },
+  architecture: {
+    value: "architecture",
+    label: "건축 사진",
+    icon: "🏛️",
+    description: "건물과 구조물 사진",
+  },
+  candid: {
+    value: "candid",
+    label: "자연스러운 순간",
+    icon: "📸",
+    description: "포즈 없는 자연스러운 사진",
+  },
+  cultural: {
+    value: "cultural",
+    label: "문화/축제",
+    icon: "🎭",
+    description: "문화 행사나 축제 사진",
+  },
+} as const;
+
+// Helper functions for backward compatibility and easy usage
+export const getPhotoStyleIcon = (style: string): string => {
+  return PHOTO_STYLES[style as keyof typeof PHOTO_STYLES]?.icon || '📷';
+};
+
+export const getPhotoStyleLabel = (style: string): string => {
+  return PHOTO_STYLES[style as keyof typeof PHOTO_STYLES]?.label || style;
+};
+
+export const getPhotoStyleOptions = () => {
+  return Object.values(PHOTO_STYLES);
+};
+
+export const getPhotoStyleIcons = (): Record<string, string> => {
+  return Object.fromEntries(
+    Object.values(PHOTO_STYLES).map(style => [style.value, style.icon])
+  );
+};
