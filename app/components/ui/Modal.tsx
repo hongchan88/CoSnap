@@ -37,7 +37,6 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
             onClick={onClose}
             className="absolute right-4 top-4"
           >
-            <X className="h-4 w-4" />
             <span className="sr-only">닫기</span>
           </Button>
         </DialogHeader>

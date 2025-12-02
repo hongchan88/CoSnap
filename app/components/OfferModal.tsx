@@ -180,7 +180,7 @@ ${formData.message}
   return (
     <>
       <Modal isOpen={isOpen} onClose={onClose} title="오퍼 보내기" size="lg">
-        <div className="space-y-6">
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
           {/* Flag 정보 */}
           <Card>
             <CardContent className="pt-6">
