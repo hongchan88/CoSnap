@@ -42,20 +42,19 @@ export interface FlagWithDetails {
 }
 
 // Get all flags for a specific user
-export const getUserFlags = async (
-  client: SupabaseClient,
-  userId: string
-) => {
+export const getUserFlags = async (client: SupabaseClient, userId: string) => {
   try {
     const { data, error } = await client
       .from("flags")
-      .select(`
+      .select(
+        `
         *,
         profiles!flags_user_id_profiles_profile_id_fk (
           username,
           avatar_url
         )
-      `)
+      `
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -71,6 +70,41 @@ export const getUserFlags = async (
   }
 };
 
+// Get all flags for a user (including inactive ones) - for profile history
+export const getUserAllFlags = async (
+  client: SupabaseClient,
+  userId: string
+) => {
+  try {
+    const { data, error } = await client
+      .from("flags")
+      .select(
+        `
+        *,
+        profiles!flags_user_id_profiles_profile_id_fk (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        )
+      `
+      )
+      .eq("user_id", userId)
+
+      .order("created_at", { ascending: false });
+    console.log(data, "data in getUserAllFlags");
+    if (error) {
+      console.error("Error fetching user all flags:", error);
+      return { success: false, error: error.message, flags: [] };
+    }
+
+    return { success: true, flags: data as FlagWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching user all flags:", error);
+    return { success: false, error: "Failed to fetch flags", flags: [] };
+  }
+};
+
 // Get all active flags for the global feed
 export const getAllActiveFlags = async (
   client: SupabaseClient,
@@ -79,14 +113,16 @@ export const getAllActiveFlags = async (
   try {
     const { data, error } = await client
       .from("flags")
-      .select(`
+      .select(
+        `
         *,
         profiles!flags_user_id_profiles_profile_id_fk (
           username,
           avatar_url,
           focus_score
         )
-      `)
+      `
+      )
       .eq("visibility_status", "active")
       // .gte("end_date", new Date().toISOString()) // Temporarily disable date filter for debugging
       .order("created_at", { ascending: false })
@@ -105,14 +141,12 @@ export const getAllActiveFlags = async (
 };
 
 // Get a single flag by ID
-export const getFlagById = async (
-  client: SupabaseClient,
-  flagId: string
-) => {
+export const getFlagById = async (client: SupabaseClient, flagId: string) => {
   try {
     const { data, error } = await client
       .from("flags")
-      .select(`
+      .select(
+        `
         *,
         profiles!flags_user_id_profiles_profile_id_fk (
           username,
@@ -120,7 +154,8 @@ export const getFlagById = async (
           focus_score,
           focus_tier
         )
-      `)
+      `
+      )
       .eq("id", flagId)
       .single();
 
@@ -129,12 +164,15 @@ export const getFlagById = async (
       return { success: false, error: error.message, flag: null };
     }
 
-    return { success: true, flag: data as FlagWithDetails & {
-      username: string;
-      avatar_url?: string;
-      focus_score: number;
-      focus_tier: string;
-    } };
+    return {
+      success: true,
+      flag: data as FlagWithDetails & {
+        username: string;
+        avatar_url?: string;
+        focus_score: number;
+        focus_tier: string;
+      },
+    };
   } catch (error) {
     console.error("Unexpected error fetching flag by ID:", error);
     return { success: false, error: "Failed to fetch flag", flag: null };
@@ -142,9 +180,7 @@ export const getFlagById = async (
 };
 
 // Get expired flags to update their status
-export const getExpiredFlags = async (
-  client: SupabaseClient
-) => {
+export const getExpiredFlags = async (client: SupabaseClient) => {
   try {
     const { data, error } = await client
       .from("flags")
@@ -160,7 +196,11 @@ export const getExpiredFlags = async (
     return { success: true, flags: data };
   } catch (error) {
     console.error("Unexpected error fetching expired flags:", error);
-    return { success: false, error: "Failed to fetch expired flags", flags: [] };
+    return {
+      success: false,
+      error: "Failed to fetch expired flags",
+      flags: [],
+    };
   }
 };
 
@@ -195,17 +235,21 @@ export interface MatchWithDetails {
   };
 }
 
-export const getUserMatches = async (client: SupabaseClient, userId: string) => {
+export const getUserMatches = async (
+  client: SupabaseClient,
+  userId: string
+) => {
   try {
     // We need to fetch matches where user is either A or B
     // Supabase doesn't support complex OR conditions with joins easily in one go if we want to join different profiles based on who is who.
     // However, we can fetch all matches and then process them or use a more complex query.
     // For simplicity, let's fetch matches and then fetch related data or use Supabase's deep nesting if possible.
     // A better approach for "partner" info is to fetch it on the client or use a view, but here we will try to fetch enough info.
-    
+
     const { data, error } = await client
       .from("matches")
-      .select(`
+      .select(
+        `
         *,
         flag:flags!matches_flag_id_flags_id_fk (
           city,
@@ -225,7 +269,8 @@ export const getUserMatches = async (client: SupabaseClient, userId: string) => 
           focus_score,
           focus_tier
         )
-      `)
+      `
+      )
       .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
       .order("created_at", { ascending: false });
 
@@ -288,7 +333,8 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
     // Sent offers
     const { data: sentData, error: sentError } = await client
       .from("offers")
-      .select(`
+      .select(
+        `
         *,
         flag:flags!offers_flag_id_flags_id_fk (
           id,
@@ -306,7 +352,8 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
           username,
           avatar_url
         )
-      `)
+      `
+      )
       .eq("sender_id", userId)
       .order("sent_at", { ascending: false });
 
@@ -315,7 +362,8 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
     // Received offers
     const { data: receivedData, error: receivedError } = await client
       .from("offers")
-      .select(`
+      .select(
+        `
         *,
         flag:flags!offers_flag_id_flags_id_fk (
           city,
@@ -329,20 +377,26 @@ export const getUserOffers = async (client: SupabaseClient, userId: string) => {
           focus_score,
           focus_tier
         )
-      `)
+      `
+      )
       .eq("receiver_id", userId)
       .order("sent_at", { ascending: false });
 
     if (receivedError) throw receivedError;
 
-    return { 
-      success: true, 
-      sent: sentData as OfferWithDetails[], 
-      received: receivedData as OfferWithDetails[] 
+    return {
+      success: true,
+      sent: sentData as OfferWithDetails[],
+      received: receivedData as OfferWithDetails[],
     };
   } catch (error) {
     console.error("Unexpected error fetching user offers:", error);
-    return { success: false, error: "Failed to fetch offers", sent: [], received: [] };
+    return {
+      success: false,
+      error: "Failed to fetch offers",
+      sent: [],
+      received: [],
+    };
   }
 };
 
@@ -353,7 +407,8 @@ export const getOffersByFlag = async (
   try {
     const { data, error } = await client
       .from("offers")
-      .select(`
+      .select(
+        `
         *,
         sender:profiles!offers_sender_id_profiles_profile_id_fk (
           username,
@@ -361,7 +416,8 @@ export const getOffersByFlag = async (
           focus_score,
           focus_tier
         )
-      `)
+      `
+      )
       .eq("flag_id", flagId)
       .order("sent_at", { ascending: false });
 
@@ -419,7 +475,10 @@ export interface ProfileWithStats {
   updated_at: string;
 }
 
-export const getUserProfile = async (client: SupabaseClient, userId: string) => {
+export const getUserProfile = async (
+  client: SupabaseClient,
+  userId: string
+) => {
   try {
     const { data, error } = await client
       .from("profiles")

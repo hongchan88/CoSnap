@@ -25,6 +25,7 @@ interface FlagData {
   styles: string[];
   languages: string[];
   offers: any[];
+  sentOffers?: any[];
   latitude?: number;
   longitude?: number;
   isSentOfferFlag?: boolean;

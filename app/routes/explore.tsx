@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useLoaderData, Form, useNavigation, redirect } from "react-router";
 import type { LatLngBounds } from "leaflet";
 import { createSupabaseClient } from "~/lib/supabase";
-import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
+import { createClient } from "@supabase/supabase-js";
+import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag, getUserAllFlags } from "~/users/queries";
+import { createBrowserClient } from "@supabase/ssr";
 import type { Route } from "./+types/explore";
 import CityCard from "~/components/CityCard";
 import OfferModal from "~/components/OfferModal";
+import ProfileModal from "~/components/ProfileModal";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import {
@@ -21,89 +24,105 @@ import { createOffer } from "~/users/mutations";
 const MapView = lazy(() => import("~/components/MapView"));
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const { client, headers } = createSupabaseClient(request);
-  // Require authentication similar to flags page
-  const userId = await getLoggedInUserId(client).catch(() => null);
+  console.log("🔍 Explore loader started");
 
-  // Fetch active flags
-  const { success, flags, error } = await getAllActiveFlags(client, 100);
+  try {
+    const { client, headers } = createSupabaseClient(request);
+    console.log("✅ Supabase client created successfully");
 
-  if (!success) {
-    console.error("Failed to fetch flags:", error);
-    throw new Response("Failed to load flags", { status: 500 });
-  }
+    // Require authentication similar to flags page
+    const userId = await getLoggedInUserId(client).catch(() => null);
+    console.log("👤 User ID:", userId || "Not logged in");
 
-  // If user is logged in, fetch offer counts for their flags
-  let flagsWithCounts = flags;
-  if (userId) {
-    flagsWithCounts = await Promise.all(
-      flags.map(async (flag) => {
-        if (flag.user_id === userId) {
-          const { count } = await getOfferCountByFlag(client, flag.id);
-          return { ...flag, offer_count: count };
+    // Fetch active flags
+    console.log("🚩 Fetching active flags...");
+    const { success, flags, error } = await getAllActiveFlags(client, 100);
+
+    console.log("📊 Flag fetch results:");
+    console.log("  Success:", success);
+    console.log("  Error:", error);
+    console.log("  Flags count:", flags?.length || 0);
+    console.log("  Flags data:", flags);
+
+    if (!success) {
+      console.error("❌ Failed to fetch flags:", error);
+      throw new Response("Failed to load flags", { status: 500 });
+    }
+
+    // If user is logged in, fetch offer counts for their flags
+    let flagsWithCounts = flags;
+    if (userId) {
+      flagsWithCounts = await Promise.all(
+        flags.map(async (flag) => {
+          if (flag.user_id === userId) {
+            const { count } = await getOfferCountByFlag(client, flag.id);
+            return { ...flag, offer_count: count };
+          }
+          return flag;
+        })
+      );
+    }
+
+    // Parse search params to pass back to client
+    const url = new URL(request.url);
+    const location = url.searchParams.get("location")?.toLowerCase() || null;
+    const startDate = url.searchParams.get("startDate") || null;
+    const endDate = url.searchParams.get("endDate") || null;
+    const travelers = parseInt(url.searchParams.get("travelers") || "1");
+
+    // No server-side filtering - return all active flags
+    // Aggregate flags by city for map markers
+    const cityGroups = flagsWithCounts.reduce(
+      (acc, flag) => {
+        const key = `${flag.city}, ${flag.country}`;
+        if (!acc[key]) {
+          acc[key] = {
+            city: flag.city,
+            country: flag.country,
+            count: 0,
+            flags: [],
+            imageUrl: flag.avatar_url, // Using user avatar as placeholder if no city image
+            lat: flag.latitude,
+            lng: flag.longitude,
+          };
         }
-        return flag;
-      })
+        // If the group doesn't have coordinates yet but this flag does, update it
+        if ((!acc[key].lat || !acc[key].lng) && flag.latitude && flag.longitude) {
+          acc[key].lat = flag.latitude;
+          acc[key].lng = flag.longitude;
+        }
+
+        acc[key].count++;
+        acc[key].flags.push(flag);
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          city: string;
+          country: string;
+          count: number;
+          flags: any[];
+          imageUrl?: string;
+          lat?: number;
+          lng?: number;
+        }
+      >
     );
+
+    return {
+      flags: flagsWithCounts,
+      cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
+      searchParams: { location, startDate, endDate, travelers },
+      currentUserId: userId,
+    };
+  } catch (error) {
+    console.error("💥 Unexpected error in explore loader:", error);
+    throw new Response("Internal server error", { status: 500 });
   }
-
-  // Parse search params to pass back to client
-  const url = new URL(request.url);
-  const location = url.searchParams.get("location")?.toLowerCase() || null;
-  const startDate = url.searchParams.get("startDate") || null;
-  const endDate = url.searchParams.get("endDate") || null;
-  const travelers = parseInt(url.searchParams.get("travelers") || "1");
-
-  // No server-side filtering - return all active flags
-  // Aggregate flags by city for map markers
-  const cityGroups = flagsWithCounts.reduce(
-    (acc, flag) => {
-      const key = `${flag.city}, ${flag.country}`;
-      if (!acc[key]) {
-        acc[key] = {
-          city: flag.city,
-          country: flag.country,
-          count: 0,
-          flags: [],
-          imageUrl: flag.avatar_url, // Using user avatar as placeholder if no city image
-          lat: flag.latitude,
-          lng: flag.longitude,
-        };
-      }
-      // If the group doesn't have coordinates yet but this flag does, update it
-      if ((!acc[key].lat || !acc[key].lng) && flag.latitude && flag.longitude) {
-        acc[key].lat = flag.latitude;
-        acc[key].lng = flag.longitude;
-      }
-
-      acc[key].count++;
-      acc[key].flags.push(flag);
-      return acc;
-    },
-    {} as Record<
-      string,
-      {
-        city: string;
-        country: string;
-        count: number;
-        flags: any[];
-        imageUrl?: string;
-        lat?: number;
-        lng?: number;
-      }
-    >
-  );
-
-  return {
-    flags: flagsWithCounts,
-    cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
-    searchParams: { location, startDate, endDate, travelers },
-    currentUserId: userId,
-  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  // ... (action remains same)
   const { client, headers } = createSupabaseClient(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -111,7 +130,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === "create_offer") {
     const flagId = formData.get("flagId") as string;
     const message = formData.get("message") as string;
-    // ...
+
     const {
       data: { user },
     } = await client.auth.getUser();
@@ -166,6 +185,9 @@ export default function Explore() {
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
+  const [expandedFlagId, setExpandedFlagId] = useState<string | null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const navigation = useNavigation();
 
   // Sync selectedCity when URL param changes
@@ -206,14 +228,6 @@ export default function Explore() {
 
   const [mapCenter, setMapCenter] = useState(initialCenter);
   const [mapZoom, setMapZoom] = useState(searchParams?.location ? 5 : 3);
-
-  // Update map center when URL param changes
-  useEffect(() => {
-    setMapCenter(initialCenter);
-    if (searchParams?.location) {
-      setMapZoom(5);
-    }
-  }, [initialCenter, searchParams?.location]);
 
   // Update map center when URL param changes
   useEffect(() => {
@@ -292,16 +306,151 @@ export default function Explore() {
   };
 
   const handleOfferSubmit = async (offerData: any) => {
-    // In a real app, we would submit via useSubmit or fetcher
+    // In a real app, we would submit via useSubmit or useFetcher
     // For this demo, we'll just close the modal
     console.log("Submitting offer:", offerData);
     setIsOfferModalOpen(false);
     // TODO: Implement actual submission logic using useFetcher
   };
 
+  const handleToggleExpand = (flagId: string) => {
+    setExpandedFlagId(prev => prev === flagId ? null : flagId);
+  };
+
+  const handleProfileClick = async (flag: any) => {
+    console.log("Flag clicked:", flag);
+    console.log("Flag object keys:", Object.keys(flag));
+    console.log("Profile data:", flag.profiles);
+    console.log("User ID sources:",
+      flag.id,
+      flag.user_id,
+      flag.profiles?.id
+    );
+
+    // Extract user ID from flag object - this is the owner of the flag
+    const userId = flag.user_id;
+    console.log("Using user ID for query:", userId);
+
+    if (!userId) {
+      console.error("No user ID found in flag object");
+      setSelectedProfile({
+        username: flag.profiles?.username || 'Unknown User',
+        avatar_url: flag.profiles?.avatar_url,
+        focus_score: flag.profiles?.focus_score || 0,
+        focus_tier: flag.profiles?.focus_tier || 'Blurry',
+        camera_gear: flag.profiles?.camera_gear,
+        languages: flag.profiles?.languages,
+        bio: flag.profiles?.bio,
+        is_verified: flag.profiles?.is_verified || false,
+        userFlags: []
+      });
+      setIsProfileModalOpen(true);
+      return;
+    }
+
+    // Fetch all flags for this user (not just active ones)
+    try {
+      // Create an authenticated client using the current session
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      console.log("Environment variables:", {
+        supabaseUrl,
+        supabaseAnonKey: supabaseAnonKey ? 'exists' : 'missing',
+        allEnvVars: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+      });
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error("Missing Supabase configuration");
+      }
+
+      // Use createBrowserClient to automatically handle cookie-based session
+      const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
+      
+      const { data: { session } } = await client.auth.getSession();
+
+      console.log("Session data:", {
+        session,
+        hasSession: !!session,
+        user: session?.user
+      });
+
+      if (!session) {
+        console.warn("No active session - showing limited profile info without flag history");
+        // Show basic profile info but no flag history
+        setSelectedProfile({
+          username: flag.profiles?.username || 'Unknown User',
+          avatar_url: flag.profiles?.avatar_url,
+          focus_score: flag.profiles?.focus_score || 0,
+          focus_tier: flag.profiles?.focus_tier || 'Blurry',
+          camera_gear: flag.profiles?.camera_gear,
+          languages: flag.profiles?.languages,
+          bio: flag.profiles?.bio,
+          is_verified: flag.profiles?.is_verified || false,
+          userFlags: []
+        });
+        setIsProfileModalOpen(true);
+        return;
+      }
+
+      console.log("Created authenticated client:", !!client);
+      console.log("Querying for user_id:", userId);
+
+      const { success, flags: userFlagsData, error } = await getUserAllFlags(client, userId);
+
+      console.log("getUserAllFlags success:", success);
+      console.log("getUserAllFlags error:", error);
+      console.log("User flag history data:", userFlagsData);
+      console.log("Data length:", userFlagsData?.length);
+
+      if (!success || error) {
+        console.error("Error fetching user flag history:", error);
+        setSelectedProfile({
+          username: flag.profiles?.username || 'Unknown User',
+          avatar_url: flag.profiles?.avatar_url,
+          focus_score: flag.profiles?.focus_score || 0,
+          focus_tier: flag.profiles?.focus_tier || 'Blurry',
+          camera_gear: flag.profiles?.camera_gear,
+          languages: flag.profiles?.languages,
+          bio: flag.profiles?.bio,
+          is_verified: flag.profiles?.is_verified || false,
+          userFlags: []
+        });
+        setIsProfileModalOpen(true);
+        return;
+      }
+
+      setSelectedProfile({
+        username: flag.profiles?.username || 'Unknown User',
+        avatar_url: flag.profiles?.avatar_url,
+        focus_score: flag.profiles?.focus_score || 0,
+        focus_tier: flag.profiles?.focus_tier || 'Blurry',
+        camera_gear: flag.profiles?.camera_gear,
+        languages: flag.profiles?.languages,
+        bio: flag.profiles?.bio,
+        is_verified: flag.profiles?.is_verified || false,
+        userFlags: userFlagsData || []
+      });
+      setIsProfileModalOpen(true);
+    } catch (error) {
+      console.error("Unexpected error fetching flag history:", error);
+      setSelectedProfile({
+        username: flag.profiles?.username || 'Unknown User',
+        avatar_url: flag.profiles?.avatar_url,
+        focus_score: flag.profiles?.focus_score || 0,
+        focus_tier: flag.profiles?.focus_tier || 'Blurry',
+        camera_gear: flag.profiles?.camera_gear,
+        languages: flag.profiles?.languages,
+        bio: flag.profiles?.bio,
+        is_verified: flag.profiles?.is_verified || false,
+        userFlags: []
+      });
+      setIsProfileModalOpen(true);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col md:flex-row">
-      {/* Left Panel - Search & List */}
       {/* Left Panel - Search & List */}
       <div className="w-full md:w-[60%] lg:w-[65%] flex flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden">
         {/* Search Header */}
@@ -393,88 +542,218 @@ export default function Explore() {
                 </div>
               )}
 
-              {flagsInView.map((flag) => (
-                <div
-                  key={flag.id}
-                  className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => {
-                    // Optional: Center map on this flag when clicked
-                    if (flag.latitude && flag.longitude) {
-                      setMapCenter({ lat: flag.latitude, lng: flag.longitude });
-                      setMapZoom(12);
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {flag.city}, {flag.country}
-                      </h3>
-                      <p className="text-sm text-gray-500">
-                        {new Date(flag.start_date).toLocaleDateString()} -{" "}
-                        {new Date(flag.end_date).toLocaleDateString()}
-                      </p>
+              {flagsInView.map((flag) => {
+                const isExpanded = expandedFlagId === flag.id;
+                return (
+                  <div
+                    key={flag.id}
+                    className={`bg-white rounded-xl border ${
+                      isExpanded ? 'border-blue-300 shadow-lg' : 'border-gray-200'
+                    } p-4 hover:shadow-md transition-all cursor-pointer`}
+                    onClick={() => {
+                      handleToggleExpand(flag.id);
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {flag.city}, {flag.country}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(flag.start_date).toLocaleDateString()} -{" "}
+                          {new Date(flag.end_date).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {flag.profiles && (
+                          <button
+                            className="text-right hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleProfileClick(flag);
+                            }}
+                          >
+                            <div className="flex items-center gap-2">
+                              {flag.profiles.avatar_url ? (
+                                <img
+                                  src={flag.profiles.avatar_url}
+                                  alt={flag.profiles.username}
+                                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
+                                  {flag.profiles.username.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
+                                  {flag.profiles.username}
+                                </div>
+                                <div className="text-xs text-blue-600">
+                                  Focus: {flag.profiles.focus_score}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-1 h-6 w-6 rounded-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleExpand(flag.id);
+                          }}
+                        >
+                          <svg
+                            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7" />
+                          </svg>
+                        </Button>
+                      </div>
                     </div>
-                    {flag.profiles && (
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {flag.profiles.username}
-                        </div>
-                        <div className="text-xs text-blue-600">
-                          Focus: {flag.profiles.focus_score}
-                        </div>
+
+                    {flag.note && (
+                      <div className={`${isExpanded ? '' : 'line-clamp-2'}`}>
+                        <p className="text-gray-600 text-sm mb-3">
+                          {flag.note}
+                        </p>
                       </div>
                     )}
-                  </div>
 
-                  {flag.note && (
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                      {flag.note}
-                    </p>
-                  )}
+                    {/* Expanded content */}
+                    {isExpanded && (
+                      <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                        {/* User Profile Details */}
+                        {flag.profiles && (
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">프로필 정보</h4>
+                            <div className="text-xs text-gray-600">
+                              <div>
+                                <span className="font-medium">사용자명:</span> {flag.profiles.username}
+                              </div>
+                              {flag.profiles.focus_score && (
+                                <div>
+                                  <span className="font-medium">Focus 점수:</span> {flag.profiles.focus_score}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex gap-2">
-                      {flag.photo_styles &&
-                        flag.photo_styles
-                          .slice(0, 2)
-                          .map((style: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
-                            >
-                              {style}
+                        {/* Photo Styles */}
+                        {flag.styles && flag.styles.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">사진 스타일</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {flag.styles.map((style: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full"
+                                >
+                                  {style}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Flag Details */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-2">여행 상세 정보</h4>
+                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                            <div>
+                              <span className="font-medium">시작일:</span> {new Date(flag.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </div>
+                            <div>
+                              <span className="font-medium">종료일:</span> {new Date(flag.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                            </div>
+                            <div>
+                              <span className="font-medium">여행 기간:</span> {Math.ceil((new Date(flag.end_date).getTime() - new Date(flag.start_date).getTime()) / (1000 * 60 * 60 * 24))}일
+                            </div>
+                            <div>
+                              <span className="font-medium">플랜 타입:</span> {flag.source_policy_type === 'premium' ? '프리미엄' : '무료'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Location */}
+                        {(flag.latitude && flag.longitude) && (
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">위치 정보</h4>
+                            <div className="text-xs text-gray-600">
+                              <span className="font-medium">좌표:</span> {flag.latitude.toFixed(6)}, {flag.longitude.toFixed(6)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                      <div className="flex gap-2 flex-wrap">
+                        {!isExpanded && flag.styles &&
+                          flag.styles
+                            .slice(0, 2)
+                            .map((style: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded"
+                              >
+                                {style}
+                              </span>
+                            ))}
+                      </div>
+
+                      <div className="flex gap-2 ml-auto">
+                        {/* 지도에서 가까이 보기 버튼 */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-gray-600 hover:text-gray-800 border-gray-300 hover:border-gray-400"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (flag.latitude && flag.longitude) {
+                              setMapCenter({ lat: flag.latitude, lng: flag.longitude });
+                              setMapZoom(12);
+                            }
+                          }}
+                        >
+                          🗺️ 지도에서 가까이 보기
+                        </Button>
+
+                        {currentUserId === flag.user_id ? (
+                          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
+                            <span className="text-xs font-medium text-yellow-700">
+                              받은 오퍼 {(flag as any).offer_count || 0}개
                             </span>
-                          ))}
-                    </div>
-                    
-                    {currentUserId === flag.user_id ? (
-                      <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
-                        <span className="text-xs font-medium text-yellow-700">
-                          받은 오퍼 {(flag as any).offer_count || 0}개
-                        </span>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!currentUserId) {
+                                window.location.href = "/login";
+                                return;
+                              }
+                              setSelectedFlag(flag);
+                              setIsOfferModalOpen(true);
+                            }}
+                          >
+                            오퍼 보내기 →
+                          </Button>
+                        )}
                       </div>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-800 p-0 h-auto font-medium"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!currentUserId) {
-                            window.location.href = "/login";
-                            return;
-                          }
-                          setSelectedFlag(flag);
-                          setIsOfferModalOpen(true);
-                        }}
-                      >
-                        오퍼 보내기 →
-                      </Button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -511,15 +790,27 @@ export default function Explore() {
         <OfferModal
           isOpen={isOfferModalOpen}
           onClose={() => setIsOfferModalOpen(false)}
-          flagData={{
-            id: selectedFlag.id,
-            destination: selectedFlag.city,
-            country: selectedFlag.country,
-            startDate: selectedFlag.start_date,
-            endDate: selectedFlag.end_date,
-            ownerName: selectedFlag.profiles.username,
-          }}
+          flagData={selectedFlag}
           onSubmit={handleOfferSubmit}
+        />
+      )}
+
+      {/* Profile Modal */}
+      {selectedProfile && (
+        <ProfileModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          profile={{
+            username: selectedProfile.username,
+            avatar_url: selectedProfile.avatar_url,
+            focus_score: selectedProfile.focus_score,
+            focus_tier: selectedProfile.focus_tier,
+            camera_gear: selectedProfile.camera_gear,
+            languages: selectedProfile.languages,
+            bio: selectedProfile.bio,
+            is_verified: selectedProfile.is_verified || false,
+          }}
+          userFlags={selectedProfile.userFlags || []}
         />
       )}
     </div>
