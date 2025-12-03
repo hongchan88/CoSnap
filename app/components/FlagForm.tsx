@@ -7,7 +7,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Checkbox } from "./ui/checkbox";
 import { Card, CardContent, CardHeader } from "./ui/card";
-import { getPhotoStyleOptions } from "~/lib/constants";
+import { PHOTO_STYLE_OPTIONS_ARRAY } from "~/lib/constants";
 
 // Lazy load LocationPickerMap to avoid SSR issues with Leaflet
 const LocationPickerMap = lazy(() => import("./LocationPickerMap"));
@@ -416,7 +416,7 @@ export default function FlagForm({
               선호 사진 스타일 <span className="text-red-500">*</span>
             </Label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {getPhotoStyleOptions().map((option) => (
+              {PHOTO_STYLE_OPTIONS_ARRAY.map((option) => (
                 <div
                   key={option.value}
                   className={`
@@ -465,7 +465,6 @@ export default function FlagForm({
                         : "border-gray-300 hover:border-gray-400"
                     }
                   `}
-                  onClick={() => handleLanguageToggle(option.value)}
                 >
                   <Checkbox
                     id={`lang-${option.value}`}
@@ -476,7 +475,6 @@ export default function FlagForm({
                         handleLanguageToggle(option.value);
                       }
                     }}
-                    onClick={(e) => e.stopPropagation()}
                   />
                   <span className="text-sm font-medium">{option.label}</span>
                 </div>

@@ -158,7 +158,7 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
-import { CITY_COORDINATES, POPULAR_DESTINATIONS, getPhotoStyleIcon } from "~/lib/constants";
+import { CITY_COORDINATES, POPULAR_DESTINATIONS, PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
 
 export default function Explore() {
   const { flags, cityGroups, searchParams, currentUserId } = useLoaderData<typeof loader>();
@@ -639,7 +639,7 @@ export default function Explore() {
                                   key={idx}
                                   className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1"
                                 >
-                                  <span>{getPhotoStyleIcon(style) || '📷'}</span>
+                                  <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
                                   {style}
                                 </span>
                               ))}
@@ -679,7 +679,7 @@ export default function Explore() {
                                 key={idx}
                                 className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded flex items-center gap-1"
                               >
-                                <span>{getPhotoStyleIcon(style) || '📷'}</span>
+                                <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
                                 {style}
                               </span>
                             ))}

@@ -111,12 +111,16 @@ export const getPhotoStyleLabel = (style: string): string => {
   return PHOTO_STYLES[style as keyof typeof PHOTO_STYLES]?.label || style;
 };
 
+export const PHOTO_STYLE_OPTIONS_ARRAY = Object.values(PHOTO_STYLES);
+
 export const getPhotoStyleOptions = () => {
-  return Object.values(PHOTO_STYLES);
+  return PHOTO_STYLE_OPTIONS_ARRAY;
 };
 
+export const PHOTO_STYLE_ICONS_RECORD = Object.fromEntries(
+  Object.values(PHOTO_STYLES).map(style => [style.value, style.icon])
+);
+
 export const getPhotoStyleIcons = (): Record<string, string> => {
-  return Object.fromEntries(
-    Object.values(PHOTO_STYLES).map(style => [style.value, style.icon])
-  );
+  return PHOTO_STYLE_ICONS_RECORD;
 };

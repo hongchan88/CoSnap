@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Edit, Trash2, Mail, Calendar } from "lucide-react";
-import { getPhotoStyleIcon } from "~/lib/constants";
+import { PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
 
 interface FlagCardProps {
   id: string;
@@ -90,7 +90,7 @@ export default function FlagCard({
           <div className="flex flex-wrap gap-2">
             {styles.map((style, index) => (
               <Badge key={index} variant="outline" className="text-xs flex items-center gap-1">
-                <span>{getPhotoStyleIcon(style) || '📷'}</span>
+                <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
                 {style}
               </Badge>
             ))}
