@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Button } from "./ui/button";
 import type { User } from "@supabase/supabase-js";
+import { useLanguage } from "~/context/language-context";
+import LanguageToggle from "./LanguageToggle.client";
+import { ChevronDown } from "lucide-react";
 
 interface NavigationProps {
   user: User | null;
@@ -9,13 +12,17 @@ interface NavigationProps {
 
 export default function Navigation({ user }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false);
+  const [isMobileLanguageDropdownOpen, setIsMobileLanguageDropdownOpen] =
+    useState(false);
+  const { language, setLanguage, t } = useLanguage();
 
   const navigation = [
-    { name: "홈", href: "/" },
-    { name: "여행자 찾기", href: "/explore" },
-    { name: "Flags 만들기", href: "/flags" },
-    { name: "매치", href: "/matches" },
-    { name: "프로필", href: "/profile" },
+    { name: t ? t("nav.home") : "홈", href: "/" },
+    { name: t ? t("nav.explore") : "여행자 찾기", href: "/explore" },
+    { name: t ? t("nav.flags") : "Flags 만들기", href: "/flags" },
+    { name: t ? t("nav.matches") : "매치", href: "/matches" },
+    { name: t ? t("nav.profile") : "프로필", href: "/profile" },
   ];
 
   return (
@@ -46,21 +53,62 @@ export default function Navigation({ user }: NavigationProps) {
 
             {/* User Menu & Mobile Menu Button */}
             <div className="flex items-center gap-3">
+              {/* Language Dropdown */}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setIsLanguageDropdownOpen(!isLanguageDropdownOpen)
+                  }
+                  className="flex items-center gap-2"
+                >
+                  {language === "ko" ? `🇰🇷 ${t("lang.korean")}` : `🇺🇸 ${t("lang.english")}`}
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+
+                {/* Dropdown Menu */}
+                {isLanguageDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                    <button
+                      onClick={() => {
+                        setLanguage("ko");
+                        setIsLanguageDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      🇰🇷 {t("lang.korean")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLanguage("en");
+                        setIsLanguageDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      🇺🇸 {t("lang.english")}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Login/Signup buttons */}
               <div className="flex items-center gap-3">
                 {user ? (
                   <Button asChild variant="secondary" size="sm">
                     <Link to="/logout" reloadDocument>
-                      로그아웃
+                      {t ? t("nav.logout") : "로그아웃"}
                     </Link>
                   </Button>
                 ) : (
                   <>
                     <Button asChild variant="default" size="sm">
-                      <Link to="/login">로그인</Link>
+                      <Link to="/login">{t ? t("nav.login") : "로그인"}</Link>
                     </Button>
                     <Button asChild variant="outline" size="sm">
-                      <Link to="/signup">회원가입</Link>
+                      <Link to="/signup">
+                        {t ? t("nav.signup") : "회원가입"}
+                      </Link>
                     </Button>
                   </>
                 )}
@@ -109,13 +157,54 @@ export default function Navigation({ user }: NavigationProps) {
 
                 {/* Mobile auth buttons */}
                 <div className="border-t border-gray-200 mt-2 pt-2 space-y-1">
+                  {/* Mobile language dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setIsMobileLanguageDropdownOpen(
+                          !isMobileLanguageDropdownOpen
+                        )
+                      }
+                      className="w-full text-left text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium flex items-center justify-between"
+                    >
+                      <span>
+                        {language === "ko" ? `🇰🇷 ${t("lang.korean")}` : `🇺🇸 ${t("lang.english")}`}
+                      </span>
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+
+                    {/* Mobile Dropdown Menu */}
+                    {isMobileLanguageDropdownOpen && (
+                      <div className="w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
+                        <button
+                          onClick={() => {
+                            setLanguage("ko");
+                            setIsMobileLanguageDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          🇰🇷 {t("lang.korean")}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setLanguage("en");
+                            setIsMobileLanguageDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                        >
+                          🇺🇸 {t("lang.english")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {user ? (
                     <Link
                       to="/logout"
                       onClick={() => setIsMobileMenuOpen(false)}
                       className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
                     >
-                      로그아웃
+                      {t ? t("nav.logout") : "로그아웃"}
                     </Link>
                   ) : (
                     <>
@@ -124,14 +213,14 @@ export default function Navigation({ user }: NavigationProps) {
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
                       >
-                        로그인
+                        {t ? t("nav.login") : "로그인"}
                       </Link>
                       <Link
                         to="/signup"
                         onClick={() => setIsMobileMenuOpen(false)}
                         className="text-gray-700 hover:text-blue-600 hover:bg-blue-50 block px-3 py-2 rounded-md text-base font-medium"
                       >
-                        회원가입
+                        {t ? t("nav.signup") : "회원가입"}
                       </Link>
                     </>
                   )}

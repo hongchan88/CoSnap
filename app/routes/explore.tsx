@@ -159,9 +159,11 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 import { CITY_COORDINATES, POPULAR_DESTINATIONS, PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
+import { useLanguage } from "~/context/language-context";
 
 export default function Explore() {
   const { flags, cityGroups, searchParams, currentUserId } = useLoaderData<typeof loader>();
+  const { t } = useLanguage();
 
   // Initialize selectedCity from URL param if it matches a popular destination
   const initialCity = useMemo(() => {
@@ -456,7 +458,7 @@ export default function Explore() {
         {/* Search Header */}
         <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Explore Flags
+            {t("explore.title")}
           </h1>
           <div className="flex flex-col gap-3">
             <div className="flex gap-2">
@@ -465,7 +467,7 @@ export default function Explore() {
                 onValueChange={(value) => setSelectedCity(value)}
               >
                 <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="여행지 선택..." />
+                  <SelectValue placeholder={t("explore.selectDestination")} />
                 </SelectTrigger>
                 <SelectContent>
                   {POPULAR_DESTINATIONS.map((dest) => (
@@ -489,7 +491,7 @@ export default function Explore() {
                 }}
                 disabled={!selectedCity}
               >
-                지도로 이동
+                {t("explore.goToMap")}
               </Button>
             </div>
             <Button
@@ -509,7 +511,7 @@ export default function Explore() {
                 }
               }}
             >
-              📍 현재 내 위치로 이동
+              {t("explore.currentLocation")}
             </Button>
           </div>
         </div>
@@ -520,25 +522,25 @@ export default function Explore() {
           <div className="flex-1 overflow-y-auto p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">
-                {mapBounds ? "이 지역의 여행 계획" : "지도 로딩 중..."}
+                {mapBounds ? t("explore.travelPlansInArea") : t("explore.loadingMap")}
               </h2>
               <span className="text-sm text-gray-500">
-                {mapBounds ? `${flagsInView.length}개` : ""}
+                {mapBounds ? `${flagsInView.length}${t("explore.count")}` : ""}
               </span>
             </div>
 
             <div className="space-y-4">
               {!mapBounds && (
                 <div className="text-center py-10 text-gray-500">
-                  지도를 불러오는 중입니다...
+                  {t("explore.loadingMap")}
                 </div>
               )}
 
               {mapBounds && flagsInView.length === 0 && (
                 <div className="text-center py-10 text-gray-500">
                   <p className="mb-2">🗺️</p>
-                  <p>이 지역에는 아직 등록된 여행 계획이 없어요.</p>
-                  <p className="text-sm">지도를 움직여 다른 곳을 찾아보세요!</p>
+                  <p>{t("explore.noPlansInArea")}</p>
+                  <p className="text-sm">{t("explore.moveMapToFind")}</p>
                 </div>
               )}
 
@@ -632,7 +634,7 @@ export default function Explore() {
                         {/* Photo Styles */}
                         {flag.styles && flag.styles.length > 0 && (
                           <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-2">사진 스타일</h4>
+                            <h4 className="text-sm font-semibold text-gray-700 mb-2">{t("explore.photoStyles")}</h4>
                             <div className="flex flex-wrap gap-2">
                               {flag.styles.map((style: string, idx: number) => (
                                 <span
@@ -649,19 +651,19 @@ export default function Explore() {
 
                         {/* Flag Details */}
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-700 mb-2">여행 상세 정보</h4>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-2">{t("explore.travelDetails")}</h4>
                           <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                             <div>
-                              <span className="font-medium">시작일:</span> {new Date(flag.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              <span className="font-medium">{t("explore.startDate")}</span> {new Date(flag.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
                             </div>
                             <div>
-                              <span className="font-medium">종료일:</span> {new Date(flag.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                              <span className="font-medium">{t("explore.endDate")}</span> {new Date(flag.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
                             </div>
                             <div>
-                              <span className="font-medium">여행 기간:</span> {Math.ceil((new Date(flag.end_date).getTime() - new Date(flag.start_date).getTime()) / (1000 * 60 * 60 * 24))}일
+                              <span className="font-medium">{t("explore.duration")}</span> {Math.ceil((new Date(flag.end_date).getTime() - new Date(flag.start_date).getTime()) / (1000 * 60 * 60 * 24))} {t("explore.days")}
                             </div>
                             <div>
-                              <span className="font-medium">플랜 타입:</span> {flag.source_policy_type === 'premium' ? '프리미엄' : '무료'}
+                              <span className="font-medium">{t("explore.planType")}</span> {flag.source_policy_type === 'premium' ? t("flagCard.premium") : t("explore.free")}
                             </div>
                           </div>
                         </div>
@@ -699,13 +701,13 @@ export default function Explore() {
                             }
                           }}
                         >
-                          🗺️ 지도에서 가까이 보기
+                          {t("explore.viewOnMap")}
                         </Button>
 
                         {currentUserId === flag.user_id ? (
                           <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
                             <span className="text-xs font-medium text-yellow-700">
-                              받은 오퍼 {(flag as any).offer_count || 0}개
+                              {t("explore.receivedOffers")} {(flag as any).offer_count || 0}{t("explore.count")}
                             </span>
                           </div>
                         ) : (
@@ -723,7 +725,7 @@ export default function Explore() {
                               setIsOfferModalOpen(true);
                             }}
                           >
-                            오퍼 보내기 →
+                            {t("explore.sendOffer")}
                           </Button>
                         )}
                       </div>

@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { ClientOnly } from "~/components/ClientOnly";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags } from "~/users/queries";
+import { useLanguage } from "~/context/language-context";
 
 const MapView = lazy(() => import("~/components/MapView"));
 
@@ -24,11 +25,11 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const response = new Response();
   const { client } = createSupabaseClient(request);
-  
+
   // Fetch active flags for the map
   const { flags: activeFlags = [] } = await getAllActiveFlags(client);
 
-  console.log(activeFlags ,"flags")
+  console.log(activeFlags, "flags");
 
   // TODO: Fetch top profiles and stats from DB
   return {
@@ -47,9 +48,10 @@ export default function Index() {
   const navigate = useNavigate();
   const loaderData = useLoaderData<typeof loader>();
   const contentRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   const handleMarkerClick = (city: string) => {
-    console.log("click handle marker click")
+    console.log("click handle marker click");
     // Navigate to explore page with location filter
     // If city is actually a country name (from country cluster), it works too
     navigate(`/explore?location=${encodeURIComponent(city)}`);
@@ -60,14 +62,17 @@ export default function Index() {
   };
 
   // Calculate flag counts per country
-  const countryCounts = loaderData.activeFlags.reduce((acc: Record<string, number>, flag: any) => {
-    const country = flag.country;
-    acc[country] = (acc[country] || 0) + 1;
-    return acc;
-  }, {});
-console.log(countryCounts,"country count")
+  const countryCounts = loaderData.activeFlags.reduce(
+    (acc: Record<string, number>, flag: any) => {
+      const country = flag.country;
+      acc[country] = (acc[country] || 0) + 1;
+      return acc;
+    },
+    {}
+  );
+  console.log(countryCounts, "country count");
   // Merge POPULAR_DESTINATIONS with real counts
-  const heroMarkers = POPULAR_DESTINATIONS.map(dest => ({
+  const heroMarkers = POPULAR_DESTINATIONS.map((dest) => ({
     id: `popular-${dest.city}`,
     lat: dest.lat,
     lng: dest.lng,
@@ -76,17 +81,17 @@ console.log(countryCounts,"country count")
     imageUrl: dest.imageUrl,
     count: countryCounts[dest.country_code] || 0, // Use real DB count for the country
     flags: [],
-    isPopular: true
+    isPopular: true,
   }));
 
   const fadeInUp = {
     initial: { opacity: 0, y: 20 },
-    whileInView: { 
-      opacity: 1, 
+    whileInView: {
+      opacity: 1,
       y: 0,
-      transition: { duration: 0.6 }
+      transition: { duration: 0.6 },
     },
-    viewport: { once: false, amount: 0.3 }
+    viewport: { once: false, amount: 0.3 },
   };
 
   const staggerContainer = {
@@ -101,17 +106,22 @@ console.log(countryCounts,"country count")
         <div className="absolute inset-0 z-0">
           <ClientOnly fallback={<div className="w-full h-full bg-gray-100" />}>
             {() => (
-              <Suspense fallback={<div className="w-full h-full bg-gray-100" />}>
-                <MapView 
-                  flags={heroMarkers} 
-                  center={{ lat: 20, lng: 150 }} 
-                  zoom={1.5} 
-                  interactive={true} 
+              <Suspense
+                fallback={<div className="w-full h-full bg-gray-100" />}
+              >
+                <MapView
+                  flags={heroMarkers}
+                  center={{ lat: 20, lng: 150 }}
+                  zoom={1.5}
+                  interactive={true}
                   showControls={false}
                   onMarkerClick={handleMarkerClick}
                   maxZoom={4}
                   minZoom={1.5}
-                  maxBounds={[[-90, -180], [90, 180]]}
+                  maxBounds={[
+                    [-90, -180],
+                    [90, 180],
+                  ]}
                   noWrap={false}
                   clusteringThreshold={10} // Always show country clusters on home page
                 />
@@ -119,9 +129,12 @@ console.log(countryCounts,"country count")
             )}
           </ClientOnly>
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/5 pointer-events-none" />
-          
+
           {/* Scroll Down Indicator */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 animate-bounce cursor-pointer" onClick={scrollToContent}>
+          <div
+            className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10 animate-bounce cursor-pointer"
+            onClick={scrollToContent}
+          >
             <div className="bg-white/80 backdrop-blur-sm p-4 rounded-full shadow-lg hover:bg-white transition-colors">
               <ChevronDown className="w-10 h-10 text-blue-600" />
             </div>
@@ -132,19 +145,18 @@ console.log(countryCounts,"country count")
       {/* How It Works */}
       <section ref={contentRef} className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
+          <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              CoSnap은 이렇게 작동해요
+              {t ? t("home.howItWorks.title") : "CoSnap은 이렇게 작동해요"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              간단한 4단계로 새로운 여행 경험을 시작하세요
+              {t
+                ? t("home.howItWorks.subtitle")
+                : "간단한 4단계로 새로운 여행 경험을 시작하세요"}
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid md:grid-cols-4 gap-8"
             variants={staggerContainer}
             initial="initial"
@@ -152,13 +164,37 @@ console.log(countryCounts,"country count")
             viewport={{ once: false, amount: 0.3 }}
           >
             {[
-              { icon: "🚩", title: "Flag 생성", desc: "여행 계획을 Flag로 등록하고 다른 여행자들에게 알리세요" },
-              { icon: "💌", title: "Offer 교환", desc: "마음에 드는 여행자에게 오퍼를 보내거나 받으세요" },
-              { icon: "🤝", title: "Match 성사", desc: "오퍼가 수락되면 매치가 확정되고 만남을 약속해요" },
-              { icon: "⭐", title: "Focus 획득", desc: "성공적인 CoSnap 후 서로 리뷰를 남기고 Focus를 쌓아요" }
+              {
+                icon: "🚩",
+                title: t ? t("home.howItWorks.step1.title") : "Flag 생성",
+                desc: t
+                  ? t("home.howItWorks.step1.desc")
+                  : "여행 계획을 Flag로 등록하고 다른 여행자들에게 알리세요",
+              },
+              {
+                icon: "💌",
+                title: t ? t("home.howItWorks.step2.title") : "Offer 교환",
+                desc: t
+                  ? t("home.howItWorks.step2.desc")
+                  : "마음에 드는 여행자에게 오퍼를 보내거나 받으세요",
+              },
+              {
+                icon: "🤝",
+                title: t ? t("home.howItWorks.step3.title") : "Match 성사",
+                desc: t
+                  ? t("home.howItWorks.step3.desc")
+                  : "오퍼가 수락되면 매치가 확정되고 만남을 약속해요",
+              },
+              {
+                icon: "⭐",
+                title: t ? t("home.howItWorks.step4.title") : "Focus 획득",
+                desc: t
+                  ? t("home.howItWorks.step4.desc")
+                  : "성공적인 CoSnap 후 서로 리뷰를 남기고 Focus를 쌓아요",
+              },
             ].map((item, index) => (
-              <motion.div 
-                key={index} 
+              <motion.div
+                key={index}
                 className="text-center"
                 variants={fadeInUp}
               >
@@ -178,33 +214,36 @@ console.log(countryCounts,"country count")
       {/* Features */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
+          <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              왜 CoSnap인가요?
+              {t ? t("home.whyCoSnap.title") : "왜 CoSnap인가요?"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              신뢰 기반의 커뮤니티에서 안전하고 즐거운 여행 경험을 만나보세요
+              {t
+                ? t("home.whyCoSnap.subtitle")
+                : "신뢰 기반의 커뮤니티에서 안전하고 즐거운 여행 경험을 만나보세요"}
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid md:grid-cols-3 gap-8"
             variants={staggerContainer}
             initial="initial"
             whileInView="whileInView"
             viewport={{ once: false, amount: 0.3 }}
           >
-            <motion.div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow" variants={fadeInUp}>
+            <motion.div
+              className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow"
+              variants={fadeInUp}
+            >
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
                 <span className="text-3xl">🎯</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4">Focus 시스템</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {t("home.whyCoSnap.focus.title")}
+              </h3>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                신뢰도 점수로 안전한 커뮤니티를 구축합니다. 성공적인
-                CoSnap일수록 Focus가 올라가요.
+                {t("home.whyCoSnap.focus.desc")}
               </p>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
@@ -222,14 +261,18 @@ console.log(countryCounts,"country count")
               </ul>
             </motion.div>
 
-            <motion.div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow" variants={fadeInUp}>
+            <motion.div
+              className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow"
+              variants={fadeInUp}
+            >
               <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-6">
                 <span className="text-3xl">🌍</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4">계획 기반 매칭</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {t("home.whyCoSnap.planning.title")}
+              </h3>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                여행 계획을 미리 공유하고 신중하게 파트너를 선택하세요. 실시간
-                매칭보다 더 안전하고 깊이 있는 교류가 가능해요.
+                {t("home.whyCoSnap.planning.desc")}
               </p>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
@@ -247,14 +290,18 @@ console.log(countryCounts,"country count")
               </ul>
             </motion.div>
 
-            <motion.div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow" variants={fadeInUp}>
+            <motion.div
+              className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-md transition-shadow"
+              variants={fadeInUp}
+            >
               <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mb-6">
                 <span className="text-3xl">💎</span>
               </div>
-              <h3 className="text-xl font-semibold mb-4">프리미엄 혜택</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {t("home.whyCoSnap.premium.title")}
+              </h3>
               <p className="text-gray-600 mb-6 leading-relaxed">
-                프리미엄으로 더 많은 기회와 편리함을 누리세요. 언제든지 여행
-                계획을 만들고 수정할 수 있어요.
+                {t("home.whyCoSnap.premium.desc")}
               </p>
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
@@ -278,19 +325,18 @@ console.log(countryCounts,"country count")
       {/* Active Flags from Database */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
+          <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              현재 활성화된 여행 계획
+              {t ? t("home.activeFlags.title") : "현재 활성화된 여행 계획"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              다른 여행자들의 실제 여행 계획을 확인하고 CoSnap을 신청해보세요
+              {t
+                ? t("home.activeFlags.subtitle")
+                : "다른 여행자들의 실제 여행 계획을 확인하고 CoSnap을 신청해보세요"}
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
             variants={staggerContainer}
             initial="initial"
@@ -340,13 +386,15 @@ console.log(countryCounts,"country count")
                         : "bg-blue-100 text-blue-800"
                     }`}
                   >
-                    {flag.sourcePlanType === "premium" ? "프리미엄" : "일반"}
+                    {flag.sourcePlanType === "premium"
+                      ? t("home.activeFlags.premium")
+                      : t("home.activeFlags.regular")}
                   </span>
                   <Link
                     to="/flags"
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                   >
-                    자세히 보기 →
+                    {t ? t("home.activeFlags.viewDetails") : "자세히 보기 →"}
                   </Link>
                 </div>
               </motion.div>
@@ -357,13 +405,15 @@ console.log(countryCounts,"country count")
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🗺️</div>
               <p className="text-gray-500 mb-4">
-                아직 활성화된 여행 계획이 없습니다
+                {t
+                  ? t("home.activeFlags.noFlags")
+                  : "아직 활성화된 여행 계획이 없습니다"}
               </p>
               <Link
                 to="/flags"
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
-                첫 여행 계획 만들기
+                {t ? t("home.activeFlags.createFirst") : "첫 여행 계획 만들기"}
               </Link>
             </div>
           )}
@@ -373,19 +423,18 @@ console.log(countryCounts,"country count")
       {/* Top Profiles */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
+          <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Top CoSnap 사용자
+              {t ? t("home.topProfiles.title") : "Top CoSnap 사용자"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              높은 Focus 점수를 보유한 신뢰할 수 있는 사용자들
+              {t
+                ? t("home.topProfiles.subtitle")
+                : "높은 Focus 점수를 보유한 신뢰할 수 있는 사용자들"}
             </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
             variants={staggerContainer}
             initial="initial"
@@ -432,7 +481,9 @@ console.log(countryCounts,"country count")
                         : "bg-blue-100 text-blue-800"
                     }`}
                   >
-                    {profile.role === "premium" ? "프리미엄" : "일반"}
+                    {profile.role === "premium"
+                      ? t("home.activeFlags.premium")
+                      : t("home.activeFlags.regular")}
                   </div>
                 </div>
 
@@ -445,7 +496,9 @@ console.log(countryCounts,"country count")
                 <div className="space-y-2 text-sm">
                   {profile.cameraGear && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">장비:</span>
+                      <span className="text-gray-500">
+                        {t("home.topProfiles.equipment")}
+                      </span>
                       <span className="text-gray-700">
                         {profile.cameraGear}
                       </span>
@@ -453,7 +506,9 @@ console.log(countryCounts,"country count")
                   )}
                   {profile.styles && profile.styles.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">스타일:</span>
+                      <span className="text-gray-500">
+                        {t("home.topProfiles.style")}
+                      </span>
                       <div className="flex flex-wrap gap-1">
                         {profile.styles
                           .slice(0, 2)
@@ -475,7 +530,9 @@ console.log(countryCounts,"country count")
                   )}
                   {profile.languages && profile.languages.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">언어:</span>
+                      <span className="text-gray-500">
+                        {t("home.topProfiles.languages")}
+                      </span>
                       <span className="text-gray-700">
                         {profile.languages.join(", ")}
                       </span>
@@ -491,24 +548,28 @@ console.log(countryCounts,"country count")
       {/* Testimonials */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            {...fadeInUp}
-          >
+          <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              CoSnap 사용자 후기
+              {t ? t("home.testimonials.title") : "CoSnap 사용자 후기"}
             </h2>
-            <p className="text-gray-600">실제 사용자들의 생생한 경험담</p>
+            <p className="text-gray-600">
+              {t
+                ? t("home.testimonials.subtitle")
+                : "실제 사용자들의 생생한 경험담"}
+            </p>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="grid md:grid-cols-3 gap-8"
             variants={staggerContainer}
             initial="initial"
             whileInView="whileInView"
             viewport={{ once: false, amount: 0.3 }}
           >
-            <motion.div className="bg-gray-50 rounded-xl p-6" variants={fadeInUp}>
+            <motion.div
+              className="bg-gray-50 rounded-xl p-6"
+              variants={fadeInUp}
+            >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
@@ -524,7 +585,10 @@ console.log(countryCounts,"country count")
               </p>
             </motion.div>
 
-            <motion.div className="bg-gray-50 rounded-xl p-6" variants={fadeInUp}>
+            <motion.div
+              className="bg-gray-50 rounded-xl p-6"
+              variants={fadeInUp}
+            >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
@@ -540,7 +604,10 @@ console.log(countryCounts,"country count")
               </p>
             </motion.div>
 
-            <motion.div className="bg-gray-50 rounded-xl p-6" variants={fadeInUp}>
+            <motion.div
+              className="bg-gray-50 rounded-xl p-6"
+              variants={fadeInUp}
+            >
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
@@ -560,7 +627,7 @@ console.log(countryCounts,"country count")
 
       {/* CTA Section */}
       <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600">
-        <motion.div 
+        <motion.div
           className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center"
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -568,17 +635,14 @@ console.log(countryCounts,"country count")
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl font-bold text-white mb-4">
-            당신의 다음 여행에 CoSnap을 더하세요
+            {t("home.cta.title")}
           </h2>
-          <p className="text-blue-100 text-lg mb-8">
-            새로운 사람들을 만나고 잊지 못할 순간들을 함께 담아보세요. 지금 바로
-            여행 계획을 만들어보세요!
-          </p>
+          <p className="text-blue-100 text-lg mb-8">{t("home.cta.subtitle")}</p>
           <Link
             to="/flags"
             className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors inline-block"
           >
-            무료로 시작하기
+            {t ? t("home.cta.getStarted") : "무료로 시작하기"}
           </Link>
         </motion.div>
       </section>

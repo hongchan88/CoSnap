@@ -10,6 +10,7 @@ import { Skeleton } from "../components/ui/skeleton";
 import Modal from "../components/ui/Modal";
 import { getLoggedInUserId, getUserFlags, getUserOffers } from "~/users/queries";
 import { createFlag, updateFlag, deleteFlag } from "~/users/mutations";
+import { useLanguage } from "~/context/language-context";
 
 // Flag data interface for form handling
 interface FlagData {
@@ -33,8 +34,8 @@ interface FlagData {
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "내 여행 계획 - CoSnap" },
-    { name: "description", content: "여행 계획(Flag)을 생성하고 관리하세요" },
+    { title: "My Travel Plans - CoSnap" },
+    { name: "description", content: "Create and manage your travel plans (Flags)" },
   ];
 }
 
@@ -207,6 +208,7 @@ function FlagsSkeleton() {
 }
 
 function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { initialFlags: any[], receivedOffers: any[], sentOffers: any[], userId: string }) {
+  const { t } = useLanguage();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [isCreatingFlag, setIsCreatingFlag] = useState(false);
@@ -366,7 +368,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
   };
 
   const handleDeleteFlag = (flagId: string) => {
-    if (confirm("정말로 이 Flag를 삭제하시겠습니까?")) {
+    if (confirm(t("flags.deleteConfirm"))) {
       const form = document.createElement("form");
       form.method = "post";
       form.innerHTML = `
@@ -419,11 +421,11 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
             message={
               actionData.error ||
               (actionData.action === "create"
-                ? "Flag가 생성되었습니다!"
+                ? t("flags.notification.created")
                 : actionData.action === "update"
-                  ? "Flag가 수정되었습니다!"
+                  ? t("flags.notification.updated")
                   : actionData.action === "delete"
-                    ? "Flag가 삭제되었습니다!"
+                    ? t("flags.notification.deleted")
                     : "")
             }
             onClose={() => window.location.reload()}
@@ -461,7 +463,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
             {isSubmitting ? (
               <>
                 <LoadingSpinner size="sm" color="white" />
-                처리 중...
+                {t("flags.processing")}
               </>
             ) : (
               <>
@@ -478,7 +480,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
                     d="M12 4v16m8-8H4"
                   />
                 </svg>
-                새 여행 계획 만들기
+                {t("flags.createButton")}
               </>
             )}
           </button>
@@ -489,7 +491,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">
-            예정된 여행 ({activeFlags.length})
+            {t("flags.activeSection")} ({activeFlags.length})
           </h2>
 
           {activeFlags.length === 0 ? (
@@ -507,9 +509,9 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
                   d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-gray-500">예정된 여행 계획이 없습니다</p>
+              <p className="text-gray-500">{t("flags.emptyActive")}</p>
               <p className="text-sm text-gray-400 mt-2">
-                새로운 Flag를 만들어 여행 계획을 공유해보세요
+                {t("flags.emptyActiveSub")}
               </p>
             </div>
           ) : (
@@ -553,7 +555,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         {/* 지난 여행 */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">
-            지난 여행 ({pastFlags.length})
+            {t("flags.pastSection")} ({pastFlags.length})
           </h2>
 
           {pastFlags.length === 0 ? (
@@ -571,9 +573,9 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
                   d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <p className="text-gray-500">지난 여행 기록이 없습니다</p>
+              <p className="text-gray-500">{t("flags.emptyPast")}</p>
               <p className="text-sm text-gray-400 mt-2">
-                첫 CoSnap을 시작해보세요!
+                {t("flags.emptyPastSub")}
               </p>
             </div>
           ) : (
@@ -605,14 +607,14 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-semibold mb-2">
-              프리미엄으로 업그레이드
+              {t("flags.premium.title")}
             </h3>
             <p className="text-blue-100">
-              언제든지 여행 계획을 만들고 수정하세요
+              {t("flags.premium.desc")}
             </p>
           </div>
           <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
-            알아보기
+            {t("flags.premium.learnMore")}
           </button>
         </div>
       </div>
@@ -621,6 +623,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
 }
 
 export default function FlagsPage() {
+  const { t } = useLanguage();
   const { dataPromise } = useLoaderData<typeof loader>();
 
   return (
@@ -629,10 +632,10 @@ export default function FlagsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            내 여행 계획
+            {t("flags.title")}
           </h1>
           <p className="text-gray-600">
-            여행 계획을 공유하고 멋진 사진 교환을 시작하세요
+            {t("flags.description")}
           </p>
         </div>
 

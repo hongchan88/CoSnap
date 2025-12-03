@@ -9,6 +9,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
 import { Card, CardContent } from './ui/card';
+import { useLanguage } from '../context/language-context';
 
 interface OfferModalProps {
   isOpen: boolean;
@@ -31,19 +32,21 @@ interface OfferFormData {
   location: string;
 }
 
-const photoStyleOptions = [
-  { value: 'portrait', label: '인물 사진', icon: '👤' },
-  { value: 'landscape', label: '풍경 사진', icon: '🏞️' },
-  { value: 'street', label: '거리 사진', icon: '🏙️' },
-  { value: 'food', label: '음식 사진', icon: '🍽️' },
-  { value: 'night', label: '야경 사진', icon: '🌃' },
-  { value: 'architecture', label: '건축 사진', icon: '🏛️' },
-  { value: 'candid', label: '자연스러운 순간', icon: '📸' },
-  { value: 'cultural', label: '문화/축제', icon: '🎭' },
-];
-
 export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProps) {
   const fetcher = useFetcher();
+  const { t } = useLanguage();
+
+  // Define options inside component to have access to t function
+  const photoStyleOptions = [
+    { value: 'portrait', label: t("offerModal.photoStyle.portrait") || '인물 사진', icon: '👤' },
+    { value: 'landscape', label: t("offerModal.photoStyle.landscape") || '풍경 사진', icon: '🏞️' },
+    { value: 'street', label: t("offerModal.photoStyle.street") || '거리 사진', icon: '🏙️' },
+    { value: 'food', label: t("offerModal.photoStyle.food") || '음식 사진', icon: '🍽️' },
+    { value: 'night', label: t("offerModal.photoStyle.night") || '야경 사진', icon: '🌃' },
+    { value: 'architecture', label: t("offerModal.photoStyle.architecture") || '건축 사진', icon: '🏛️' },
+    { value: 'candid', label: t("offerModal.photoStyle.candid") || '자연스러운 순간', icon: '📸' },
+    { value: 'cultural', label: t("offerModal.photoStyle.cultural") || '문화/축제', icon: '🎭' },
+  ];
   const [formData, setFormData] = useState<OfferFormData>({
     message: '',
     preferredDates: [],
@@ -59,7 +62,7 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data) {
       if (fetcher.data.success) {
-        setNotification({ type: 'success', message: '오퍼가 성공적으로 전송되었습니다!' });
+        setNotification({ type: 'success', message: t("offerModal.success") });
         setFormData({
           message: '',
           preferredDates: [],
@@ -80,21 +83,21 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
     const newErrors: Partial<OfferFormData> = {};
 
     if (!formData.message.trim()) {
-      newErrors.message = '메시지를 입력해주세요';
+      newErrors.message = t("offerModal.error.messageRequired");
     } else if (formData.message.length < 20) {
-      newErrors.message = '메시지는 최소 20자 이상이어야 합니다';
+      newErrors.message = t("offerModal.error.minMessage");
     }
 
     if (formData.preferredDates.length === 0) {
-      newErrors.preferredDates = ['희망 날짜를 최소 1개 이상 선택해주세요'];
+      newErrors.preferredDates = [t("offerModal.error.datesRequired")];
     }
 
     if (formData.photoStyles.length === 0) {
-      newErrors.photoStyles = ['선호 사진 스타일을 최소 1개 이상 선택해주세요'];
+      newErrors.photoStyles = [t("offerModal.error.photoStylesRequired")];
     }
 
     if (!formData.location.trim()) {
-      newErrors.location = '희망 장소를 입력해주세요';
+      newErrors.location = t("offerModal.error.locationRequired");
     }
 
     setErrors(newErrors);
@@ -179,7 +182,7 @@ ${formData.message}
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={onClose} title="오퍼 보내기" size="lg">
+      <Modal isOpen={isOpen} onClose={onClose} title={t("offerModal.title")} size="lg">
         <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
           {/* Flag 정보 */}
           <Card>
@@ -213,7 +216,7 @@ ${formData.message}
             {/* 메시지 */}
             <div className="space-y-2">
               <Label htmlFor="message">
-                소개 메시지 <span className="text-red-500">*</span>
+                {t("offerModal.messageLabel")} <span className="text-red-500">*</span>
               </Label>
               <Textarea
                 id="message"
@@ -228,14 +231,14 @@ ${formData.message}
                 {errors.message && (
                   <p className="text-sm text-red-600">{errors.message}</p>
                 )}
-                <p className="text-sm text-gray-500">{formData.message.length}/500자</p>
+                <p className="text-sm text-gray-500">{formData.message.length}/500 {t("characters")}</p>
               </div>
             </div>
 
             {/* 희망 날짜 */}
             <div className="space-y-3">
               <Label>
-                희망 날짜 <span className="text-red-500">*</span>
+                {t("offerModal.datesLabel")} <span className="text-red-500">*</span>
               </Label>
               <div className="space-y-2 max-h-32 overflow-y-auto p-3 border rounded-lg">
                 {dateOptions.map((option) => (
@@ -260,7 +263,7 @@ ${formData.message}
             {/* 선호 사진 스타일 */}
             <div className="space-y-3">
               <Label>
-                선호 사진 스타일 <span className="text-red-500">*</span>
+                {t("offerModal.photoStylesLabel")} <span className="text-red-500">*</span>
               </Label>
               <div className="grid grid-cols-2 gap-3">
                 {photoStyleOptions.map((option) => (
@@ -285,7 +288,7 @@ ${formData.message}
             {/* 희망 장소 */}
             <div className="space-y-2">
               <Label htmlFor="location">
-                희망 장소 <span className="text-red-500">*</span>
+                {t("offerModal.locationLabel")} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="location"
@@ -310,7 +313,7 @@ ${formData.message}
                 disabled={isSubmitting}
                 className="flex-1"
               >
-                취소
+                {t("offerModal.cancel")}
               </Button>
               <Button
                 type="submit"
@@ -320,10 +323,10 @@ ${formData.message}
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" color="white" />
-                    전송 중...
+                    {t("offerModal.sending")}
                   </>
                 ) : (
-                  '오퍼 보내기'
+                  t("offerModal.send")
                 )}
               </Button>
             </div>

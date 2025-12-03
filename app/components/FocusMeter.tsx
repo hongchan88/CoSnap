@@ -1,3 +1,5 @@
+import { useLanguage } from '../context/language-context';
+
 interface FocusMeterProps {
   score: number;
   size?: 'sm' | 'md' | 'lg';
@@ -6,13 +8,6 @@ interface FocusMeterProps {
   animated?: boolean;
 }
 
-const focusTiers = [
-  { name: 'Blurry', min: 0, max: 20, color: 'from-gray-400 to-gray-600', textColor: 'text-gray-600' },
-  { name: 'Focusing', min: 21, max: 50, color: 'from-blue-400 to-blue-600', textColor: 'text-blue-600' },
-  { name: 'Clear', min: 51, max: 80, color: 'from-yellow-400 to-orange-500', textColor: 'text-orange-600' },
-  { name: 'Crystal', min: 81, max: 100, color: 'from-purple-400 to-pink-500', textColor: 'text-purple-600' },
-];
-
 export default function FocusMeter({
   score,
   size = 'md',
@@ -20,6 +15,16 @@ export default function FocusMeter({
   showProgress = false,
   animated = true,
 }: FocusMeterProps) {
+  const { t } = useLanguage();
+
+  // Define focusTiers inside component to have access to t function
+  const focusTiers = [
+    { name: t("focusMeter.tier.blurry") || 'Blurry', min: 0, max: 20, color: 'from-gray-400 to-gray-600', textColor: 'text-gray-600' },
+    { name: t("focusMeter.tier.focusing") || 'Focusing', min: 21, max: 50, color: 'from-blue-400 to-blue-600', textColor: 'text-blue-600' },
+    { name: t("focusMeter.tier.clear") || 'Clear', min: 51, max: 80, color: 'from-yellow-400 to-orange-500', textColor: 'text-orange-600' },
+    { name: t("focusMeter.tier.crystal") || 'Crystal', min: 81, max: 100, color: 'from-purple-400 to-pink-500', textColor: 'text-purple-600' },
+  ];
+
   const currentTier = focusTiers.find(tier => score >= tier.min && score <= tier.max) || focusTiers[0];
   const nextTier = focusTiers.find(tier => score < tier.min);
 
@@ -76,7 +81,7 @@ export default function FocusMeter({
           {/* 다음 티어까지 남은 점수 */}
           {nextTier && (
             <p className="text-center text-sm text-gray-600 mt-2">
-              다음 티어까지 <span className="font-semibold text-blue-600">{nextTier.min - score}점</span> 필요
+              {t("focusMeter.nextTierPoints")}<span className="font-semibold text-blue-600">{nextTier.min - score}{t("focusMeter.points")}</span>
             </p>
           )}
         </div>
@@ -102,6 +107,16 @@ export default function FocusMeter({
 
 // 작은 버전의 Focus 미터 (리스트용)
 export function FocusBadge({ score }: { score: number }) {
+  const { t } = useLanguage();
+
+  // Define focusTiers inside component to have access to t function
+  const focusTiers = [
+    { name: t("focusMeter.tier.blurry") || 'Blurry', min: 0, max: 20, color: 'from-gray-400 to-gray-600', textColor: 'text-gray-600' },
+    { name: t("focusMeter.tier.focusing") || 'Focusing', min: 21, max: 50, color: 'from-blue-400 to-blue-600', textColor: 'text-blue-600' },
+    { name: t("focusMeter.tier.clear") || 'Clear', min: 51, max: 80, color: 'from-yellow-400 to-orange-500', textColor: 'text-orange-600' },
+    { name: t("focusMeter.tier.crystal") || 'Crystal', min: 81, max: 100, color: 'from-purple-400 to-pink-500', textColor: 'text-purple-600' },
+  ];
+
   const currentTier = focusTiers.find(tier => score >= tier.min && score <= tier.max) || focusTiers[0];
 
   return (

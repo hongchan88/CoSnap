@@ -13,6 +13,7 @@ import type { Route } from "./+types/root";
 import Navigation from "./components/Navigation";
 import "./app.css";
 import { createSupabaseClient } from "./lib/supabase";
+import { LanguageProvider } from "./context/language-context";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -57,10 +58,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { user } = useLoaderData<typeof loader>();
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation user={user} />
-      <Outlet />
-    </div>
+    <LanguageProvider>
+      <div className="min-h-screen bg-gray-50">
+        <Navigation user={user} />
+        <Outlet />
+      </div>
+    </LanguageProvider>
   );
 }
 

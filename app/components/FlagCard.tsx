@@ -3,6 +3,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Edit, Trash2, Mail, Calendar } from "lucide-react";
 import { PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
+import { useLanguage } from "~/context/language-context";
 
 interface FlagCardProps {
   id: string;
@@ -11,7 +12,7 @@ interface FlagCardProps {
   flag: string;
   startDate: string;
   endDate: string;
-  status: 'active' | 'hidden' | 'expired';
+  status: "active" | "hidden" | "expired";
   offerCount: number;
   styles: string[];
   note?: string;
@@ -23,16 +24,10 @@ interface FlagCardProps {
 }
 
 const statusVariants = {
-  active: 'default',
-  hidden: 'secondary',
-  expired: 'destructive',
+  active: "default",
+  hidden: "secondary",
+  expired: "destructive",
 } as const;
-
-const statusLabels = {
-  active: '활성',
-  hidden: '숨김',
-  expired: '만료',
-};
 
 export default function FlagCard({
   id,
@@ -51,6 +46,14 @@ export default function FlagCard({
   offers = [],
   isSentOfferFlag = false,
 }: FlagCardProps) {
+  const { t } = useLanguage();
+
+  const statusLabels = {
+    active: t ? t("flagCard.status.active") : "활성",
+    hidden: t ? t("flagCard.status.hidden") : "숨김",
+    expired: t ? t("flagCard.status.expired") : "만료",
+  };
+
   return (
     <Card className="hover:shadow-md transition-all duration-200">
       <CardHeader className="pb-4">
@@ -64,7 +67,8 @@ export default function FlagCard({
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  {new Date(startDate).toLocaleDateString('ko-KR')} - {new Date(endDate).toLocaleDateString('ko-KR')}
+                  {new Date(startDate).toLocaleDateString("ko-KR")} -{" "}
+                  {new Date(endDate).toLocaleDateString("ko-KR")}
                 </span>
               </div>
             </div>
@@ -86,11 +90,17 @@ export default function FlagCard({
 
         {/* 사진 스타일 */}
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">선호 사진 스타일</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">
+            {t ? t("flagCard.photoStyle") : "선호 사진 스타일"}
+          </h4>
           <div className="flex flex-wrap gap-2">
             {styles.map((style, index) => (
-              <Badge key={index} variant="outline" className="text-xs flex items-center gap-1">
-                <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
+              <Badge
+                key={index}
+                variant="outline"
+                className="text-xs flex items-center gap-1"
+              >
+                <span>{PHOTO_STYLE_ICONS_RECORD[style] || "📷"}</span>
                 {style}
               </Badge>
             ))}
@@ -102,29 +112,50 @@ export default function FlagCard({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-600">{isSentOfferFlag ? "보낸 오퍼" : "받은 오퍼"}</span>
+              <span className="text-sm text-gray-600">
+                {isSentOfferFlag
+                  ? t
+                    ? t("flagCard.sentOffers")
+                    : "보낸 오퍼"
+                  : t
+                    ? t("flagCard.receivedOffers")
+                    : "받은 오퍼"}
+              </span>
             </div>
             <Badge variant="secondary" className="font-semibold">
-              {offerCount}개
+              {offerCount}
+              {t ? t("flagCard.count") : "개"}
             </Badge>
           </div>
-          
+
           {/* Offers List */}
           {offers.length > 0 && (
             <div className="space-y-2 mt-3 bg-gray-50 p-3 rounded-lg">
               {offers.map((offer) => (
-                <div key={offer.id} className="bg-white p-3 rounded border border-gray-100 shadow-sm">
+                <div
+                  key={offer.id}
+                  className="bg-white p-3 rounded border border-gray-100 shadow-sm"
+                >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-medium text-sm">{offer.sender?.username || "Unknown User"}</span>
-                    <Badge variant={
-                      offer.status === "accepted" ? "default" :
-                      offer.status === "pending" ? "secondary" :
-                      "outline"
-                    } className="text-xs">
+                    <span className="font-medium text-sm">
+                      {offer.sender?.username || "Unknown User"}
+                    </span>
+                    <Badge
+                      variant={
+                        offer.status === "accepted"
+                          ? "default"
+                          : offer.status === "pending"
+                            ? "secondary"
+                            : "outline"
+                      }
+                      className="text-xs"
+                    >
                       {offer.status}
                     </Badge>
                   </div>
-                  <p className="text-xs text-gray-600 line-clamp-2">{offer.message}</p>
+                  <p className="text-xs text-gray-600 line-clamp-2">
+                    {offer.message}
+                  </p>
                   <div className="text-xs text-gray-400 mt-1 text-right">
                     {new Date(offer.sent_at).toLocaleDateString()}
                   </div>
@@ -148,7 +179,7 @@ export default function FlagCard({
                 className="flex-1"
               >
                 <Edit className="w-4 h-4 mr-2" />
-                수정하기
+                {t ? t("flagCard.edit") : "수정하기"}
               </Button>
               <Button
                 variant="outline"
@@ -160,7 +191,7 @@ export default function FlagCard({
                 className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                삭제하기
+                {t ? t("flagCard.delete") : "삭제하기"}
               </Button>
             </>
           )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "../../lib/utils"
+import { useLanguage } from "../../context/language-context"
 
 // @ts-ignore - motion doesn't have proper types but works at runtime
 import { useMotionValue, useSpring, useInView } from "motion/react"
@@ -24,6 +25,7 @@ export function NumberTicker({
   className,
 }: NumberTickerProps) {
   const ref = useRef<HTMLSpanElement>(null)
+  const { language } = useLanguage()
   const motionValue = useMotionValue(direction === "down" ? value : startValue)
   const springValue = useSpring(motionValue, {
     damping: 60,
@@ -43,13 +45,13 @@ export function NumberTicker({
   useEffect(() => {
     springValue.on("change", (latest) => {
       if (ref.current) {
-        ref.current.textContent = Intl.NumberFormat("en-US", {
+        ref.current.textContent = Intl.NumberFormat(language === "ko" ? "ko-KR" : "en-US", {
           minimumFractionDigits: decimalPlaces,
           maximumFractionDigits: decimalPlaces,
         }).format(Number(latest.toFixed(decimalPlaces)))
       }
     })
-  }, [springValue, decimalPlaces])
+  }, [springValue, decimalPlaces, language])
 
   return (
     <span
