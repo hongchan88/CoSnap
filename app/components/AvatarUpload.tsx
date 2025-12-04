@@ -128,7 +128,6 @@ export default function AvatarUpload({
               {/* Overlay */}
               <div
                 className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200 cursor-pointer"
-                onClick={() => !disabled && fileInputRef.current?.click()}
               >
                 <Upload className="w-8 h-8 text-white" />
               </div>
@@ -150,7 +149,13 @@ export default function AvatarUpload({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => !disabled && fileInputRef.current?.click()}
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!disabled) {
+                  fileInputRef.current?.click();
+                }
+              }}
               disabled={disabled}
             >
               <Upload className="w-4 h-4 mr-2" />
