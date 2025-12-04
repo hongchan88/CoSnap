@@ -64,9 +64,44 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
     avatarUrl: initialData?.avatarUrl || null,
   }));
 
+  // Store initial values for change detection
+  const [initialValues] = useState<ProfileFormData>(() => ({
+    username: initialData?.username || '',
+    bio: initialData?.bio || '',
+    cameraGear: initialData?.cameraGear || '',
+    photoStyles: initialData?.photoStyles || [],
+    languages: initialData?.languages || ['ko'],
+    location: initialData?.location || '',
+    avatarFile: null,
+    avatarUrl: initialData?.avatarUrl || null,
+  }));
+
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Detect changes by comparing current form data with initial values
+  useEffect(() => {
+    const checkForChanges = () => {
+      const hasTextChanged =
+        formData.username !== initialValues.username ||
+        formData.bio !== initialValues.bio ||
+        formData.cameraGear !== initialValues.cameraGear ||
+        formData.location !== initialValues.location ||
+        formData.avatarUrl !== initialValues.avatarUrl;
+
+      const hasArrayChanges =
+        JSON.stringify(formData.photoStyles.sort()) !== JSON.stringify(initialValues.photoStyles.sort()) ||
+        JSON.stringify(formData.languages.sort()) !== JSON.stringify(initialValues.languages.sort());
+
+      const hasAvatarFile = formData.avatarFile !== null;
+
+      setHasChanges(hasTextChanged || hasArrayChanges || hasAvatarFile);
+    };
+
+    checkForChanges();
+  }, [formData, initialValues]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
@@ -338,8 +373,16 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           </div>
 
           {/* 버튼 */}
-          <div className="flex gap-3 pt-4 border-t border-gray-200">
-            <Button
+          <div className="space-y-3 pt-4 border-t border-gray-200">
+            {hasChanges && (
+              <div className="text-center">
+                <span className="text-sm text-blue-600 font-medium">
+                  💾 저장되지 않은 변경사항이 있습니다
+                </span>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button
               type="button"
               variant="outline"
               onClick={onCancel}
@@ -350,7 +393,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !hasChanges}
               className="flex-1"
             >
               {isSubmitting ? (
@@ -358,10 +401,13 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
                   <LoadingSpinner size="sm" color="white" />
                   저장 중...
                 </>
-              ) : (
+              ) : hasChanges ? (
                 '저장하기'
+              ) : (
+                '변경된 내용이 없습니다'
               )}
             </Button>
+            </div>
           </div>
         </form>
     </div>

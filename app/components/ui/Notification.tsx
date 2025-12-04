@@ -36,8 +36,14 @@ export default function Notification({ type, message, onClose, autoClose = true 
 
   return (
     <Alert className={`${styles.className} ${onClose ? 'pr-12' : ''}`}>
-      <span className="text-lg mr-2">{styles.icon}</span>
-      <AlertDescription className="font-medium">{message}</AlertDescription>
+      <AlertDescription className="text-current">
+        <div className="flex items-center gap-3 font-medium">
+          <span className="text-lg leading-none" aria-hidden>
+            {styles.icon}
+          </span>
+          <span className="text-current">{message}</span>
+        </div>
+      </AlertDescription>
       {onClose && (
         <Button
           onClick={onClose}
