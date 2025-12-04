@@ -721,7 +721,15 @@ export default function Explore() {
                                 window.location.href = "/login";
                                 return;
                               }
-                              setSelectedFlag(flag);
+                              // Map data to match OfferModal expectations
+                              setSelectedFlag({
+                                id: flag.id,
+                                destination: flag.city,
+                                country: flag.country,
+                                startDate: flag.start_date,
+                                endDate: flag.end_date,
+                                ownerName: flag.profiles?.username || "Unknown User",
+                              });
                               setIsOfferModalOpen(true);
                             }}
                           >
