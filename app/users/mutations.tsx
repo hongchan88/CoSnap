@@ -181,6 +181,7 @@ export interface UpdateProfileInput {
   cameraGear?: string;
   styles?: string[];
   languages?: string[];
+  avatarUrl?: string;
   location?: string; // Note: Schema doesn't have location, maybe store in bio or separate field if needed. For now assuming it's not in schema or mapped to something else.
   // Checking schema: profiles has camera_gear, styles, languages, bio. No location column.
   // We will ignore location for now or put it in bio if requested, but better to stick to schema.
@@ -198,7 +199,8 @@ export const updateUserProfile = async (
     if (profileData.cameraGear !== undefined) updateData.camera_gear = profileData.cameraGear;
     if (profileData.styles) updateData.styles = profileData.styles;
     if (profileData.languages) updateData.languages = profileData.languages;
-    
+    if (profileData.avatarUrl !== undefined) updateData.avatar_url = profileData.avatarUrl;
+
     updateData.updated_at = new Date().toISOString();
 
     const { data, error } = await client

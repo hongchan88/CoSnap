@@ -30,7 +30,7 @@ export function createSupabaseClient(request?: Request) {
   }
 
   // 클라이언트 사이드에서는 간단한 클라이언트 생성
-  if (typeof window !== 'undefined' || !request) {
+  if (typeof window !== "undefined" || !request) {
     // Browser environment or no request provided
     const client = createClient(supabaseUrl, supabaseAnonKey);
     return { client };
@@ -62,4 +62,81 @@ export function createSupabaseClient(request?: Request) {
   });
 
   return { client: serversideClient, headers };
+}
+
+// Avatar upload functions
+export async function uploadAvatar(
+  client: any,
+  file: File,
+  userId: string
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    // Generate unique filename
+    console.log("uploadAvatar called with file:", file);
+    if (!file || typeof file.name !== "string") {
+      console.error("Invalid file object passed to uploadAvatar:", file);
+      return { success: false, error: "유효하지 않은 파일입니다." };
+    }
+    if (file.size >= 2000000) {
+      return {
+        success: false,
+        error: "이미지 파일 크기는 2MB 미만이어야 합니다.",
+      };
+    }
+
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Upload to Supabase Storage
+    const { data, error: uploadError } = await client.storage
+      .from("avatars")
+      .upload(userId, file, {
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading avatar:", uploadError);
+      return { success: false, error: "이미지 업로드에 실패했습니다." };
+    }
+
+    // Get public URL
+    const { data: urlData } = client.storage
+      .from("avatars")
+      .getPublicUrl(data.path);
+
+    if (!urlData?.publicUrl) {
+      return { success: false, error: "이미지 URL을 가져오는데 실패했습니다." };
+    }
+    console.log(urlData, "data url");
+    return { success: true, url: urlData.publicUrl };
+  } catch (error) {
+    console.error("Unexpected error uploading avatar:", error);
+    return { success: false, error: "이미지 업로드 중 오류가 발생했습니다." };
+  }
+}
+
+export async function deleteAvatar(
+  client: any,
+  avatarUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Extract file path from URL
+    const url = new URL(avatarUrl);
+    const pathParts = url.pathname.split("/");
+    const filePath = pathParts.slice(-2).join("/"); // 'avatars/filename.ext'
+
+    // Delete from Supabase Storage
+    const { error } = await client.storage.from("avatars").remove([filePath]);
+
+    if (error) {
+      console.error("Error deleting avatar:", error);
+      return { success: false, error: "이미지 삭제에 실패했습니다." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Unexpected error deleting avatar:", error);
+    return { success: false, error: "이미지 삭제 중 오류가 발생했습니다." };
+  }
 }

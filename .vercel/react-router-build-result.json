@@ -1,0 +1,283 @@
+{
+  "buildManifest": {
+    "serverBundles": {
+      "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0": {
+        "id": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+        "file": "build/server/nodejs_eyJydW50aW1lIjoibm9kZWpzIn0/index.js",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    },
+    "routeIdToServerBundleId": {
+      "routes/_index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/logout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/flags": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/explore": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/inbox": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/matches": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/profile": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/signup": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/email-preview": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/auth.callback": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "app/root.tsx",
+        "path": "",
+        "config": {}
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "root",
+        "file": "app/routes/_index.tsx",
+        "index": true,
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/logout": {
+        "id": "routes/logout",
+        "parentId": "root",
+        "file": "app/routes/logout.tsx",
+        "path": "logout",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/flags": {
+        "id": "routes/flags",
+        "parentId": "root",
+        "file": "app/routes/flags.tsx",
+        "path": "flags",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/explore": {
+        "id": "routes/explore",
+        "parentId": "root",
+        "file": "app/routes/explore.tsx",
+        "path": "explore",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/inbox": {
+        "id": "routes/inbox",
+        "parentId": "root",
+        "file": "app/routes/inbox.tsx",
+        "path": "inbox",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/matches": {
+        "id": "routes/matches",
+        "parentId": "root",
+        "file": "app/routes/matches.tsx",
+        "path": "matches",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/profile": {
+        "id": "routes/profile",
+        "parentId": "root",
+        "file": "app/routes/profile.tsx",
+        "path": "profile",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/login": {
+        "id": "routes/login",
+        "parentId": "root",
+        "file": "app/routes/login.tsx",
+        "path": "login",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/signup": {
+        "id": "routes/signup",
+        "parentId": "root",
+        "file": "app/routes/signup.tsx",
+        "path": "signup",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/email-preview": {
+        "id": "routes/email-preview",
+        "parentId": "root",
+        "file": "app/routes/email-preview.tsx",
+        "path": "email-preview",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/auth.callback": {
+        "id": "routes/auth.callback",
+        "parentId": "root",
+        "file": "app/routes/auth.callback.tsx",
+        "path": "auth/callback",
+        "config": {
+          "runtime": "nodejs"
+        }
+      }
+    }
+  },
+  "reactRouterConfig": {
+    "appDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap/app",
+    "basename": "/",
+    "buildDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap/build",
+    "future": {
+      "v8_middleware": false,
+      "unstable_optimizeDeps": false,
+      "unstable_splitRouteModules": false,
+      "unstable_subResourceIntegrity": false,
+      "unstable_viteEnvironmentApi": false
+    },
+    "routes": {
+      "root": {
+        "id": "root",
+        "file": "root.tsx",
+        "path": ""
+      },
+      "routes/_index": {
+        "id": "routes/_index",
+        "parentId": "root",
+        "file": "routes/_index.tsx",
+        "index": true
+      },
+      "routes/logout": {
+        "id": "routes/logout",
+        "parentId": "root",
+        "file": "routes/logout.tsx",
+        "path": "logout"
+      },
+      "routes/flags": {
+        "id": "routes/flags",
+        "parentId": "root",
+        "file": "routes/flags.tsx",
+        "path": "flags"
+      },
+      "routes/explore": {
+        "id": "routes/explore",
+        "parentId": "root",
+        "file": "routes/explore.tsx",
+        "path": "explore"
+      },
+      "routes/inbox": {
+        "id": "routes/inbox",
+        "parentId": "root",
+        "file": "routes/inbox.tsx",
+        "path": "inbox"
+      },
+      "routes/matches": {
+        "id": "routes/matches",
+        "parentId": "root",
+        "file": "routes/matches.tsx",
+        "path": "matches"
+      },
+      "routes/profile": {
+        "id": "routes/profile",
+        "parentId": "root",
+        "file": "routes/profile.tsx",
+        "path": "profile"
+      },
+      "routes/login": {
+        "id": "routes/login",
+        "parentId": "root",
+        "file": "routes/login.tsx",
+        "path": "login"
+      },
+      "routes/signup": {
+        "id": "routes/signup",
+        "parentId": "root",
+        "file": "routes/signup.tsx",
+        "path": "signup"
+      },
+      "routes/email-preview": {
+        "id": "routes/email-preview",
+        "parentId": "root",
+        "file": "routes/email-preview.tsx",
+        "path": "email-preview"
+      },
+      "routes/auth.callback": {
+        "id": "routes/auth.callback",
+        "parentId": "root",
+        "file": "routes/auth.callback.tsx",
+        "path": "auth/callback"
+      }
+    },
+    "routeDiscovery": {
+      "mode": "lazy",
+      "manifestPath": "/__manifest"
+    },
+    "serverBuildFile": "index.js",
+    "serverModuleFormat": "esm",
+    "ssr": true,
+    "unstable_routeConfig": [
+      {
+        "id": "root",
+        "path": "",
+        "file": "root.tsx",
+        "children": [
+          {
+            "file": "routes/_index.tsx",
+            "index": true
+          },
+          {
+            "file": "routes/logout.tsx",
+            "path": "logout"
+          },
+          {
+            "file": "routes/flags.tsx",
+            "path": "flags"
+          },
+          {
+            "file": "routes/explore.tsx",
+            "path": "explore"
+          },
+          {
+            "file": "routes/inbox.tsx",
+            "path": "inbox"
+          },
+          {
+            "file": "routes/matches.tsx",
+            "path": "matches"
+          },
+          {
+            "file": "routes/profile.tsx",
+            "path": "profile"
+          },
+          {
+            "file": "routes/login.tsx",
+            "path": "login"
+          },
+          {
+            "file": "routes/signup.tsx",
+            "path": "signup"
+          },
+          {
+            "file": "routes/email-preview.tsx",
+            "path": "email-preview"
+          },
+          {
+            "file": "routes/auth.callback.tsx",
+            "path": "auth/callback"
+          }
+        ]
+      }
+    ]
+  },
+  "viteConfig": {
+    "build": {
+      "assetsDir": "assets"
+    }
+  }
+}

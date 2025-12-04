@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
 import { Card, CardContent, CardHeader } from './ui/card';
+import AvatarUpload from './AvatarUpload';
 
 interface ProfileFormData {
   username: string;
@@ -15,12 +16,14 @@ interface ProfileFormData {
   photoStyles: string[];
   languages: string[];
   location: string;
+  avatarFile?: File | null;
+  avatarUrl?: string | null;
 }
 
 interface ProfileFormProps {
   onSubmit: (data: ProfileFormData) => Promise<void>;
   onCancel: () => void;
-  initialData?: Partial<ProfileFormData>;
+  initialData?: Partial<ProfileFormData> & { avatarUrl?: string | null };
 }
 
 const photoStyleOptions = [
@@ -50,24 +53,20 @@ const languageOptions = [
 ];
 
 export default function ProfileForm({ onSubmit, onCancel, initialData }: ProfileFormProps) {
-  const [formData, setFormData] = useState<ProfileFormData>({
-    username: '',
-    bio: '',
-    cameraGear: '',
-    photoStyles: [],
-    languages: ['ko'],
-    location: '',
-  });
+  const [formData, setFormData] = useState<ProfileFormData>(() => ({
+    username: initialData?.username || '',
+    bio: initialData?.bio || '',
+    cameraGear: initialData?.cameraGear || '',
+    photoStyles: initialData?.photoStyles || [],
+    languages: initialData?.languages || ['ko'],
+    location: initialData?.location || '',
+    avatarFile: null,
+    avatarUrl: initialData?.avatarUrl || null,
+  }));
 
   const [errors, setErrors] = useState<Partial<Record<keyof ProfileFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
-    }
-  }, [initialData]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
@@ -166,11 +165,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <h2 className="text-xl font-semibold text-gray-900">프로필 편집</h2>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full">
         {/* 알림 */}
         {notification && (
           <div className="mb-6">
@@ -184,6 +179,18 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 프로필 사진 */}
+          <div className="space-y-2">
+            <Label>프로필 사진</Label>
+            <div className="flex justify-center">
+              <AvatarUpload
+                currentAvatar={formData.avatarUrl}
+                onAvatarChange={(file) => handleInputChange('avatarFile', file)}
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+
           {/* 사용자 이름 */}
           <div className="space-y-2">
             <Label htmlFor="username">
@@ -270,8 +277,9 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
             </Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {photoStyleOptions.map(option => (
-                <div
+                <label
                   key={option.value}
+                  htmlFor={`photo-${option.value}`}
                   className={`
                     flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors
                     ${formData.photoStyles.includes(option.value)
@@ -279,17 +287,16 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
                       : 'border-gray-300 hover:border-gray-400'
                     }
                   `}
-                  onClick={() => handlePhotoStyleToggle(option.value)}
                 >
                   <Checkbox
                     id={`photo-${option.value}`}
                     checked={formData.photoStyles.includes(option.value)}
-                    onChange={() => handlePhotoStyleToggle(option.value)}
+                    onCheckedChange={() => handlePhotoStyleToggle(option.value)}
                     disabled={isSubmitting}
                   />
                   <span className="text-lg">{option.icon}</span>
                   <span className="text-sm font-medium">{option.label}</span>
-                </div>
+                </label>
               ))}
             </div>
             {errors.photoStyles && (
@@ -304,8 +311,9 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
             </Label>
             <div className="flex flex-wrap gap-3">
               {languageOptions.map(option => (
-                <div
+                <label
                   key={option.value}
+                  htmlFor={`lang-${option.value}`}
                   className={`
                     flex items-center space-x-2 px-4 py-2 border rounded-full cursor-pointer transition-colors
                     ${formData.languages.includes(option.value)
@@ -313,16 +321,15 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
                       : 'border-gray-300 hover:border-gray-400'
                     }
                   `}
-                  onClick={() => handleLanguageToggle(option.value)}
                 >
                   <Checkbox
                     id={`lang-${option.value}`}
                     checked={formData.languages.includes(option.value)}
-                    onChange={() => handleLanguageToggle(option.value)}
+                    onCheckedChange={() => handleLanguageToggle(option.value)}
                     disabled={isSubmitting}
                   />
                   <span className="text-sm font-medium">{option.label}</span>
-                </div>
+                </label>
               ))}
             </div>
             {errors.languages && (
@@ -357,7 +364,6 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

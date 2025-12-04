@@ -1,7 +1,7 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/profile";
 import { useState, Suspense } from "react";
-import { useLoaderData, useActionData, useSubmit, Await } from "react-router";
+import { useLoaderData, useActionData, useSubmit } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -9,6 +9,7 @@ import { Separator } from "../components/ui/separator";
 import ProfileForm from "../components/ProfileForm";
 import FocusMeter from "../components/FocusMeter";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import Avatar from "../components/Avatar";
 import Notification from "../components/ui/Notification";
 import ResponsiveGrid from "../components/ui/ResponsiveGrid";
 import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
@@ -30,8 +31,15 @@ import {
   Award,
   Smartphone,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
 import { getLoggedInUserId, getUserProfile } from "~/users/queries";
 import { updateUserProfile } from "~/users/mutations";
+import { uploadAvatar } from "~/lib/supabase";
 import type { ProfileWithStats } from "~/users/queries";
 
 export function meta({}: Route.MetaArgs) {
@@ -47,12 +55,10 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
-  
-  const profilePromise = getUserProfile(client, userId).then(({ profile }) => {
-    return { profile };
-  });
-  
-  return { profilePromise };
+
+  const { profile } = await getUserProfile(client, userId);
+
+  return { profile };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -68,6 +74,26 @@ export async function action({ request }: Route.ActionArgs) {
     const styles = formData.get("photoStyles")?.toString().split(",") || [];
     const languages = formData.get("languages")?.toString().split(",") || [];
     const location = formData.get("location") as string;
+    const avatarFile = formData.get("avatarFile") as File | null;
+
+    let avatarUrl = undefined;
+
+    // Handle avatar upload if file provided
+    if (avatarFile && avatarFile.size > 0) {
+      console.log("Avatar file received:", avatarFile.name, avatarFile.size);
+      const uploadResult = await uploadAvatar(client, avatarFile, userId);
+      console.log("Upload result:", uploadResult);
+
+      if (!uploadResult.success) {
+        return {
+          success: false,
+          error: uploadResult.error || "Failed to upload avatar",
+        };
+      }
+      avatarUrl = uploadResult.url;
+    } else {
+      console.log("No avatar file received or file is empty");
+    }
 
     const { success, error } = await updateUserProfile(client, userId, {
       username,
@@ -76,9 +102,19 @@ export async function action({ request }: Route.ActionArgs) {
       styles,
       languages,
       location,
+      avatarUrl,
     });
 
-    if (!success) return { success: false, error: error || "Failed to update profile" };
+    console.log("Update profile result:", { success, error, avatarUrl });
+
+    if (!success)
+      return { success: false, error: error || "Failed to update profile" };
+
+    // Add refresh to prevent caching issues after successful avatar update
+    if (avatarUrl) {
+      return { success: true, action: "updateProfile", refresh: Date.now() };
+    }
+
     return { success: true, action: "updateProfile" };
   }
 
@@ -94,6 +130,7 @@ interface UserProfile {
   location: string;
   isPremium: boolean;
   focusScore: number;
+  avatarUrl?: string | null;
 }
 
 // Adapter function to convert database profile to UI format
@@ -110,6 +147,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
       focusScore: 0,
     };
   }
+  console.log("Adapting user profile:", dbProfile);
   return {
     username: dbProfile.username,
     bio: dbProfile.bio || "",
@@ -119,6 +157,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
     location: "위치 정보", // TODO: Add location field to profile or get from flags
     isPremium: dbProfile.role === "premium",
     focusScore: dbProfile.focus_score || 0,
+    avatarUrl: dbProfile.avatar_url,
   };
 };
 
@@ -150,16 +189,18 @@ function ProfileSkeleton() {
   );
 }
 
-function ProfileContent({ profileData }: { profileData: ProfileWithStats | null }) {
+function ProfileContent({
+  profileData,
+}: {
+  profileData: ProfileWithStats | null;
+}) {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize profile from passed data with adapter
-  const [profile, setProfile] = useState<UserProfile>(() =>
-    adaptUserProfile(profileData)
-  );
+  const profile = adaptUserProfile(profileData);
 
   const handleUpdateProfile = async (formData: any) => {
     setIsLoading(true);
@@ -171,8 +212,13 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
     data.append("photoStyles", formData.photoStyles.join(","));
     data.append("languages", formData.languages.join(","));
     data.append("location", formData.location);
-    
-    submit(data, { method: "post" });
+
+    // Handle avatar file
+    if (formData.avatarFile) {
+      data.append("avatarFile", formData.avatarFile);
+    }
+
+    submit(data, { method: "post", encType: "multipart/form-data" });
     setIsEditingProfile(false);
     setIsLoading(false);
   };
@@ -277,9 +323,12 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
         </div>
       )}
 
-      {/* 프로필 편집 폼 */}
-      {isEditingProfile && (
-        <div className="mb-8">
+      {/* 프로필 편집 모달 */}
+      <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>프로필 편집</DialogTitle>
+          </DialogHeader>
           <ProfileForm
             onSubmit={handleUpdateProfile}
             onCancel={() => setIsEditingProfile(false)}
@@ -290,18 +339,21 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
               photoStyles: profile.photoStyles,
               languages: profile.languages,
               location: profile.location,
+              avatarUrl: profile.avatarUrl,
             }}
           />
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* 프로필 헤더 */}
       <Card className="mb-6 sm:mb-8">
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
-              <Camera className="w-10 h-10 sm:w-12 sm:h-12 text-gray-500" />
-            </div>
+            <Avatar
+              src={profile.avatarUrl}
+              size="lg"
+              alt={`${profile.username}의 프로필 사진`}
+            />
             <div className="flex-1 w-full">
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
@@ -385,9 +437,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
               </div>
               <Separator />
               <div className="space-y-2">
-                <h4 className="font-medium text-gray-900 text-sm">
-                  최근 활동
-                </h4>
+                <h4 className="font-medium text-gray-900 text-sm">최근 활동</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {focusActivities.slice(0, 3).map((activity, index) => (
                     <div
@@ -430,9 +480,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
       {/* Magic UI 통계 카드 */}
       <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Magic UI 통계
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-900">Magic UI 통계</h3>
           <Badge variant="outline" className="text-xs">
             ✨ Magic UI
           </Badge>
@@ -474,9 +522,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
               hover={true}
             >
               <div className="text-center">
-                <div className="text-sm text-gray-600 mb-2">
-                  완료된 CoSnap
-                </div>
+                <div className="text-sm text-gray-600 mb-2">완료된 CoSnap</div>
                 <NumberTicker
                   value={12}
                   delay={0.3}
@@ -497,9 +543,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
               variant="glass"
             >
               <div className="text-center space-y-4">
-                <div className="text-sm text-gray-600 mb-2">
-                  프리미엄 등급
-                </div>
+                <div className="text-sm text-gray-600 mb-2">프리미엄 등급</div>
                 <div className="text-4xl font-bold text-purple-600">
                   Crystal
                 </div>
@@ -553,9 +597,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
                   <Camera className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">
-                    Canon EOS R6
-                  </div>
+                  <div className="font-medium text-gray-900">Canon EOS R6</div>
                   <div className="text-sm text-gray-500">메인 카메라</div>
                 </div>
               </div>
@@ -564,9 +606,7 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
                   <Smartphone className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <div className="font-medium text-gray-900">
-                    iPhone 15 Pro
-                  </div>
+                  <div className="font-medium text-gray-900">iPhone 15 Pro</div>
                   <div className="text-sm text-gray-500">모바일 촬영</div>
                 </div>
               </div>
@@ -670,8 +710,9 @@ function ProfileContent({ profileData }: { profileData: ProfileWithStats | null 
 }
 
 export default function ProfilePage() {
-  const { profilePromise } = useLoaderData<typeof loader>();
+  const { profile } = useLoaderData<typeof loader>();
 
+  console.log(profile, "profile data in ProfilePage");
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -686,9 +727,7 @@ export default function ProfilePage() {
         </div>
 
         <Suspense fallback={<ProfileSkeleton />}>
-          <Await resolve={profilePromise}>
-            {(data) => <ProfileContent profileData={data.profile} />}
-          </Await>
+          {profile && <ProfileContent profileData={profile} />}
         </Suspense>
       </div>
     </div>
