@@ -14,6 +14,20 @@ import {
 import { authUsers, authUid, authenticatedRole } from "drizzle-orm/supabase";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
+/*
+ * MIGRATION NOTE: Foreign Key Constraint Fix
+ *
+ * Some existing users may not have profile records, causing FK constraint violations
+ * when creating offers (offers.sender_id references profiles.profile_id).
+ *
+ * To fix existing users:
+ * 1. Run: npm run db:generate
+ * 2. Run: npm run db:migrate
+ *
+ * This will create a migration to backfill missing profiles for users who exist
+ * in auth.users but not in the profiles table.
+ */
+
 // Profiles table (extended user profile data - separate from Supabase auth users)
 export const profiles = pgTable(
   "profiles",

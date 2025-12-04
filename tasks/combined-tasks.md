@@ -90,6 +90,35 @@
   - Handle avatar upload changes
   - Maintain existing error handling patterns
 
+## Offer Submission Bug Fix (Current Task) 🔄
+
+### Database Constraint Fix
+- [ ] **Fix foreign key constraint violation**
+  - Error: `insert or update on table "offers" violates foreign key constraint "offers_sender_id_profiles_profile_id_fk"`
+  - Investigate sender_id profile relationship issue
+  - Ensure proper user profile exists before offer creation
+
+### Error Handling Enhancement
+- [ ] **Add error display above submit button**
+  - Catch database errors during offer submission
+  - Display clear error messages in Korean/English
+  - Show errors prominently above submit button
+  - Handle different error types appropriately
+
+### Technical Investigation
+- [ ] **Debug offer creation flow**
+  - Check user authentication state during submission
+  - Verify profile data integrity before offer creation
+  - Ensure proper database relationship between users and profiles
+  - Test offer submission edge cases
+
+### User Experience
+- [ ] **Improve error feedback**
+  - Prevent multiple submissions on error
+  - Clear error state when form is modified
+  - Provide actionable error resolution steps
+  - Maintain translation support for error messages
+
 ## Files Modified Summary
 
 ### New Files Created
@@ -108,7 +137,7 @@ app/context/language-context.tsx  - Added translation keys
 app/routes/explore.tsx            - Integrated translation system
 ```
 
-## Project Status: ✅ ALL TASKS COMPLETED
+## Project Status: 🔄 1 TASK IN PROGRESS
 
 ### Key Metrics
 - ✅ All TypeScript checks passing

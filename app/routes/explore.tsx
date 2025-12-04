@@ -138,6 +138,20 @@ export async function action({ request }: Route.ActionArgs) {
       return redirect("/login");
     }
 
+    // Check if sender has a profile before allowing offer creation
+    const { data: senderProfile } = await client
+      .from("profiles")
+      .select("profile_id")
+      .eq("profile_id", user.id)
+      .single();
+
+    if (!senderProfile) {
+      return {
+        success: false,
+        error: "error.profile.notFound"
+      };
+    }
+
     const { data: flag } = await client
       .from("flags")
       .select("user_id")

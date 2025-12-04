@@ -74,10 +74,14 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
           setNotification(null);
         }, 2000);
       } else if (fetcher.data.error) {
-        setNotification({ type: 'error', message: fetcher.data.error });
+        // Handle translation keys for profile errors
+        const errorMessage = fetcher.data.error.startsWith('error.profile.')
+          ? t(fetcher.data.error)
+          : fetcher.data.error;
+        setNotification({ type: 'error', message: errorMessage });
       }
     }
-  }, [fetcher.state, fetcher.data, onClose]);
+  }, [fetcher.state, fetcher.data, onClose, t]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<OfferFormData> = {};

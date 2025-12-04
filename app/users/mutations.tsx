@@ -241,9 +241,27 @@ export const createOffer = async (
       return { success: false, error: "Cannot send offer to yourself" };
     }
 
-    // Check if flag exists and is active (optional, but good practice)
-    // For now, we assume the UI handles this or the FK constraint will fail if flag doesn't exist.
-    // But checking active status might be needed.
+    // Check if sender profile exists
+    const { data: senderProfile } = await client
+      .from("profiles")
+      .select("profile_id")
+      .eq("profile_id", offerData.senderId)
+      .single();
+
+    if (!senderProfile) {
+      return { success: false, error: "error.profile.notFound" };
+    }
+
+    // Check if receiver profile exists
+    const { data: receiverProfile } = await client
+      .from("profiles")
+      .select("profile_id")
+      .eq("profile_id", offerData.receiverId)
+      .single();
+
+    if (!receiverProfile) {
+      return { success: false, error: "error.profile.missing" };
+    }
 
     const { data, error } = await client
       .from("offers")
