@@ -41,10 +41,18 @@ export interface FlagWithDetails {
   };
 }
 
-// Get all flags for a specific user
-export const getUserFlags = async (client: SupabaseClient, userId: string) => {
+// Get all flags for a specific user with pagination
+export const getUserFlags = async (
+  client: SupabaseClient,
+  userId: string,
+  page: number = 1,
+  limit: number = 100 // Default to 100 to maintain backward compatibility if needed, or change to 10
+) => {
   try {
-    const { data, error } = await client
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, error, count } = await client
       .from("flags")
       .select(
         `
@@ -53,20 +61,18 @@ export const getUserFlags = async (client: SupabaseClient, userId: string) => {
           username,
           avatar_url
         )
-      `
+      `,
+        { count: "exact" }
       )
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
-    if (error) {
-      console.error("Error fetching user flags:", error);
-      return { success: false, error: error.message, flags: [] };
-    }
-
-    return { success: true, flags: data as FlagWithDetails[] };
+    if (error) throw error;
+    return { success: true, flags: data as FlagWithDetails[], count };
   } catch (error) {
-    console.error("Unexpected error fetching user flags:", error);
-    return { success: false, error: "Failed to fetch flags", flags: [] };
+    console.error("Error fetching user flags:", error);
+    return { success: false, flags: [], error, count: 0 };
   }
 };
 
@@ -108,10 +114,11 @@ export const getUserAllFlags = async (
 // Get all active flags for the global feed
 export const getAllActiveFlags = async (
   client: SupabaseClient,
-  limit: number = 20
+  limit: number = 20,
+  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
 ) => {
   try {
-    const { data, error } = await client
+    let query = client
       .from("flags")
       .select(
         `
@@ -124,9 +131,18 @@ export const getAllActiveFlags = async (
       `
       )
       .eq("visibility_status", "active")
-      // .gte("end_date", new Date().toISOString()) // Temporarily disable date filter for debugging
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (bounds) {
+      query = query
+        .gte("latitude", bounds.minLat)
+        .lte("latitude", bounds.maxLat)
+        .gte("longitude", bounds.minLng)
+        .lte("longitude", bounds.maxLng);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching active flags:", error);

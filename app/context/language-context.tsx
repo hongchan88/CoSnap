@@ -222,6 +222,10 @@ const translations: Record<Language, Record<string, string>> = {
     "error.profile.notFound": "Profile not found. Please complete your profile setup first.",
     "error.profile.missing": "Your profile is incomplete. Please contact support.",
     "error.profile.offerFailed": "Cannot send offer: Profile setup required.",
+
+    // Common
+    "common.loadMore": "Load More",
+    "common.loading": "Loading...",
   },
   ko: {
     // Navigation (already exists above)
@@ -418,6 +422,10 @@ const translations: Record<Language, Record<string, string>> = {
     "error.profile.notFound": "프로필을 찾을 수 없습니다. 먼저 프로필 설정을 완료해주세요.",
     "error.profile.missing": "프로필이 불완전합니다. 지원팀에 문의해주세요.",
     "error.profile.offerFailed": "오퍼를 보낼 수 없습니다: 프로필 설정이 필요합니다.",
+
+    // Common
+    "common.loadMore": "더 보기",
+    "common.loading": "로딩 중...",
   },
 };
 
