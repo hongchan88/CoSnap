@@ -55,26 +55,26 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // 사용자 프로필 생성
-    if (signUpData.user) {
-      const { error: profileError } = await client
-        .from('profiles')
-        .insert({
-          profile_id: signUpData.user.id,
-          username: username,
-          role: 'free',
-          focus_score: 0,
-          focus_tier: 'Blurry',
-          cocredit_balance: 0,
-          styles: [],
-          languages: [],
-          is_verified: false,
-        });
+    // if (signUpData.user) {
+    //   const { error: profileError } = await client
+    //     .from('profiles')
+    //     .insert({
+    //       profile_id: signUpData.user.id,
+    //       username: username,
+    //       role: 'free',
+    //       focus_score: 0,
+    //       focus_tier: 'Blurry',
+    //       cocredit_balance: 0,
+    //       styles: [],
+    //       languages: [],
+    //       is_verified: false,
+    //     });
 
-      if (profileError) {
-        console.error('프로필 생성 오류:', profileError);
-        return { error: "프로필 생성에 실패했습니다. 다시 시도해주세요." };
-      }
-    }
+    //   if (profileError) {
+    //     console.error('프로필 생성 오류:', profileError);
+    //     return { error: "프로필 생성에 실패했습니다. 다시 시도해주세요." };
+    //   }
+    // }
 
     await sendWelcomeEmail(email, username);
 
