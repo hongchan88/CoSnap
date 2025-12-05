@@ -1,7 +1,7 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
-import { useState, Suspense, useMemo } from "react";
-import { useActionData, useNavigation, useLoaderData, Await } from "react-router";
+import { useState, Suspense, useMemo, useEffect } from "react";
+import { useActionData, useNavigation, useLoaderData, Await, useFetcher } from "react-router";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
@@ -42,34 +42,58 @@ export function meta({}: Route.MetaArgs) {
 export const loader = async ({ request }: Route.LoaderArgs) => {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
+  const url = new URL(request.url);
+  const page = parseInt(url.searchParams.get("page") || "1");
+  const limit = 5; // Load 5 flags per page
 
   // Fetch real user flags and offers from database
+  // If it's a pagination request (page > 1), return JSON directly
+  if (page > 1) {
+    const [flagsResult, offersResult, offersCount] = await Promise.all([
+      getUserFlags(client, userId, page, limit),
+      getUserOffers(client, userId),
+      client.from("offers").select("*", { count: "exact", head: true })
+    ]);
+
+    if (!flagsResult.success) {
+      return { flags: [], count: 0, receivedOffers: [], sentOffers: [], userId, page };
+    }
+
+    return { 
+      flags: flagsResult.flags,
+      count: flagsResult.count || 0,
+      receivedOffers: offersResult.success ? offersResult.received : [],
+      sentOffers: offersResult.success ? offersResult.sent : [],
+      userId,
+      page
+    };
+  }
+
+  // Initial load: use defer for better UX
   const dataPromise = Promise.all([
-    getUserFlags(client, userId),
+    getUserFlags(client, userId, page, limit),
     getUserOffers(client, userId),
     // Debug: Check total offers in database
     client.from("offers").select("*", { count: "exact", head: true })
   ]).then(([flagsResult, offersResult, offersCount]) => {
     if (!flagsResult.success) {
       console.error("Failed to fetch user flags:", flagsResult.error);
-      return { flags: [], receivedOffers: [], sentOffers: [], userId };
+      return { flags: [], count: 0, receivedOffers: [], sentOffers: [], userId, page };
     }
     
     console.log("=== FLAGS LOADER DEBUG ===");
     console.log("User ID:", userId);
-    console.log("User Flags:", flagsResult.flags.length);
-    console.log("Received Offers:", offersResult.received?.length || 0);
-    console.log("Sent Offers:", offersResult.sent?.length || 0);
-    console.log("Total Offers in DB:", offersCount.count);
-    console.log("Sent Offers Data:", JSON.stringify(offersResult.sent?.slice(0, 2), null, 2));
-    console.log("Offers Result Success:", offersResult.success);
-    console.log("Offers Result Error:", offersResult.error);
+    console.log("Page:", page);
+    console.log("User Flags Fetched:", flagsResult.flags.length);
+    console.log("Total User Flags:", flagsResult.count);
     
     return { 
-      flags: flagsResult.flags, 
+      flags: flagsResult.flags,
+      count: flagsResult.count || 0,
       receivedOffers: offersResult.success ? offersResult.received : [],
       sentOffers: offersResult.success ? offersResult.sent : [],
-      userId
+      userId,
+      page
     };
   });
 
@@ -288,9 +312,10 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
   const formatDateOnly = (value: string | undefined) =>
     value ? new Date(value).toISOString().slice(0, 10) : "";
 
-  const [flags, setFlags] = useState<FlagData[]>(() => {
-    // Combine user's own flags with flags they sent offers to
-    const allFlags = [
+  // Pagination state
+  const [allFlags, setAllFlags] = useState<FlagData[]>(() => {
+    // Initial flags from loader
+    const initialFlagData = [
       ...initialFlags.map((flag: any) => ({
         id: flag.id,
         city: flag.city,
@@ -326,8 +351,61 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
         isSentOfferFlag: true,
       })),
     ];
-    return allFlags;
+    return initialFlagData;
   });
+
+  const [page, setPage] = useState(1);
+  const fetcher = useFetcher();
+  const [hasMore, setHasMore] = useState(true); // Assume true initially or check count
+
+  // Update flags when fetcher loads more data
+  useEffect(() => {
+    if (fetcher.data && fetcher.data.flags) {
+      const newFlags = fetcher.data.flags;
+      if (newFlags.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      const newFlagData = newFlags.map((flag: any) => ({
+        id: flag.id,
+        city: flag.city,
+        country: flag.country,
+        flag: getCountryFlag(flag.country),
+        startDate: formatDateOnly(flag.start_date || flag.startDate),
+        endDate: formatDateOnly(flag.end_date || flag.endDate),
+        note: flag.note || undefined,
+        status: flag.visibility_status as "active" | "expired" | "hidden",
+        offerCount: (receivedOffersByFlag[flag.id] || []).length, // Note: offers might need refetching or separate handling
+        styles: flag.styles || [],
+        languages: flag.languages || [],
+        offers: receivedOffersByFlag[flag.id] || [],
+        latitude: flag.latitude,
+        longitude: flag.longitude,
+        isSentOfferFlag: false,
+      }));
+
+      setAllFlags((prev) => {
+        // Filter out duplicates just in case
+        const existingIds = new Set(prev.map(f => f.id));
+        const uniqueNewFlags = newFlagData.filter((f: any) => !existingIds.has(f.id));
+        return [...prev, ...uniqueNewFlags];
+      });
+      
+      if (newFlags.length < 5) { // Assuming limit is 5
+        setHasMore(false);
+      }
+    }
+  }, [fetcher.data]);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetcher.load(`/flags?page=${nextPage}`);
+  };
+
+  // Use allFlags instead of flags state for rendering
+  const flags = allFlags;
 
   const handleSubmitFlag = async (formData: any) => {
     // Create a form and submit it
@@ -550,9 +628,30 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
               ))}
             </div>
           )}
-        </div>
+          </div>
 
-        {/* 지난 여행 */}
+        {/* Load More Button */}
+        {hasMore && (
+          <div className="flex justify-center mt-6">
+            <button
+              onClick={handleLoadMore}
+              disabled={fetcher.state === "loading"}
+              className="bg-white border border-gray-300 text-gray-700 px-6 py-2 rounded-full font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {fetcher.state === "loading" ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                t("common.loadMore")
+              )}
+            </button>
+          </div>
+        )}
+
+
+      {/* 지난 여행 */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">
             {t("flags.pastSection")} ({pastFlags.length})
@@ -641,7 +740,14 @@ export default function FlagsPage() {
 
         <Suspense fallback={<FlagsSkeleton />}>
           <Await resolve={dataPromise}>
-            {(data) => <FlagsContent initialFlags={data.flags} receivedOffers={data.receivedOffers} sentOffers={data.sentOffers} userId={data.userId} />}
+            {(data) => (
+              <FlagsContent 
+                initialFlags={data?.flags || []} 
+                receivedOffers={data?.receivedOffers || []} 
+                sentOffers={data?.sentOffers || []} 
+                userId={data?.userId || ""} 
+              />
+            )}
           </Await>
         </Suspense>
       </div>

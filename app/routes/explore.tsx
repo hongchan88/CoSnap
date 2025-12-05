@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useLoaderData, Form, useNavigation, redirect } from "react-router";
+import { useLoaderData, Form, useNavigation, redirect, useSearchParams } from "react-router";
 import type { LatLngBounds } from "leaflet";
 import { createSupabaseClient } from "~/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
@@ -34,9 +34,26 @@ export async function loader({ request }: Route.LoaderArgs) {
     const userId = await getLoggedInUserId(client).catch(() => null);
     console.log("👤 User ID:", userId || "Not logged in");
 
+    // Parse search params
+    const url = new URL(request.url);
+    const location = url.searchParams.get("location")?.toLowerCase() || null;
+    const startDate = url.searchParams.get("startDate") || null;
+    const endDate = url.searchParams.get("endDate") || null;
+    const travelers = parseInt(url.searchParams.get("travelers") || "1");
+    
+    // Parse bounds if available
+    const minLat = parseFloat(url.searchParams.get("minLat") || "");
+    const maxLat = parseFloat(url.searchParams.get("maxLat") || "");
+    const minLng = parseFloat(url.searchParams.get("minLng") || "");
+    const maxLng = parseFloat(url.searchParams.get("maxLng") || "");
+
+    const bounds = (!isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLng) && !isNaN(maxLng))
+      ? { minLat, maxLat, minLng, maxLng }
+      : undefined;
+
     // Fetch active flags
-    console.log("🚩 Fetching active flags...");
-    const { success, flags, error } = await getAllActiveFlags(client, 100);
+    console.log("🚩 Fetching active flags...", bounds ? `with bounds: ${JSON.stringify(bounds)}` : "no bounds");
+    const { success, flags, error } = await getAllActiveFlags(client, 100, bounds);
 
     console.log("📊 Flag fetch results:");
     console.log("  Success:", success);
@@ -62,13 +79,6 @@ export async function loader({ request }: Route.LoaderArgs) {
         })
       );
     }
-
-    // Parse search params to pass back to client
-    const url = new URL(request.url);
-    const location = url.searchParams.get("location")?.toLowerCase() || null;
-    const startDate = url.searchParams.get("startDate") || null;
-    const endDate = url.searchParams.get("endDate") || null;
-    const travelers = parseInt(url.searchParams.get("travelers") || "1");
 
     // No server-side filtering - return all active flags
     // Aggregate flags by city for map markers
@@ -205,6 +215,7 @@ export default function Explore() {
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const navigation = useNavigation();
+  const [, setSearchParams] = useSearchParams();
 
   // Sync selectedCity when URL param changes
   useEffect(() => {
@@ -212,6 +223,24 @@ export default function Explore() {
       setSelectedCity(initialCity);
     }
   }, [initialCity]);
+
+  // Update URL params when map bounds change (debounced)
+  useEffect(() => {
+    if (!mapBounds) return;
+
+    const timeoutId = setTimeout(() => {
+      setSearchParams((prev) => {
+        const newParams = new URLSearchParams(prev);
+        newParams.set("minLat", mapBounds.getSouth().toFixed(4));
+        newParams.set("maxLat", mapBounds.getNorth().toFixed(4));
+        newParams.set("minLng", mapBounds.getWest().toFixed(4));
+        newParams.set("maxLng", mapBounds.getEast().toFixed(4));
+        return newParams;
+      });
+    }, 1000); // 1 second debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [mapBounds, setSearchParams]);
 
   // Determine map center based on search location, or fall back to default
   const initialCenter = useMemo(() => {

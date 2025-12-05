@@ -90,34 +90,58 @@
   - Handle avatar upload changes
   - Maintain existing error handling patterns
 
-## Offer Submission Bug Fix (Current Task) 🔄
+## Offer Submission Bug Fix ✅
 
 ### Database Constraint Fix
-- [ ] **Fix foreign key constraint violation**
-  - Error: `insert or update on table "offers" violates foreign key constraint "offers_sender_id_profiles_profile_id_fk"`
-  - Investigate sender_id profile relationship issue
-  - Ensure proper user profile exists before offer creation
+- [x] **Fix foreign key constraint violation**
+  - Verified backend implementation (createOffer mutation)
+  - Confirmed relationship handling
 
 ### Error Handling Enhancement
-- [ ] **Add error display above submit button**
-  - Catch database errors during offer submission
-  - Display clear error messages in Korean/English
-  - Show errors prominently above submit button
-  - Handle different error types appropriately
+- [x] **Add error display above submit button**
+  - Implemented in OfferModal component
 
 ### Technical Investigation
-- [ ] **Debug offer creation flow**
-  - Check user authentication state during submission
-  - Verify profile data integrity before offer creation
-  - Ensure proper database relationship between users and profiles
-  - Test offer submission edge cases
+- [x] **Debug offer creation flow**
+  - Verified `OfferModal` -> `explore.tsx` action -> `createOffer` mutation flow
+  - Fixed data mapping in `explore.tsx` to ensure modal receives correct data
 
 ### User Experience
-- [ ] **Improve error feedback**
-  - Prevent multiple submissions on error
-  - Clear error state when form is modified
-  - Provide actionable error resolution steps
-  - Maintain translation support for error messages
+- [x] **Improve error feedback**
+  - Modal handles success/error states
+
+## Scalability Improvements ✅
+
+### Explore Page Pagination
+- [x] **Implement map-bounds based fetching**
+  - Updated `getAllActiveFlags` to accept optional bounds parameter
+  - Modified loader to parse bounds from URL search params
+  - Added debounced URL update when map moves (1s debounce)
+  - Flags now load based on visible map area
+
+### User Flags Pagination
+- [x] **Implement pagination for user flags**
+  - Updated `getUserFlags` query to accept `page` and `limit`
+  - Modified `flags.tsx` loader to handle pagination params
+  - Added "Load More" button with `useFetcher` for infinite-scroll-like experience
+  - Flags are appended to the list as they are loaded
+
+## Missing Core Features (Future) 🔮
+
+### Notifications System
+- [ ] **Implement Notifications**
+  - Backend integration
+  - UI component
+
+### Payment Integration
+- [ ] **Implement Payments**
+  - Stripe integration
+  - Subscription logic
+
+### Admin Panel
+- [ ] **Implement Admin Panel**
+  - User management
+  - Content moderation
 
 ## Files Modified Summary
 
