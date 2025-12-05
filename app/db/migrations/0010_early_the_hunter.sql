@@ -1,0 +1,1 @@
+CREATE POLICY "profile_signup_policy" ON "profiles" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (((select auth.uid()) = "profiles"."profile_id") OR ((select auth.uid()) IS NULL AND profile_id IS NOT NULL));

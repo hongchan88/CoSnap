@@ -1,0 +1,1 @@
+ALTER POLICY "profile_insert_policy" ON "profiles" TO authenticated WITH CHECK ((select auth.uid()) = "profiles"."profile_id");

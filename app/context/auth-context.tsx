@@ -24,9 +24,20 @@ export async function signUp(
       return { error };
     }
 
-    // 프로필 생성
+    // 프로필 생성 (ensure session is established)
     if (data.user) {
-      await supabase.client.from("profiles").insert({
+      // Wait for session to be properly established
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Verify current user session
+      const { data: { session }, error: sessionError } = await supabase.client.auth.getSession();
+      if (sessionError || !session?.user) {
+        console.error("Session not established after signup");
+        return { error: { message: "Session establishment failed" } };
+      }
+
+      console.log("Session established, inserting profile for:", session.user.id);
+      const { error: profileError } = await supabase.client.from("profiles").insert({
         profile_id: data.user.id,
         username,
         role: "free",
@@ -37,6 +48,11 @@ export async function signUp(
         languages: [],
         is_verified: false,
       });
+
+      if (profileError) {
+        console.error("Profile creation error:", profileError);
+        return { error: profileError };
+      }
     }
 
     return { error: null };

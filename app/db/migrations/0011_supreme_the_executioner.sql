@@ -1,0 +1,2 @@
+DROP POLICY "profile_signup_policy" ON "profiles" CASCADE;--> statement-breakpoint
+ALTER POLICY "profile_insert_policy" ON "profiles" TO authenticated WITH CHECK (((select auth.uid()) = "profiles"."profile_id") OR ((select auth.uid()) IS NULL AND profile_id IS NOT NULL));
