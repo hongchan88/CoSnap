@@ -1,14 +1,24 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
 import { useState, Suspense, useMemo, useEffect } from "react";
-import { useActionData, useNavigation, useLoaderData, Await, useFetcher } from "react-router";
+import {
+  useActionData,
+  useNavigation,
+  useLoaderData,
+  Await,
+  useFetcher,
+} from "react-router";
 import FlagForm from "../components/FlagForm";
 import FlagCard from "../components/FlagCard";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Notification from "../components/ui/Notification";
 import { Skeleton } from "../components/ui/skeleton";
 import Modal from "../components/ui/Modal";
-import { getLoggedInUserId, getUserFlags, getUserOffers } from "~/users/queries";
+import {
+  getLoggedInUserId,
+  getUserFlags,
+  getUserOffers,
+} from "~/users/queries";
 import { createFlag, updateFlag, deleteFlag } from "~/users/mutations";
 import { useLanguage } from "~/context/language-context";
 
@@ -35,7 +45,10 @@ interface FlagData {
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "My Travel Plans - CoSnap" },
-    { name: "description", content: "Create and manage your travel plans (Flags)" },
+    {
+      name: "description",
+      content: "Create and manage your travel plans (Flags)",
+    },
   ];
 }
 
@@ -52,20 +65,27 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     const [flagsResult, offersResult, offersCount] = await Promise.all([
       getUserFlags(client, userId, page, limit),
       getUserOffers(client, userId),
-      client.from("offers").select("*", { count: "exact", head: true })
+      client.from("offers").select("*", { count: "exact", head: true }),
     ]);
 
     if (!flagsResult.success) {
-      return { flags: [], count: 0, receivedOffers: [], sentOffers: [], userId, page };
+      return {
+        flags: [],
+        count: 0,
+        receivedOffers: [],
+        sentOffers: [],
+        userId,
+        page,
+      };
     }
 
-    return { 
+    return {
       flags: flagsResult.flags,
       count: flagsResult.count || 0,
       receivedOffers: offersResult.success ? offersResult.received : [],
       sentOffers: offersResult.success ? offersResult.sent : [],
       userId,
-      page
+      page,
     };
   }
 
@@ -74,26 +94,33 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
     getUserFlags(client, userId, page, limit),
     getUserOffers(client, userId),
     // Debug: Check total offers in database
-    client.from("offers").select("*", { count: "exact", head: true })
+    client.from("offers").select("*", { count: "exact", head: true }),
   ]).then(([flagsResult, offersResult, offersCount]) => {
     if (!flagsResult.success) {
       console.error("Failed to fetch user flags:", flagsResult.error);
-      return { flags: [], count: 0, receivedOffers: [], sentOffers: [], userId, page };
+      return {
+        flags: [],
+        count: 0,
+        receivedOffers: [],
+        sentOffers: [],
+        userId,
+        page,
+      };
     }
-    
+
     console.log("=== FLAGS LOADER DEBUG ===");
     console.log("User ID:", userId);
     console.log("Page:", page);
     console.log("User Flags Fetched:", flagsResult.flags.length);
     console.log("Total User Flags:", flagsResult.count);
-    
-    return { 
+
+    return {
       flags: flagsResult.flags,
       count: flagsResult.count || 0,
       receivedOffers: offersResult.success ? offersResult.received : [],
       sentOffers: offersResult.success ? offersResult.sent : [],
       userId,
-      page
+      page,
     };
   });
 
@@ -109,29 +136,15 @@ export const action = async ({ request }: Route.ActionArgs) => {
     // Create flag
     const city = formData.get("city") as string;
     const country = formData.get("country") as string;
-    
-    // Get coordinates from form (client-side picker) or fallback to server-side geocoding
-    let lat = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : null;
-    let lng = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : null;
 
-    // Fallback Geocoding if no coordinates provided
-    if (!lat || !lng) {
-      const mapboxToken = process.env.VITE_MAPBOX_ACCESS_TOKEN;
-      try {
-        const query = `${city}, ${country}`;
-        const response = await fetch(
-          `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${mapboxToken}&limit=1`
-        );
-        const data = await response.json();
-        if (data.features && data.features.length > 0) {
-          const [longitude, latitude] = data.features[0].center;
-          lat = latitude;
-          lng = longitude;
-        }
-      } catch (e) {
-        console.error("Geocoding failed:", e);
-      }
-    }
+    // Get coordinates from form (client-side picker) or fallback to server-side geocoding
+    let lat = formData.get("latitude")
+      ? parseFloat(formData.get("latitude") as string)
+      : null;
+    let lng = formData.get("longitude")
+      ? parseFloat(formData.get("longitude") as string)
+      : null;
+
 
     const { success, data, error } = await createFlag(client, {
       city: city,
@@ -156,16 +169,20 @@ export const action = async ({ request }: Route.ActionArgs) => {
   if (intent === "update") {
     // Update flag
     const flagId = formData.get("flagId") as string;
-    
-    // Check if coordinates are updated
-    let lat = formData.get("latitude") ? parseFloat(formData.get("latitude") as string) : undefined;
-    let lng = formData.get("longitude") ? parseFloat(formData.get("longitude") as string) : undefined;
 
-    // If city/country changed but no coordinates sent (unlikely with new form, but possible), 
-    // we might want to re-geocode? 
-    // For now, assume client sends coordinates if they picked a location. 
+    // Check if coordinates are updated
+    let lat = formData.get("latitude")
+      ? parseFloat(formData.get("latitude") as string)
+      : undefined;
+    let lng = formData.get("longitude")
+      ? parseFloat(formData.get("longitude") as string)
+      : undefined;
+
+    // If city/country changed but no coordinates sent (unlikely with new form, but possible),
+    // we might want to re-geocode?
+    // For now, assume client sends coordinates if they picked a location.
     // If they just changed text, client form should have updated coordinates via map.
-    
+
     const { success, data, error } = await updateFlag(client, flagId, {
       city: formData.get("city") as string,
       country: formData.get("country") as string,
@@ -231,7 +248,17 @@ function FlagsSkeleton() {
   );
 }
 
-function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { initialFlags: any[], receivedOffers: any[], sentOffers: any[], userId: string }) {
+function FlagsContent({
+  initialFlags,
+  receivedOffers,
+  sentOffers,
+  userId,
+}: {
+  initialFlags: any[];
+  receivedOffers: any[];
+  sentOffers: any[];
+  userId: string;
+}) {
   const { t } = useLanguage();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -387,12 +414,15 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
 
       setAllFlags((prev) => {
         // Filter out duplicates just in case
-        const existingIds = new Set(prev.map(f => f.id));
-        const uniqueNewFlags = newFlagData.filter((f: any) => !existingIds.has(f.id));
+        const existingIds = new Set(prev.map((f) => f.id));
+        const uniqueNewFlags = newFlagData.filter(
+          (f: any) => !existingIds.has(f.id)
+        );
         return [...prev, ...uniqueNewFlags];
       });
-      
-      if (newFlags.length < 5) { // Assuming limit is 5
+
+      if (newFlags.length < 5) {
+        // Assuming limit is 5
         setHasMore(false);
       }
     }
@@ -460,34 +490,42 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
 
   // Combine user's own flags with flags they sent offers to
   const allActiveFlags = [
-    ...flags
-      .filter((flag) => flag.status === "active" && !flag.isSentOfferFlag), // User's own active flags
-    ...flags
-      .filter((flag) => flag.status === "active" && flag.isSentOfferFlag), // Active flags where user sent offers
+    ...flags.filter(
+      (flag) => flag.status === "active" && !flag.isSentOfferFlag
+    ), // User's own active flags
+    ...flags.filter((flag) => flag.status === "active" && flag.isSentOfferFlag), // Active flags where user sent offers
   ];
 
-  const activeFlags = allActiveFlags.sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+  const activeFlags = allActiveFlags.sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
 
-  const pastFlags = flags.filter(
-    (flag) => flag.status === "expired" || new Date(flag.endDate) < new Date()
-  ).sort((a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()); // Sort past flags by end date descending
+  const pastFlags = flags
+    .filter(
+      (flag) => flag.status === "expired" || new Date(flag.endDate) < new Date()
+    )
+    .sort(
+      (a, b) => new Date(b.endDate).getTime() - new Date(a.endDate).getTime()
+    ); // Sort past flags by end date descending
 
-  const formInitialData = useMemo(() => 
-    editingFlag
-      ? {
-          id: editingFlag.id,
-          city: editingFlag.city.split(", ")[0],
-          country: editingFlag.country,
-          startDate: formatDateOnly(editingFlag.startDate),
-          endDate: formatDateOnly(editingFlag.endDate),
-          note: editingFlag.note,
-          photoStyles: editingFlag.styles,
-          languages: editingFlag.languages,
-          latitude: (editingFlag as any).latitude,
-          longitude: (editingFlag as any).longitude,
-        }
-      : undefined,
-  [editingFlag]);
+  const formInitialData = useMemo(
+    () =>
+      editingFlag
+        ? {
+            id: editingFlag.id,
+            city: editingFlag.city.split(", ")[0],
+            country: editingFlag.country,
+            startDate: formatDateOnly(editingFlag.startDate),
+            endDate: formatDateOnly(editingFlag.endDate),
+            note: editingFlag.note,
+            photoStyles: editingFlag.styles,
+            languages: editingFlag.languages,
+            latitude: (editingFlag as any).latitude,
+            longitude: (editingFlag as any).longitude,
+          }
+        : undefined,
+    [editingFlag]
+  );
 
   return (
     <>
@@ -594,9 +632,12 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
             </div>
           ) : (
             <div className="space-y-4">
-              {activeFlags.map((flag) => (
+              {activeFlags.map((flag) =>
                 editingFlag?.id === flag.id ? (
-                  <div key={flag.id} className="border rounded-xl p-4 bg-white shadow-sm ring-2 ring-blue-500 ring-offset-2">
+                  <div
+                    key={flag.id}
+                    className="border rounded-xl p-4 bg-white shadow-sm ring-2 ring-blue-500 ring-offset-2"
+                  >
                     <FlagForm
                       key={flag.id}
                       onSubmit={handleSubmitFlag}
@@ -615,20 +656,36 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
                     startDate={flag.startDate}
                     endDate={flag.endDate}
                     status={flag.status}
-                    offerCount={flag.isSentOfferFlag ? (flag.sentOffers || []).length : flag.offerCount}
+                    offerCount={
+                      flag.isSentOfferFlag
+                        ? (flag.sentOffers || []).length
+                        : flag.offerCount
+                    }
                     styles={flag.styles}
                     note={flag.note}
                     canEdit={!flag.isSentOfferFlag}
-                    onEdit={!flag.isSentOfferFlag ? () => handleEditFlagClick(flag) : undefined}
-                    onDelete={!flag.isSentOfferFlag ? () => handleDeleteFlag(flag.id) : undefined}
-                    offers={flag.isSentOfferFlag ? (flag.sentOffers || []) : (flag.offers || [])}
+                    onEdit={
+                      !flag.isSentOfferFlag
+                        ? () => handleEditFlagClick(flag)
+                        : undefined
+                    }
+                    onDelete={
+                      !flag.isSentOfferFlag
+                        ? () => handleDeleteFlag(flag.id)
+                        : undefined
+                    }
+                    offers={
+                      flag.isSentOfferFlag
+                        ? flag.sentOffers || []
+                        : flag.offers || []
+                    }
                     isSentOfferFlag={flag.isSentOfferFlag}
                   />
                 )
-              ))}
+              )}
             </div>
           )}
-          </div>
+        </div>
 
         {/* Load More Button */}
         {hasMore && (
@@ -650,8 +707,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
           </div>
         )}
 
-
-      {/* 지난 여행 */}
+        {/* 지난 여행 */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">
             {t("flags.pastSection")} ({pastFlags.length})
@@ -708,9 +764,7 @@ function FlagsContent({ initialFlags, receivedOffers, sentOffers, userId }: { in
             <h3 className="text-xl font-semibold mb-2">
               {t("flags.premium.title")}
             </h3>
-            <p className="text-blue-100">
-              {t("flags.premium.desc")}
-            </p>
+            <p className="text-blue-100">{t("flags.premium.desc")}</p>
           </div>
           <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
             {t("flags.premium.learnMore")}
@@ -733,19 +787,17 @@ export default function FlagsPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {t("flags.title")}
           </h1>
-          <p className="text-gray-600">
-            {t("flags.description")}
-          </p>
+          <p className="text-gray-600">{t("flags.description")}</p>
         </div>
 
         <Suspense fallback={<FlagsSkeleton />}>
           <Await resolve={dataPromise}>
             {(data) => (
-              <FlagsContent 
-                initialFlags={data?.flags || []} 
-                receivedOffers={data?.receivedOffers || []} 
-                sentOffers={data?.sentOffers || []} 
-                userId={data?.userId || ""} 
+              <FlagsContent
+                initialFlags={data?.flags || []}
+                receivedOffers={data?.receivedOffers || []}
+                sentOffers={data?.sentOffers || []}
+                userId={data?.userId || ""}
               />
             )}
           </Await>
