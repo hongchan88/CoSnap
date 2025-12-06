@@ -32,6 +32,37 @@ export const createFlag = async (
   flagData: CreateFlagInput
 ) => {
   try {
+    // 1. Check user role and active flags count
+    const { data: profile } = await client
+      .from("profiles")
+      .select("role")
+      .eq("profile_id", flagData.user_id)
+      .single();
+
+    const { count } = await client
+      .from("flags")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", flagData.user_id)
+      .eq("visibility_status", "active");
+
+    const userRole = profile?.role || "free";
+    const activeFlags = count || 0;
+
+    // 2. Enforce limits
+    if (userRole === "free" && activeFlags >= 1) {
+      return { 
+        success: false, 
+        error: "Free plan limit reached (1 active flag). Upgrade to Premium for more!" 
+      };
+    }
+
+    if (userRole === "premium" && activeFlags >= 5) {
+      return { 
+        success: false, 
+        error: "Premium plan limit reached (5 active flags)." 
+      };
+    }
+
     const { data, error } = await client
       .from("flags")
       .insert({
@@ -46,8 +77,8 @@ export const createFlag = async (
         styles: flagData.styles || [],
         languages: flagData.languages || [],
         visibility_status: "active",
-        source_policy_type: "free", // Default to free, can be updated based on user role
-        exposure_policy: "default",
+        source_policy_type: userRole, // Set source policy based on role
+        exposure_policy: userRole === "premium" ? "premium_pinned" : "default", // Premium gets pinned exposure
       })
       .select()
       .single();

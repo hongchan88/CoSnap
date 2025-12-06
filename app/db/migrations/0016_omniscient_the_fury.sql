@@ -1,0 +1,1 @@
+CREATE POLICY "subscriptions_insert_policy" ON "subscriptions" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (true);
