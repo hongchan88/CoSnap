@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useLoaderData, Form, useNavigation, redirect, useSearchParams } from "react-router";
 import type { LatLngBounds } from "leaflet";
 import { createSupabaseClient } from "~/lib/supabase";
-import { createClient } from "@supabase/supabase-js";
-import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag, getUserAllFlags } from "~/users/queries";
-import { createBrowserClient } from "@supabase/ssr";
+import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
 import type { Route } from "./+types/explore";
 import CityCard from "~/components/CityCard";
 import OfferModal from "~/components/OfferModal";
@@ -393,36 +391,19 @@ export default function Explore() {
       return;
     }
 
-    // Fetch all flags for this user (not just active ones)
+    // Fetch user flag history via API route (SSR) - no client-side Supabase
     try {
-      // Create an authenticated client using the current session
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      console.log("Fetching user flags via API route:", `/api/user/${userId}/flags`);
 
-      console.log("Environment variables:", {
-        supabaseUrl,
-        supabaseAnonKey: supabaseAnonKey ? 'exists' : 'missing',
-        allEnvVars: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
-      });
-
-      if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error("Missing Supabase configuration");
+      const response = await fetch(`/api/user/${userId}/flags`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Use createBrowserClient to automatically handle cookie-based session
-      const client = createBrowserClient(supabaseUrl, supabaseAnonKey);
-      
-      const { data: { session } } = await client.auth.getSession();
+      const result = await response.json();
 
-      console.log("Session data:", {
-        session,
-        hasSession: !!session,
-        user: session?.user
-      });
-
-      if (!session) {
-        console.warn("No active session - showing limited profile info without flag history");
-        // Show basic profile info but no flag history
+      if (result.error) {
+        console.error("API error fetching user flags:", result.error);
         setSelectedProfile({
           username: flag.profiles?.username || 'Unknown User',
           avatar_url: flag.profiles?.avatar_url,
@@ -432,24 +413,10 @@ export default function Explore() {
           languages: flag.profiles?.languages,
           bio: flag.profiles?.bio,
           is_verified: flag.profiles?.is_verified || false,
-          userFlags: []
+          userFlags: [] // Empty flag history on error
         });
-        setIsProfileModalOpen(true);
-        return;
-      }
-
-      console.log("Created authenticated client:", !!client);
-      console.log("Querying for user_id:", userId);
-
-      const { success, flags: userFlagsData, error } = await getUserAllFlags(client, userId);
-
-      console.log("getUserAllFlags success:", success);
-      console.log("getUserAllFlags error:", error);
-      console.log("User flag history data:", userFlagsData);
-      console.log("Data length:", userFlagsData?.length);
-
-      if (!success || error) {
-        console.error("Error fetching user flag history:", error);
+      } else {
+        console.log("Successfully fetched user flags:", result.flags?.length);
         setSelectedProfile({
           username: flag.profiles?.username || 'Unknown User',
           avatar_url: flag.profiles?.avatar_url,
@@ -459,26 +426,11 @@ export default function Explore() {
           languages: flag.profiles?.languages,
           bio: flag.profiles?.bio,
           is_verified: flag.profiles?.is_verified || false,
-          userFlags: []
+          userFlags: result.flags || []
         });
-        setIsProfileModalOpen(true);
-        return;
       }
-
-      setSelectedProfile({
-        username: flag.profiles?.username || 'Unknown User',
-        avatar_url: flag.profiles?.avatar_url,
-        focus_score: flag.profiles?.focus_score || 0,
-        focus_tier: flag.profiles?.focus_tier || 'Blurry',
-        camera_gear: flag.profiles?.camera_gear,
-        languages: flag.profiles?.languages,
-        bio: flag.profiles?.bio,
-        is_verified: flag.profiles?.is_verified || false,
-        userFlags: userFlagsData || []
-      });
-      setIsProfileModalOpen(true);
     } catch (error) {
-      console.error("Unexpected error fetching flag history:", error);
+      console.error("Error fetching user flags via API:", error);
       setSelectedProfile({
         username: flag.profiles?.username || 'Unknown User',
         avatar_url: flag.profiles?.avatar_url,
@@ -488,9 +440,8 @@ export default function Explore() {
         languages: flag.profiles?.languages,
         bio: flag.profiles?.bio,
         is_verified: flag.profiles?.is_verified || false,
-        userFlags: []
+        userFlags: [] // Empty flag history on error
       });
-      setIsProfileModalOpen(true);
     }
   };
 
