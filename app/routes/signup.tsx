@@ -53,7 +53,7 @@ export async function action({ request }: Route.ActionArgs) {
     if (error) {
       return { error: error.message || "회원가입에 실패했습니다." };
     }
-
+    // 수퍼베이스에서 트리거로 프로파일 생성하도록 변파경됨
     // 사용자 프로필 생성
     // if (signUpData.user) {
     //   const { error: profileError } = await client
