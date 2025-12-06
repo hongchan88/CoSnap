@@ -12,4 +12,5 @@ export default [
   route("signup", "routes/signup.tsx"),
   route("email-preview", "routes/email-preview.tsx"),
   route("auth/callback", "routes/auth.callback.tsx"),
+  route("api/notifications", "routes/api.notifications.ts"),
 ] satisfies RouteConfig;

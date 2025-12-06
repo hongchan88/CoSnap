@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createNotification } from "~/lib/notifications";
 
 // Types for flag operations
 export interface CreateFlagInput {
@@ -280,6 +281,15 @@ export const createOffer = async (
       return { success: false, error: error.message };
     }
 
+    // Send notification to receiver
+    await createNotification(client, {
+      recipientId: offerData.receiverId,
+      senderId: offerData.senderId,
+      type: "offer_received",
+      referenceId: data.id,
+      referenceType: "offer",
+    });
+
     return { success: true, data };
   } catch (error) {
     console.error("Unexpected error creating offer:", error);
@@ -395,6 +405,15 @@ export const acceptOffer = async (
       return { success: false, error: "Failed to create match" };
     }
 
+    // Send notification to sender (who is now user_a in match)
+    await createNotification(client, {
+      recipientId: offer.sender_id,
+      senderId: userId, // Receiver accepted, so they are the sender of this notification
+      type: "offer_accepted",
+      referenceId: match.id,
+      referenceType: "match",
+    });
+
     return { success: true, match };
   } catch (error) {
     console.error("Unexpected error accepting offer:", error);
@@ -417,6 +436,23 @@ export const declineOffer = async (
     if (error) {
       console.error("Error declining offer:", error);
       return { success: false, error: error.message };
+    }
+
+    // Fetch offer to get sender_id
+    const { data: offer } = await client
+      .from("offers")
+      .select("sender_id")
+      .eq("id", offerId)
+      .single();
+
+    if (offer) {
+      await createNotification(client, {
+        recipientId: offer.sender_id,
+        senderId: userId,
+        type: "offer_declined",
+        referenceId: offerId,
+        referenceType: "offer",
+      });
     }
 
     return { success: true };
