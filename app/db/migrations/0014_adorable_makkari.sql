@@ -1,0 +1,1 @@
+CREATE POLICY "notifications_insert_policy" ON "notifications" AS PERMISSIVE FOR INSERT TO "authenticated" WITH CHECK (true);

@@ -304,3 +304,51 @@ export const selectMatchSchema = createSelectSchema(matches);
 
 export const insertReviewSchema = createInsertSchema(reviews);
 export const selectReviewSchema = createSelectSchema(reviews);
+
+// Notifications table
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipientId: uuid("recipient_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  senderId: uuid("sender_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" }),
+  type: varchar("type", {
+    enum: [
+      "offer_received",
+      "offer_accepted",
+      "offer_declined",
+      "match_scheduled",
+      "system",
+    ],
+  }).notNull(),
+  referenceId: uuid("reference_id"), // ID of the related entity (offer_id, match_id)
+  referenceType: varchar("reference_type", { enum: ["offer", "match"] }),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  pgPolicy("notifications_insert_policy", {
+    for: "insert",
+    to: authenticatedRole,
+    as: "permissive",
+    withCheck: sql`true`, // Any authenticated user can create notifications
+  }),
+  pgPolicy("notifications_select_policy", {
+    for: "select",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.recipientId}`,
+  }),
+  pgPolicy("notifications_update_policy", {
+    for: "update",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.recipientId}`,
+    withCheck: sql`${authUid} = ${table.recipientId}`,
+  }),
+]);
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export const selectNotificationSchema = createSelectSchema(notifications);

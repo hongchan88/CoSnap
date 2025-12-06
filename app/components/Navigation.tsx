@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { useLanguage } from "~/context/language-context";
 import LanguageToggle from "./LanguageToggle.client";
 import { ChevronDown } from "lucide-react";
+import { NotificationBell } from "./notifications/NotificationBell";
 
 interface NavigationProps {
   user: User | null;
@@ -53,6 +54,9 @@ export default function Navigation({ user }: NavigationProps) {
 
             {/* User Menu & Mobile Menu Button */}
             <div className="flex items-center gap-3">
+              {/* Notifications */}
+              {user && <NotificationBell userId={user.id} />}
+
               {/* Language Dropdown */}
               <div className="relative">
                 <Button
