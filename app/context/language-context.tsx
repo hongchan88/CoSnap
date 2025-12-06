@@ -151,12 +151,19 @@ const translations: Record<Language, Record<string, string>> = {
     "flags.premium.learnMore": "Learn More",
 
     // Flag Form
-    "flagForm.title": "Flag 만들기",
-    "flagForm.editTitle": "Flag 수정하기",
+    "flagForm.title": "Create Flag",
+    "flagForm.editTitle": "Edit Flag",
+    "flagForm.type": "Flag Type",
     "flagForm.city": "City",
+    "flagForm.cityPlaceholder": "e.g., Tokyo",
     "flagForm.country": "Country",
+    "flagForm.countryPlaceholder": "Select a country",
+    "flagForm.titleLabel": "Title",
+    "flagForm.titlePlaceholder": "Enter a title for your plan",
     "flagForm.startDate": "Start Date",
     "flagForm.endDate": "End Date",
+    "flagForm.description": "Description",
+    "flagForm.descriptionPlaceholder": "Describe your plan...",
     "flagForm.note": "Note (Optional)",
     "flagForm.notePlaceholder": "Feel free to write any special requests or preferences...",
     "flagForm.photoStyle": "Preferred Photo Styles",
@@ -223,6 +230,15 @@ const translations: Record<Language, Record<string, string>> = {
     "error.profile.notFound": "Profile not found. Please complete your profile setup first.",
     "error.profile.missing": "Your profile is incomplete. Please contact support.",
     "error.profile.offerFailed": "Cannot send offer: Profile setup required.",
+
+    // Profile Page
+    "profile.title": "Profile",
+    "profile.description": "Manage your profile and check CoSnap activity",
+    "profile.tabs.profile": "Profile",
+    "profile.tabs.messages": "Messages",
+    "profile.noMessages": "No messages yet",
+    "profile.noMessagesSub": "You have no new messages",
+    "profile.goToInbox": "Go to Inbox",
 
     // Inbox Page
     "inbox.title": "Inbox",
@@ -383,6 +399,27 @@ const translations: Record<Language, Record<string, string>> = {
     "flags.premium.learnMore": "알아보기",
 
     // Flag Form
+    "flagForm.title": "Flag 만들기",
+    "flagForm.editTitle": "Flag 수정하기",
+    "flagForm.type": "Flag 유형",
+    "flagForm.city": "도시",
+    "flagForm.cityPlaceholder": "예: 도쿄",
+    "flagForm.country": "국가",
+    "flagForm.countryPlaceholder": "국가를 선택해주세요",
+    "flagForm.titleLabel": "제목",
+    "flagForm.titlePlaceholder": "계획의 제목을 입력하세요",
+    "flagForm.startDate": "시작일",
+    "flagForm.endDate": "종료일",
+    "flagForm.description": "설명",
+    "flagForm.descriptionPlaceholder": "계획을 설명해주세요...",
+    "flagForm.note": "메모 (선택사항)",
+    "flagForm.notePlaceholder": "특별한 요청이나 선호사항을 자유롭게 작성해주세요...",
+    "flagForm.photoStyle": "선호 사진 스타일",
+    "flagForm.languages": "사용 가능 언어",
+    "flagForm.location": "위치 선택 (선택사항)",
+    "flagForm.cancel": "취소",
+    "flagForm.create": "만들기",
+    "flagForm.update": "수정하기",
     "flagForm.country.japan": "🇯🇵 일본",
     "flagForm.country.korea": "🇰🇷 한국",
     "flagForm.country.usa": "🇺🇸 미국",
@@ -439,14 +476,6 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.sendOffer": "오퍼 보내기 →",
     "explore.days": "일",
 
-    // Profile Page
-    "profile.title": "Profile",
-    "profile.description": "Manage your profile and check CoSnap activity",
-    "profile.tabs.profile": "Profile",
-    "profile.tabs.messages": "Messages",
-    "profile.noMessages": "No messages yet",
-    "profile.noMessagesSub": "You have no new messages",
-    "profile.goToInbox": "Go to Inbox",
 
     // Profile Page
     "profile.title": "프로필",

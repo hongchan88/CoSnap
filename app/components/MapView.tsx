@@ -23,8 +23,9 @@ if (typeof window !== "undefined") {
 interface MapViewProps {
   flags: any[];
   center?: { lat: number; lng: number };
+  userLocation?: { lat: number; lng: number };
   zoom?: number;
-  onMarkerClick?: (city: string) => void;
+  onMarkerClick?: (data: any) => void;
   onBoundsChange?: (bounds: L.LatLngBounds) => void;
   interactive?: boolean;
   showControls?: boolean;
@@ -129,6 +130,7 @@ function CustomMarker({ position, onClick, children }: CustomMarkerProps) {
 export default function MapView({
   flags,
   center = { lat: 37.5665, lng: 126.978 },
+  userLocation,
   zoom = 3,
   onMarkerClick,
   onBoundsChange,
@@ -332,6 +334,19 @@ export default function MapView({
             </CustomMarker>
           );
         })}
+
+        {/* User Location Marker */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={L.divIcon({
+              className: "bg-transparent",
+              html: `<div class="w-4 h-4 bg-blue-500 border-2 border-white rounded-full shadow-lg animate-pulse"></div>`,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            })}
+          />
+        )}
       </MapContainer>
     </div>
   );

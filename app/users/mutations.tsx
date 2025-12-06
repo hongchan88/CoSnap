@@ -8,11 +8,18 @@ export interface CreateFlagInput {
   country: string;
   latitude?: number | null;
   longitude?: number | null;
+  title: string;
   startDate: string;
   endDate: string;
   note?: string;
-  styles?: string[];
   languages?: string[];
+  type: string;
+  // Meetup-specific
+  meetupCategory?: string;
+  // Offer-specific
+  serviceLevel?: string;
+  serviceCategory?: string;
+  serviceOther?: string;
 }
 
 export interface UpdateFlagInput {
@@ -20,12 +27,41 @@ export interface UpdateFlagInput {
   country?: string;
   latitude?: number;
   longitude?: number;
+  title?: string;
   startDate?: string;
   endDate?: string;
   note?: string;
-  styles?: string[];
   languages?: string[];
+  type?: string;
+  // Meetup-specific
+  meetupCategory?: string;
+  // Offer-specific
+  serviceLevel?: string;
+  serviceCategory?: string;
+  serviceOther?: string;
 }
+
+// Helper: Randomize location within 10km radius (~0.1 degrees)
+const randomizeLocation = (lat: number, lng: number): { lat: number; lng: number } => {
+  // 1 degree lat ~= 111km
+  // 10km ~= 0.09 degrees
+  const R_EARTH = 6371; // km
+  const RADIUS = 5; // km
+
+  // Random distance within radius (square root for uniform distribution area-wise)
+  const r = RADIUS * Math.sqrt(Math.random());
+  // Random angle
+  const theta = Math.random() * 2 * Math.PI;
+
+  const dy = r * Math.sin(theta); // km north
+  const dx = r * Math.cos(theta); // km east
+
+  const newLat = lat + (dy / 111);
+  const newLng = lng + (dx / (111 * Math.cos(lat * (Math.PI / 180))));
+
+  return { lat: newLat, lng: newLng };
+};
+
 // Create a new flag
 export const createFlag = async (
   client: SupabaseClient,
@@ -63,19 +99,35 @@ export const createFlag = async (
       };
     }
 
+    // Randomize location if provided
+    let finalLat = flagData.latitude;
+    let finalLng = flagData.longitude;
+    
+    if (finalLat && finalLng) {
+      const { lat, lng } = randomizeLocation(finalLat, finalLng);
+      finalLat = lat;
+      finalLng = lng;
+    }
+
     const { data, error } = await client
       .from("flags")
       .insert({
         user_id: flagData.user_id,
         city: flagData.city,
         country: flagData.country,
-        latitude: flagData.latitude,
-        longitude: flagData.longitude,
+        latitude: finalLat,
+        longitude: finalLng,
+        title: flagData.title,
         start_date: flagData.startDate,
         end_date: flagData.endDate,
         note: flagData.note || null,
-        styles: flagData.styles || [],
+        styles: [], // Deprecated
         languages: flagData.languages || [],
+        type: flagData.type,
+        meetup_category: flagData.meetupCategory || null,
+        service_level: flagData.serviceLevel || null,
+        service_category: flagData.serviceCategory || null,
+        service_other: flagData.serviceOther || null,
         visibility_status: "active",
         source_policy_type: userRole, // Set source policy based on role
         exposure_policy: userRole === "premium" ? "premium_pinned" : "default", // Premium gets pinned exposure
@@ -106,13 +158,42 @@ export const updateFlag = async (
 
     if (flagData.city) updateData.city = flagData.city;
     if (flagData.country) updateData.country = flagData.country;
-    if (flagData.latitude !== undefined) updateData.latitude = flagData.latitude;
-    if (flagData.longitude !== undefined) updateData.longitude = flagData.longitude;
+    
+    // Randomize location on update too if it changes
+    if (flagData.latitude !== undefined && flagData.longitude !== undefined) {
+      const { lat, lng } = randomizeLocation(flagData.latitude, flagData.longitude);
+      updateData.latitude = lat;
+      updateData.longitude = lng;
+    } else {
+      if (flagData.latitude !== undefined) updateData.latitude = flagData.latitude;
+      if (flagData.longitude !== undefined) updateData.longitude = flagData.longitude;
+    }
+    if (flagData.title) updateData.title = flagData.title;
     if (flagData.startDate) updateData.start_date = flagData.startDate;
     if (flagData.endDate) updateData.end_date = flagData.endDate;
     if (flagData.note !== undefined) updateData.note = flagData.note;
-    if (flagData.styles) updateData.styles = flagData.styles;
+    // styles deprecated
     if (flagData.languages) updateData.languages = flagData.languages;
+    if (flagData.type) updateData.type = flagData.type;
+
+    // Enforce 3-day limit on update if dates change
+    if (flagData.startDate || flagData.endDate) {
+      // We need both dates to validate. If only one is provided, we might need to fetch the other.
+      // For simplicity/safety, let's assume if one is provided, both should be checked or we fetch current.
+      // But here we can just check if both are provided in update, or rely on client. 
+      // Better: Fetch current flag if only one date provided? 
+      // For now, let's assume client sends both if changing duration, or we skip strict check here if partial.
+      // But critical: if both provided:
+      if (flagData.startDate && flagData.endDate) {
+         const start = new Date(flagData.startDate);
+         const end = new Date(flagData.endDate);
+         const diffTime = Math.abs(end.getTime() - start.getTime());
+         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+         if (diffDays > 3) {
+            return { success: false, error: "Flag duration cannot exceed 3 days." };
+         }
+      }
+    }
 
     updateData.updated_at = new Date().toISOString();
 

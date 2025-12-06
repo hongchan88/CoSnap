@@ -127,6 +127,41 @@
       "when": 1764998142078,
       "tag": "0017_strong_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1765001024761,
+      "tag": "0018_many_omega_red",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1765001268758,
+      "tag": "0019_careless_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1765008923584,
+      "tag": "0020_damp_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1765025479781,
+      "tag": "0021_foamy_kingpin",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1765028777316,
+      "tag": "0022_sweet_madrox",
+      "breakpoints": true
     }
   ]
 }

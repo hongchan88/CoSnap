@@ -20,7 +20,12 @@
       "routes/login": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/signup": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/email-preview": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/auth.callback": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+      "routes/auth.callback": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.notifications": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/pricing": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.stripe.checkout": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.stripe.mock-success": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.stripe.downgrade": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
       "root": {
@@ -127,13 +132,58 @@
         "config": {
           "runtime": "nodejs"
         }
+      },
+      "routes/api.notifications": {
+        "id": "routes/api.notifications",
+        "parentId": "root",
+        "file": "app/routes/api.notifications.ts",
+        "path": "api/notifications",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/pricing": {
+        "id": "routes/pricing",
+        "parentId": "root",
+        "file": "app/routes/pricing.tsx",
+        "path": "pricing",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.stripe.checkout": {
+        "id": "routes/api.stripe.checkout",
+        "parentId": "root",
+        "file": "app/routes/api.stripe.checkout.ts",
+        "path": "api/stripe/checkout",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.stripe.mock-success": {
+        "id": "routes/api.stripe.mock-success",
+        "parentId": "root",
+        "file": "app/routes/api.stripe.mock-success.ts",
+        "path": "api/stripe/mock-success",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.stripe.downgrade": {
+        "id": "routes/api.stripe.downgrade",
+        "parentId": "root",
+        "file": "app/routes/api.stripe.downgrade.ts",
+        "path": "api/stripe/downgrade",
+        "config": {
+          "runtime": "nodejs"
+        }
       }
     }
   },
   "reactRouterConfig": {
-    "appDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap/app",
+    "appDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap-feature/app",
     "basename": "/",
-    "buildDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap/build",
+    "buildDirectory": "/Users/hongseo/Documents/노마드 메이커 챌린지/CoSnap-feature/build",
     "future": {
       "v8_middleware": false,
       "unstable_optimizeDeps": false,
@@ -212,6 +262,36 @@
         "parentId": "root",
         "file": "routes/auth.callback.tsx",
         "path": "auth/callback"
+      },
+      "routes/api.notifications": {
+        "id": "routes/api.notifications",
+        "parentId": "root",
+        "file": "routes/api.notifications.ts",
+        "path": "api/notifications"
+      },
+      "routes/pricing": {
+        "id": "routes/pricing",
+        "parentId": "root",
+        "file": "routes/pricing.tsx",
+        "path": "pricing"
+      },
+      "routes/api.stripe.checkout": {
+        "id": "routes/api.stripe.checkout",
+        "parentId": "root",
+        "file": "routes/api.stripe.checkout.ts",
+        "path": "api/stripe/checkout"
+      },
+      "routes/api.stripe.mock-success": {
+        "id": "routes/api.stripe.mock-success",
+        "parentId": "root",
+        "file": "routes/api.stripe.mock-success.ts",
+        "path": "api/stripe/mock-success"
+      },
+      "routes/api.stripe.downgrade": {
+        "id": "routes/api.stripe.downgrade",
+        "parentId": "root",
+        "file": "routes/api.stripe.downgrade.ts",
+        "path": "api/stripe/downgrade"
       }
     },
     "routeDiscovery": {
@@ -270,6 +350,26 @@
           {
             "file": "routes/auth.callback.tsx",
             "path": "auth/callback"
+          },
+          {
+            "file": "routes/api.notifications.ts",
+            "path": "api/notifications"
+          },
+          {
+            "file": "routes/pricing.tsx",
+            "path": "pricing"
+          },
+          {
+            "file": "routes/api.stripe.checkout.ts",
+            "path": "api/stripe/checkout"
+          },
+          {
+            "file": "routes/api.stripe.mock-success.ts",
+            "path": "api/stripe/mock-success"
+          },
+          {
+            "file": "routes/api.stripe.downgrade.ts",
+            "path": "api/stripe/downgrade"
           }
         ]
       }

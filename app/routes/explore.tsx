@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useLoaderData, Form, useNavigation, redirect, useSearchParams } from "react-router";
+import { useLoaderData, Form, useNavigation, redirect, useSearchParams, useFetcher } from "react-router";
 import type { LatLngBounds } from "leaflet";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
@@ -37,6 +37,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const location = url.searchParams.get("location")?.toLowerCase() || null;
     const startDate = url.searchParams.get("startDate") || null;
     const endDate = url.searchParams.get("endDate") || null;
+    const type = url.searchParams.get("type") || "all";
     const travelers = parseInt(url.searchParams.get("travelers") || "1");
     
     // Parse bounds if available
@@ -50,8 +51,8 @@ export async function loader({ request }: Route.LoaderArgs) {
       : undefined;
 
     // Fetch active flags
-    console.log("🚩 Fetching active flags...", bounds ? `with bounds: ${JSON.stringify(bounds)}` : "no bounds");
-    const { success, flags, error } = await getAllActiveFlags(client, 100, bounds);
+    console.log("🚩 Fetching active flags...", bounds ? `with bounds: ${JSON.stringify(bounds)}` : "no bounds", `type: ${type}`);
+    const { success, flags, error } = await getAllActiveFlags(client, 100, bounds, type);
 
     console.log("📊 Flag fetch results:");
     console.log("  Success:", success);
@@ -121,7 +122,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     return {
       flags: flagsWithCounts,
       cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
-      searchParams: { location, startDate, endDate, travelers },
+      searchParams: { location, startDate, endDate, travelers, type },
       currentUserId: userId,
     };
   } catch (error) {
@@ -212,8 +213,10 @@ export default function Explore() {
   const [expandedFlagId, setExpandedFlagId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedType, setSelectedType] = useState<string>(searchParams?.type || "all");
   const navigation = useNavigation();
   const [, setSearchParams] = useSearchParams();
+  const profileFetcher = useFetcher<any>();
 
   // Sync selectedCity when URL param changes
   useEffect(() => {
@@ -221,6 +224,14 @@ export default function Explore() {
       setSelectedCity(initialCity);
     }
   }, [initialCity]);
+
+  // Handle profile data from fetcher
+  useEffect(() => {
+    if (profileFetcher.data?.success && profileFetcher.data?.profile) {
+      setSelectedProfile(profileFetcher.data.profile);
+      setIsProfileModalOpen(true);
+    }
+  }, [profileFetcher.data]);
 
   // Update URL params when map bounds change (debounced)
   useEffect(() => {
@@ -233,6 +244,11 @@ export default function Explore() {
         newParams.set("maxLat", mapBounds.getNorth().toFixed(4));
         newParams.set("minLng", mapBounds.getWest().toFixed(4));
         newParams.set("maxLng", mapBounds.getEast().toFixed(4));
+        if (selectedType && selectedType !== "all") {
+          newParams.set("type", selectedType);
+        } else {
+          newParams.delete("type");
+        }
         return newParams;
       });
     }, 1000); // 1 second debounce
@@ -308,42 +324,47 @@ export default function Explore() {
     });
   }, [flags, mapBounds]);
 
+  const postsInView = useMemo(() => {
+    return [];
+  }, []);
+
   // Prepare markers: Use all city groups (real data)
-  const mapMarkers = cityGroups.map((group) => {
-    let lat = group.lat;
-    let lng = group.lng;
+  const mapCityGroups = useMemo(() => {
+    return cityGroups.map((group) => {
+      let lat = group.lat;
+      let lng = group.lng;
 
-    // Fallback to CITY_COORDINATES if no lat/lng in data
-    if (!lat || !lng) {
-      const coords =
-        CITY_COORDINATES[group.city.toLowerCase()] ||
-        CITY_COORDINATES[group.city];
-      if (coords) {
-        lat = coords.lat;
-        lng = coords.lng;
-      } else {
-        lat = 37.5665;
-        lng = 126.978;
+      // Fallback to CITY_COORDINATES if no lat/lng in data
+      if (!lat || !lng) {
+        const coords =
+          CITY_COORDINATES[group.city.toLowerCase()] ||
+          CITY_COORDINATES[group.city];
+        if (coords) {
+          lat = coords.lat;
+          lng = coords.lng;
+        } else {
+          lat = 37.5665;
+          lng = 126.978;
+        }
       }
-    }
 
-    return {
-      id: `${group.city}-${group.country}`,
-      lat: lat,
-      lng: lng,
-      city: group.city,
-      country: group.country,
-      imageUrl: group.imageUrl,
-      count: group.count,
-      flags: group.flags,
-    };
-  });
+      return {
+        id: `${group.city}-${group.country}`,
+        lat: lat,
+        lng: lng,
+        city: group.city,
+        country: group.country,
+        imageUrl: group.imageUrl,
+        count: group.count,
+        flags: group.flags,
+        type: "city_group"
+      };
+    });
+  }, [cityGroups]);
 
-  const handleMarkerClick = (city: string) => {
-    // Just center the map on the clicked marker
-    const hit = mapMarkers.find((m) => m.city === city);
-    if (hit) {
-      setMapCenter({ lat: hit.lat, lng: hit.lng });
+  const handleMarkerClick = (marker: any) => {
+    if (marker.type === "city_group") {
+      setMapCenter({ lat: marker.lat, lng: marker.lng });
       setMapZoom(12);
     }
   };
@@ -360,22 +381,12 @@ export default function Explore() {
     setExpandedFlagId(prev => prev === flagId ? null : flagId);
   };
 
-  const handleProfileClick = async (flag: any) => {
-    console.log("Flag clicked:", flag);
-    console.log("Flag object keys:", Object.keys(flag));
-    console.log("Profile data:", flag.profiles);
-    console.log("User ID sources:",
-      flag.id,
-      flag.user_id,
-      flag.profiles?.id
-    );
-
-    // Extract user ID from flag object - this is the owner of the flag
+  const handleProfileClick = (flag: any) => {
     const userId = flag.user_id;
-    console.log("Using user ID for query:", userId);
-
+    
     if (!userId) {
       console.error("No user ID found in flag object");
+      // Show basic profile info without flag history
       setSelectedProfile({
         username: flag.profiles?.username || 'Unknown User',
         avatar_url: flag.profiles?.avatar_url,
@@ -391,58 +402,8 @@ export default function Explore() {
       return;
     }
 
-    // Fetch user flag history via API route (SSR) - no client-side Supabase
-    try {
-      console.log("Fetching user flags via API route:", `/api/user/${userId}/flags`);
-
-      const response = await fetch(`/api/user/${userId}/flags`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.error) {
-        console.error("API error fetching user flags:", result.error);
-        setSelectedProfile({
-          username: flag.profiles?.username || 'Unknown User',
-          avatar_url: flag.profiles?.avatar_url,
-          focus_score: flag.profiles?.focus_score || 0,
-          focus_tier: flag.profiles?.focus_tier || 'Blurry',
-          camera_gear: flag.profiles?.camera_gear,
-          languages: flag.profiles?.languages,
-          bio: flag.profiles?.bio,
-          is_verified: flag.profiles?.is_verified || false,
-          userFlags: [] // Empty flag history on error
-        });
-      } else {
-        console.log("Successfully fetched user flags:", result.flags?.length);
-        setSelectedProfile({
-          username: flag.profiles?.username || 'Unknown User',
-          avatar_url: flag.profiles?.avatar_url,
-          focus_score: flag.profiles?.focus_score || 0,
-          focus_tier: flag.profiles?.focus_tier || 'Blurry',
-          camera_gear: flag.profiles?.camera_gear,
-          languages: flag.profiles?.languages,
-          bio: flag.profiles?.bio,
-          is_verified: flag.profiles?.is_verified || false,
-          userFlags: result.flags || []
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching user flags via API:", error);
-      setSelectedProfile({
-        username: flag.profiles?.username || 'Unknown User',
-        avatar_url: flag.profiles?.avatar_url,
-        focus_score: flag.profiles?.focus_score || 0,
-        focus_tier: flag.profiles?.focus_tier || 'Blurry',
-        camera_gear: flag.profiles?.camera_gear,
-        languages: flag.profiles?.languages,
-        bio: flag.profiles?.bio,
-        is_verified: flag.profiles?.is_verified || false,
-        userFlags: [] // Empty flag history on error
-      });
-    }
+    // Fetch profile data via SSR
+    profileFetcher.load(`/api/user-profile/${userId}`);
   };
 
   return (
@@ -488,6 +449,37 @@ export default function Explore() {
                 {t("explore.goToMap")}
               </Button>
             </div>
+
+            {/* Type Filter */}
+            <Select
+              value={selectedType}
+              onValueChange={(value) => {
+                setSelectedType(value);
+                setSearchParams((prev) => {
+                  const newParams = new URLSearchParams(prev);
+                  if (value && value !== "all") {
+                    newParams.set("type", value);
+                  } else {
+                    newParams.delete("type");
+                  }
+                  return newParams;
+                });
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filter by Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="meet">👋 Meetup</SelectItem>
+                <SelectItem value="help">🙏 Help Needed</SelectItem>
+                <SelectItem value="emergency">🚨 Emergency</SelectItem>
+                <SelectItem value="free">🎁 Free / Giveaway</SelectItem>
+                <SelectItem value="photo">📷 Photo Exchange</SelectItem>
+                <SelectItem value="offer">🤝 Offer Help</SelectItem>
+              </SelectContent>
+            </Select>
+
             <Button
               variant="outline"
               className="w-full"
@@ -519,7 +511,7 @@ export default function Explore() {
                 {mapBounds ? t("explore.travelPlansInArea") : t("explore.loadingMap")}
               </h2>
               <span className="text-sm text-gray-500">
-                {mapBounds ? `${flagsInView.length}${t("explore.count")}` : ""}
+                {mapBounds ? `${flagsInView.length + postsInView.length} items` : ""}
               </span>
             </div>
 
@@ -751,19 +743,29 @@ export default function Explore() {
             }
           >
             <MapView
-              flags={mapMarkers}
+              flags={mapCityGroups}
               center={mapCenter}
               zoom={mapZoom}
-              onMarkerClick={handleMarkerClick}
               onBoundsChange={setMapBounds}
+              onMarkerClick={handleMarkerClick}
+              userLocation={
+                navigator.geolocation
+                  ? {
+                      lat: mapCenter.lat,
+                      lng: mapCenter.lng,
+                    }
+                  : undefined
+              }
             />
           </Suspense>
         </div>
-
-        {/* Floating Action Button for Mobile (if needed) */}
-        <div className="absolute bottom-8 right-8 md:hidden">
-          <Button className="rounded-full shadow-lg w-12 h-12 p-0">🗺️</Button>
-        </div>
+      </div>
+      
+      {/* Other Modals... */}
+      
+      {/* Floating Action Button for Mobile (if needed) */}
+      <div className="absolute bottom-8 right-8 md:hidden">
+        <Button className="rounded-full shadow-lg w-12 h-12 p-0">🗺️</Button>
       </div>
 
       {/* Offer Modal */}

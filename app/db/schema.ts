@@ -99,6 +99,26 @@ export const flags = pgTable(
     longitude: real("longitude"),
     styles: text("styles").array(),
     languages: text("languages").array(),
+    type: varchar("type", {
+      enum: ["help", "emergency", "free", "meet", "photo", "offer"],
+    })
+      .default("meet")
+      .notNull(),
+    title: varchar("title", { length: 255 }).notNull().default(""),
+    
+    // Meetup-specific fields
+    meetupCategory: varchar("meetup_category", {
+      enum: ["sport", "photo", "food_tour", "sightseeing", "nightlife", "other"],
+    }),
+    
+    // Offer Paid Help-specific fields
+    serviceLevel: varchar("service_level", {
+      enum: ["amateur", "pro"],
+    }),
+    serviceCategory: varchar("service_category", {
+      enum: ["language", "tour_guide", "other"],
+    }),
+    serviceOther: text("service_other"),
 
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),
@@ -177,8 +197,9 @@ export const offers = pgTable(
       .references(() => profiles.profile_id, { onDelete: "cascade" })
       .notNull(),
     flagId: uuid("flag_id")
-      .references(() => flags.id, { onDelete: "cascade" })
-      .notNull(),
+      .references(() => flags.id, { onDelete: "cascade" }),
+    postId: uuid("post_id")
+      .references(() => posts.id, { onDelete: "cascade" }),
     message: text("message").notNull(),
     status: varchar("status", {
       enum: ["pending", "accepted", "declined", "expired", "cancelled"],
@@ -392,3 +413,127 @@ export const subscriptions = pgTable("subscriptions", {
 
 export const insertSubscriptionSchema = createInsertSchema(subscriptions);
 export const selectSubscriptionSchema = createSelectSchema(subscriptions);
+
+// Posts table
+export const posts = pgTable("posts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  type: varchar("type", {
+    enum: ["help", "emergency", "free", "meet", "photo", "offer"],
+  }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  price: integer("price"), // Optional price
+  currency: varchar("currency", { length: 10 }), // Optional currency
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  pgPolicy("posts_insert_policy", {
+    for: "insert",
+    to: authenticatedRole,
+    as: "permissive",
+    withCheck: sql`${authUid} = ${table.userId}`,
+  }),
+  pgPolicy("posts_select_policy", {
+    for: "select",
+    to: "public",
+    as: "permissive",
+    using: sql`true`,
+  }),
+  pgPolicy("posts_update_policy", {
+    for: "update",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.userId}`,
+    withCheck: sql`${authUid} = ${table.userId}`,
+  }),
+  pgPolicy("posts_delete_policy", {
+    for: "delete",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.userId}`,
+  }),
+]);
+
+// Conversations table
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userAId: uuid("user_a_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  userBId: uuid("user_b_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  postId: uuid("post_id").references(() => posts.id, { onDelete: "set null" }),
+  offerId: uuid("offer_id").references(() => offers.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  pgPolicy("conversations_insert_policy", {
+    for: "insert",
+    to: authenticatedRole,
+    as: "permissive",
+    withCheck: sql`${authUid} = ${table.userAId} OR ${authUid} = ${table.userBId}`,
+  }),
+  pgPolicy("conversations_select_policy", {
+    for: "select",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.userAId} OR ${authUid} = ${table.userBId}`,
+  }),
+]);
+
+// Messages table
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id")
+    .references(() => conversations.id, { onDelete: "cascade" })
+    .notNull(),
+  senderId: uuid("sender_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  pgPolicy("messages_insert_policy", {
+    for: "insert",
+    to: authenticatedRole,
+    as: "permissive",
+    withCheck: sql`${authUid} = ${table.senderId}`,
+  }),
+  pgPolicy("messages_select_policy", {
+    for: "select",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`EXISTS (
+      SELECT 1 FROM conversations c
+      WHERE c.id = ${table.conversationId}
+      AND (c.user_a_id = ${authUid} OR c.user_b_id = ${authUid})
+    )`,
+  }),
+]);
+
+export const insertPostSchema = createInsertSchema(posts);
+export const selectPostSchema = createSelectSchema(posts);
+
+export const insertConversationSchema = createInsertSchema(conversations);
+export const selectConversationSchema = createSelectSchema(conversations);
+
+export const insertMessageSchema = createInsertSchema(messages);
+export const selectMessageSchema = createSelectSchema(messages);

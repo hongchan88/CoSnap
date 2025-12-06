@@ -27,6 +27,7 @@ interface FlagData {
   id: string;
   city: string;
   country: string;
+  title: string;
   flag: string;
   startDate: string;
   endDate: string;
@@ -40,6 +41,7 @@ interface FlagData {
   latitude?: number;
   longitude?: number;
   isSentOfferFlag?: boolean;
+  type: string;
 }
 
 export function meta({}: Route.MetaArgs) {
@@ -151,11 +153,13 @@ export const action = async ({ request }: Route.ActionArgs) => {
       country: country,
       latitude: lat,
       longitude: lng,
+      title: formData.get("title") as string,
       startDate: formData.get("startDate") as string,
       endDate: formData.get("endDate") as string,
       note: (formData.get("note") as string) || undefined,
-      styles: JSON.parse((formData.get("photoStyles") as string) || "[]"),
+      // styles deprecated
       languages: JSON.parse((formData.get("languages") as string) || "[]"),
+      type: (formData.get("type") as string) || "meet",
       user_id: userId,
     });
 
@@ -188,11 +192,13 @@ export const action = async ({ request }: Route.ActionArgs) => {
       country: formData.get("country") as string,
       latitude: lat,
       longitude: lng,
+      title: formData.get("title") as string,
       startDate: formData.get("startDate") as string,
       endDate: formData.get("endDate") as string,
       note: (formData.get("note") as string) || undefined,
-      styles: JSON.parse((formData.get("photoStyles") as string) || "[]"),
+      // styles deprecated
       languages: JSON.parse((formData.get("languages") as string) || "[]"),
+      type: (formData.get("type") as string) || "meet",
     });
 
     if (!success) {
@@ -347,6 +353,7 @@ function FlagsContent({
         id: flag.id,
         city: flag.city,
         country: flag.country,
+        title: flag.title || "",
         flag: getCountryFlag(flag.country),
         startDate: formatDateOnly(flag.start_date || flag.startDate),
         endDate: formatDateOnly(flag.end_date || flag.endDate),
@@ -359,11 +366,13 @@ function FlagsContent({
         latitude: flag.latitude,
         longitude: flag.longitude,
         isSentOfferFlag: false,
+        type: flag.type || "meet",
       })),
       ...uniqueFlagsWithSentOffers.map((flag: any) => ({
         id: flag.id,
         city: flag.city,
         country: flag.country,
+        title: flag.title || "",
         flag: getCountryFlag(flag.country),
         startDate: formatDateOnly(flag.start_date || flag.startDate),
         endDate: formatDateOnly(flag.end_date || flag.endDate),
@@ -376,6 +385,7 @@ function FlagsContent({
         latitude: flag.latitude,
         longitude: flag.longitude,
         isSentOfferFlag: true,
+        type: flag.type || "meet",
       })),
     ];
     return initialFlagData;
@@ -398,6 +408,7 @@ function FlagsContent({
         id: flag.id,
         city: flag.city,
         country: flag.country,
+        title: flag.title || "",
         flag: getCountryFlag(flag.country),
         startDate: formatDateOnly(flag.start_date || flag.startDate),
         endDate: formatDateOnly(flag.end_date || flag.endDate),
@@ -410,6 +421,7 @@ function FlagsContent({
         latitude: flag.latitude,
         longitude: flag.longitude,
         isSentOfferFlag: false,
+        type: flag.type || "meet",
       }));
 
       setAllFlags((prev) => {
@@ -447,13 +459,15 @@ function FlagsContent({
       flagId: editingFlag?.id || "",
       city: formData.city,
       country: formData.country,
+      title: formData.title,
       startDate: formData.startDate,
       endDate: formData.endDate,
       note: formData.note || "",
-      photoStyles: JSON.stringify(formData.photoStyles),
+      // photoStyles deprecated
       languages: JSON.stringify(formData.languages),
       latitude: formData.latitude,
       longitude: formData.longitude,
+      type: formData.type,
     };
 
     Object.entries(formInputs).forEach(([key, value]) => {
@@ -515,13 +529,15 @@ function FlagsContent({
             id: editingFlag.id,
             city: editingFlag.city.split(", ")[0],
             country: editingFlag.country,
+            title: editingFlag.title,
             startDate: formatDateOnly(editingFlag.startDate),
             endDate: formatDateOnly(editingFlag.endDate),
             note: editingFlag.note,
-            photoStyles: editingFlag.styles,
+            // photoStyles deprecated
             languages: editingFlag.languages,
             latitude: (editingFlag as any).latitude,
             longitude: (editingFlag as any).longitude,
+            type: editingFlag.type,
           }
         : undefined,
     [editingFlag]
@@ -650,6 +666,7 @@ function FlagsContent({
                   <FlagCard
                     key={flag.id}
                     id={flag.id}
+                    title={flag.title}
                     destination={flag.city}
                     country={getCountryName(flag.country)}
                     flag={flag.flag}
@@ -739,6 +756,7 @@ function FlagsContent({
                 <FlagCard
                   key={flag.id}
                   id={flag.id}
+                  title={flag.title}
                   destination={flag.city}
                   country={getCountryName(flag.country)}
                   flag={flag.flag}

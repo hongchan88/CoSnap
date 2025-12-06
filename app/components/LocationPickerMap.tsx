@@ -20,11 +20,12 @@ if (typeof window !== "undefined") {
 interface LocationPickerMapProps {
   city: string;
   country: string; // expect ISO country code (e.g., "KR", "US")
-  onLocationSelect: (lat: number, lng: number) => void;
+  onLocationSelect?: (lat: number, lng: number) => void;
   onAddressSelect?: (city: string, country: string) => void;
   initialLat?: number | null;
   initialLng?: number | null;
   flyToRequest?: { city: string; country: string; requestId: number } | null;
+  disabled?: boolean;
 }
 
 // Component to handle clicks and marker
@@ -32,15 +33,18 @@ function LocationMarker({
   position,
   setPosition,
   onLocationSelect,
+  disabled,
 }: {
   position: [number, number] | null;
   setPosition: (pos: [number, number]) => void;
   onLocationSelect: (lat: number, lng: number) => void;
+  disabled?: boolean;
 }) {
   const markerRef = useRef<L.Marker>(null);
 
   useMapEvents({
     click(e) {
+      if (disabled) return;
       const { lat, lng } = e.latlng;
       console.log("[LocationMarker] map click", { lat, lng });
       setPosition([lat, lng]);
@@ -66,8 +70,8 @@ function LocationMarker({
   return position === null ? null : (
     <Marker
       position={position}
-      draggable={true}
-      eventHandlers={eventHandlers}
+      draggable={!disabled}
+      eventHandlers={!disabled ? eventHandlers : undefined}
       ref={markerRef}
     />
   );
@@ -122,6 +126,7 @@ export default function LocationPickerMap({
   initialLat,
   initialLng,
   flyToRequest,
+  disabled = false,
 }: LocationPickerMapProps) {
   console.log("[LocationPickerMap] render start", {
     city,
@@ -136,13 +141,38 @@ export default function LocationPickerMap({
     initialLat && initialLng ? [initialLat, initialLng] : [37.5665, 126.978];
 
   const [mapCenter, setMapCenter] = useState<[number, number]>(defaultCenter);
-  const [mapZoom, setMapZoom] = useState<number>(initialLat ? 9 : 4);
+  const [mapZoom, setMapZoom] = useState<number>(initialLat ? 9 : 9);
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(
     initialLat && initialLng ? [initialLat, initialLng] : null
   );
   const [userSetMarker, setUserSetMarker] = useState<boolean>(
     Boolean(initialLat && initialLng)
   );
+
+  // Auto-locate on mount if no initial coords
+  useEffect(() => {
+    if (!initialLat && !initialLng && navigator.geolocation) {
+      console.log("[LocationPickerMap] Auto-locating on mount");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setMapCenter([latitude, longitude]);
+          setMapZoom(9);
+          setMarkerPosition([latitude, longitude]);
+          if (onLocationSelect) {
+            onLocationSelect(latitude, longitude);
+          }
+          // Reverse geocode to get initial country
+          reverseGeocode(latitude, longitude);
+        },
+        (err) => {
+          console.warn("Auto-geolocation failed", err);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, [initialLat, initialLng]);
+
   const [interactionEnabled, setInteractionEnabled] = useState(false);
   // memoized handler to avoid state churn/loops
   const handleMapMove = useCallback(
@@ -188,40 +218,46 @@ export default function LocationPickerMap({
   //   toggle((map as any).dragging);
   // }, [interactionEnabled]);
 
+  // Helper for reverse geocoding
+  const reverseGeocode = async (lat: number, lng: number) => {
+    if (!onAddressSelect) return;
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`
+      );
+      const data = await response.json();
+      if (data && data.address) {
+        const newCity =
+          data.address.city ||
+          data.address.town ||
+          data.address.village ||
+          data.address.county ||
+          "";
+        const newCountryCode = (
+          data.address.country_code || ""
+        ).toUpperCase();
+        if (newCity || newCountryCode) {
+          lastReportedAddress.current = {
+            city: newCity,
+            countryCode: newCountryCode,
+          };
+          onAddressSelect(newCity, newCountryCode);
+        }
+      }
+    } catch (error) {
+      console.error("Reverse geocoding failed:", error);
+    }
+  };
+
   // Handle location selection (from click or drag)
   const handleLocationSelect = async (lat: number, lng: number) => {
     console.log("[LocationPickerMap] handleLocationSelect", { lat, lng });
-    onLocationSelect(lat, lng);
-    setUserSetMarker(true);
-
-    if (onAddressSelect) {
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`
-        );
-        const data = await response.json();
-        if (data && data.address) {
-          const newCity =
-            data.address.city ||
-            data.address.town ||
-            data.address.village ||
-            data.address.county ||
-            "";
-          const newCountryCode = (
-            data.address.country_code || ""
-          ).toUpperCase();
-          if (newCity || newCountryCode) {
-            lastReportedAddress.current = {
-              city: newCity,
-              countryCode: newCountryCode,
-            };
-            onAddressSelect(newCity, newCountryCode);
-          }
-        }
-      } catch (error) {
-        console.error("Reverse geocoding failed:", error);
-      }
+    if (onLocationSelect) {
+      onLocationSelect(lat, lng);
     }
+    setUserSetMarker(true);
+    await reverseGeocode(lat, lng);
   };
 
   const handleUseMyLocation = () => {
@@ -234,11 +270,13 @@ export default function LocationPickerMap({
       (pos) => {
         const { latitude, longitude } = pos.coords;
         setMapCenter([latitude, longitude]);
-        setMapZoom(14);
+        setMapZoom(9);
         setMarkerPosition([latitude, longitude]);
-        onLocationSelect(latitude, longitude);
+        if (onLocationSelect) {
+          onLocationSelect(latitude, longitude);
+        }
         setUserSetMarker(true);
-        mapInstanceRef.current?.flyTo([latitude, longitude], 14, {
+        mapInstanceRef.current?.flyTo([latitude, longitude], 9, {
           duration: 0.8,
         });
         setInteractionEnabled(true);
@@ -328,18 +366,21 @@ export default function LocationPickerMap({
             setUserSetMarker(true);
           }}
           onLocationSelect={handleLocationSelect}
+          disabled={disabled}
         />
       </MapContainer>
       <div className="absolute bottom-2 right-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleUseMyLocation}
-          className="bg-white/90 px-3 py-1 rounded text-xs text-gray-700 shadow border border-gray-200 hover:bg-white"
-        >
-          내 위치로 이동
-        </button>
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleUseMyLocation}
+            className="bg-white/90 px-3 py-1 rounded text-xs text-gray-700 shadow border border-gray-200 hover:bg-white"
+          >
+            내 위치로 이동
+          </button>
+        )}
         <div className="bg-white/90 px-2 py-1 rounded text-xs text-gray-600 pointer-events-none border border-gray-200">
-          지도 클릭 또는 마커 드래그로 위치 설정
+          {disabled ? "프리미엄으로 업그레이드하면 위치를 선택할 수 있습니다" : "지도 클릭 또는 마커 드래그로 위치 설정"}
         </div>
       </div>
     </div>

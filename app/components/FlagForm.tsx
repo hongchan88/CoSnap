@@ -1,6 +1,8 @@
 import { useState, Suspense, lazy, useId } from "react";
 import LoadingSpinner from "./ui/LoadingSpinner";
 import Notification from "./ui/Notification";
+import { format } from "date-fns";
+import { DatePicker } from "./ui/date-picker";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -19,11 +21,18 @@ interface FlagFormData {
   country: string;
   startDate: string;
   endDate: string;
+  title: string;
   note: string;
-  photoStyles: string[];
   languages: string[];
   latitude?: number | null;
   longitude?: number | null;
+  type: string;
+  // Meetup-specific
+  meetupCategory?: string;
+  // Offer Paid Help-specific
+  serviceLevel?: string;
+  serviceCategory?: string;
+  serviceOther?: string;
 }
 
 interface FlagFormProps {
@@ -31,6 +40,7 @@ interface FlagFormProps {
   onCancel: () => void;
   initialData?: Partial<FlagFormData> & { id?: string };
   isEditing?: boolean;
+  isPremium?: boolean;
   onCardClick?: () => void;
 }
 
@@ -39,6 +49,7 @@ export default function FlagForm({
   onCancel,
   initialData,
   isEditing = false,
+  isPremium = false,
 }: FlagFormProps) {
   // Use a safe default for t function to avoid SSR issues
   const { t } = useLanguage();
@@ -66,16 +77,51 @@ export default function FlagForm({
     { value: "es", label: t("flagForm.language.spanish") || "Español" },
   ];
 
+  const typeOptions = [
+    { value: "meet", label: "👋 Meetup", description: "Hang out with locals or travelers" },
+    { value: "help", label: "🙏 Help Needed", description: "Ask for assistance" },
+    { value: "emergency", label: "🚨 Emergency", description: "Urgent help needed" },
+    
+    { value: "free", label: "🎁 Free / Giveaway", description: "Giving away items" },
+    { value: "photo", label: "📷 Photo Exchange", description: "Trade photos" },
+    { value: "offer", label: "🤝 Offer Paid Help", description: "Language help, guide, professional service etc" },
+  ];
+
+  const meetupCategoryOptions = [
+    { value: "sport", label: "⚽ Sport / Activity" },
+    { value: "photo", label: "📸 Photo Exchange" },
+    { value: "food_tour", label: "🍜 Food Tour" },
+    { value: "sightseeing", label: "🏰 Sightseeing" },
+    { value: "nightlife", label: "🌙 Nightlife" },
+    { value: "other", label: "✨ Other" },
+  ];
+
+  const serviceLevelOptions = [
+    { value: "amateur", label: "Amateur" },
+    { value: "pro", label: "Professional" },
+  ];
+
+  const serviceCategoryOptions = [
+    { value: "language", label: "🗣️ Language Help" },
+    { value: "tour_guide", label: "🧭 Tour Guide" },
+    { value: "other", label: "✍️ Other (specify below)" },
+  ];
+
   const [formData, setFormData] = useState<FlagFormData>({
     city: "",
     country: "",
+    title: "",
     startDate: "",
     endDate: "",
     note: "",
-    photoStyles: [],
     languages: ["ko"], // 기본 언어는 한국어
     latitude: null,
     longitude: null,
+    type: "meet",
+    meetupCategory: undefined,
+    serviceLevel: undefined,
+    serviceCategory: undefined,
+    serviceOther: undefined,
     ...initialData,
   });
   const [errors, setErrors] = useState<
@@ -91,13 +137,45 @@ export default function FlagForm({
     country: string;
     requestId: number;
   } | null>(null);
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const requestPrefix = useId();
+
+  // Handle address updates from map
+  const handleAddressSelect = (city: string, country: string) => {
+    // If this is the first detection (auto-locate), set the detected country
+    if (!detectedCountry) {
+      setDetectedCountry(country);
+    }
+    
+    setFormData((prev) => ({
+      ...prev,
+      city,
+      country,
+    }));
+    
+    // Clear errors if present
+    if (errors.city || errors.country) {
+      setErrors((prev) => ({ ...prev, city: undefined, country: undefined }));
+    }
+  };
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FlagFormData, string>> = {};
 
     if (!formData.city.trim()) {
       newErrors.city = t("flagForm.error.cityRequired") || "도시를 입력해주세요";
+    }
+
+    if (!formData.title.trim()) {
+      newErrors.title = t("flagForm.error.titleRequired") || "제목을 입력해주세요";
+    }
+
+    if (!formData.latitude || !formData.longitude) {
+      newErrors.latitude = "Please select a location on the map";
+    }
+
+    if (detectedCountry && formData.country && formData.country !== detectedCountry) {
+      newErrors.country = `You can only create flags in your current country (${detectedCountry})`;
     }
 
     if (!formData.country) {
@@ -128,13 +206,28 @@ export default function FlagForm({
 
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (diffDays > 365) {
-        newErrors.endDate = t("flagForm.error.maxDuration") || "여행 기간은 1년을 초과할 수 없습니다";
+      
+      // Type-specific duration limits
+      const maxDays = formData.type === "offer" ? 7 : 3;
+      if (diffDays > maxDays) {
+        newErrors.endDate = formData.type === "offer" 
+          ? "Offer duration cannot exceed 7 days"
+          : t("flagForm.error.maxDuration") || "여행 기간은 3일을 초과할 수 없습니다";
       }
     }
 
-    if (formData.photoStyles.length === 0) {
-      newErrors.photoStyles = t("flagForm.error.photoStylesRequired") || "선호 사진 스타일을 최소 1개 이상 선택해주세요";
+    // Type-specific validation
+    if (formData.type === "meet" && !formData.meetupCategory) {
+      newErrors.meetupCategory = "Please select a meetup category";
+    }
+
+    if (formData.type === "offer") {
+      if (!formData.serviceLevel) {
+        newErrors.serviceLevel = "Please select a service level";
+      }
+      if (!formData.serviceCategory) {
+        newErrors.serviceCategory = "Please select a service category";
+      }
     }
 
     if (formData.languages.length === 0) {
@@ -142,7 +235,7 @@ export default function FlagForm({
     }
 
     if (formData.note && formData.note.length > 500) {
-      newErrors.note = t("flagForm.error.noteTooLong") || "메모는 500자를 초과할 수 없습니다";
+      newErrors.note = t("flagForm.error.noteTooLong") || "설명은 500자를 초과할 수 없습니다";
     }
 
     setErrors(newErrors);
@@ -159,23 +252,7 @@ export default function FlagForm({
     }
   };
 
-  const handlePhotoStyleToggle = (style: string, event?: React.MouseEvent) => {
-    // Prevent event bubbling when called from checkbox click
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
 
-    setFormData((prev) => ({
-      ...prev,
-      photoStyles: prev.photoStyles.includes(style)
-        ? prev.photoStyles.filter((s) => s !== style)
-        : [...prev.photoStyles, style],
-    }));
-    if (errors.photoStyles) {
-      setErrors((prev) => ({ ...prev, photoStyles: undefined }));
-    }
-  };
 
   const handleLanguageToggle = (lang: string, event?: React.MouseEvent) => {
     // Prevent event bubbling when called from checkbox click
@@ -193,6 +270,14 @@ export default function FlagForm({
     }));
     if (errors.languages) {
       setErrors((prev) => ({ ...prev, languages: undefined }));
+    }
+  };
+
+  const handleDateChange = (field: "startDate" | "endDate", date?: Date) => {
+    if (date) {
+      handleInputChange(field, format(date, "yyyy-MM-dd"));
+    } else {
+      handleInputChange(field, "");
     }
   };
 
@@ -249,43 +334,169 @@ export default function FlagForm({
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 도시 */}
+          {/* Type Selector */}
           <div className="space-y-2">
-            <Label htmlFor="city">
-              {t("flagForm.city")} <span className="text-red-500">*</span>
+            <Label htmlFor="type">
+              {t("flagForm.type") || "Flag Type"} <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="city"
-              value={formData.city}
-              onChange={(e) => handleInputChange("city", e.target.value)}
-              placeholder={t("flagForm.cityPlaceholder") || "예: 도쿄"}
-              className={errors.city ? "border-red-500" : ""}
-            />
-            {errors.city && (
-              <p className="text-sm text-red-600">{errors.city}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {typeOptions.map((option) => (
+                <div
+                  key={option.value}
+                  onClick={() => handleInputChange("type", option.value)}
+                  className={`
+                    cursor-pointer p-3 border rounded-lg transition-all
+                    ${formData.type === option.value 
+                      ? "border-blue-500 bg-blue-50 ring-1 ring-blue-500" 
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }
+                  `}
+                >
+                  <div className="font-medium text-sm text-gray-900">{option.label}</div>
+                  <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Conditional: Meetup Category */}
+          {formData.type === "meet" && (
+            <div className="space-y-2 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <Label htmlFor="meetupCategory">
+                What kind of meetup? <span className="text-red-500">*</span>
+              </Label>
+              <select
+                id="meetupCategory"
+                value={formData.meetupCategory || ""}
+                onChange={(e) => handleInputChange("meetupCategory", e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a category</option>
+                {meetupCategoryOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Conditional: Offer Paid Help Fields */}
+          {formData.type === "offer" && (
+            <div className="space-y-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+              {/* Service Level */}
+              <div className="space-y-2">
+                <Label>Service Level <span className="text-red-500">*</span></Label>
+                <div className="flex gap-4">
+                  {serviceLevelOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      onClick={() => handleInputChange("serviceLevel", option.value)}
+                      className={`
+                        cursor-pointer px-4 py-2 border rounded-lg transition-all flex-1 text-center
+                        ${formData.serviceLevel === option.value 
+                          ? "border-purple-500 bg-purple-100 ring-1 ring-purple-500" 
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }
+                      `}
+                    >
+                      <span className="font-medium text-sm">{option.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Service Category */}
+              <div className="space-y-2">
+                <Label>What service can you offer? <span className="text-red-500">*</span></Label>
+                <div className="space-y-2">
+                  {serviceCategoryOptions.map((option) => (
+                    <div
+                      key={option.value}
+                      onClick={() => handleInputChange("serviceCategory", option.value)}
+                      className={`
+                        cursor-pointer p-3 border rounded-lg transition-all
+                        ${formData.serviceCategory === option.value 
+                          ? "border-purple-500 bg-purple-100 ring-1 ring-purple-500" 
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }
+                      `}
+                    >
+                      <span className="font-medium text-sm">{option.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Service Other (if "other" is selected) */}
+              {formData.serviceCategory === "other" && (
+                <div className="space-y-2">
+                  <Label htmlFor="serviceOther">Describe your service</Label>
+                  <Input
+                    id="serviceOther"
+                    value={formData.serviceOther || ""}
+                    onChange={(e) => handleInputChange("serviceOther", e.target.value)}
+                    placeholder="e.g., Photography, Translation, etc."
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+
+
+          {/* 지도 선택 (moved after city/country) */}
+          <div className="space-y-2">
+            <Label>{t("flagForm.location") || "Location"}</Label>
+            <Suspense
+              fallback={
+                <div className="w-full h-64 flex items-center justify-center bg-gray-100 rounded-lg">
+                  <LoadingSpinner />
+                </div>
+              }
+            >
+              <LocationPickerMap
+                initialLat={formData.latitude}
+                initialLng={formData.longitude}
+                city={formData.city}
+                country={formData.country}
+                onLocationSelect={handleLocationSelect}
+                onAddressSelect={handleAddressSelect}
+                flyToRequest={flyToRequest}
+                disabled={!isPremium}
+              />
+            </Suspense>
+            {/* Privacy Note */}
+            <div className="flex items-start gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <span className="text-gray-400 text-lg">🔒</span>
+              <p className="text-xs text-gray-600">
+                {isPremium 
+                  ? "Your exact location will not be shared. We will set a random point within a 10km radius for privacy."
+                  : "Free users cannot set a marker outside of your current country. We will use your current location with a 10km radius for privacy. Upgrade to Premium to pick a custom location."}
+              </p>
+            </div>
+            {/* Show location errors here since inputs are hidden */}
+            {(errors.latitude || errors.country) && (
+              <p className="text-sm text-red-600 mt-1">
+                {errors.latitude || errors.country}
+              </p>
             )}
           </div>
 
-          {/* 국가 */}
+          {/* 제목 */}
           <div className="space-y-2">
-            <Label htmlFor="country">
-              {t("flagForm.country")} <span className="text-red-500">*</span>
+            <Label htmlFor="title">
+              {t("flagForm.titleLabel") || "Title"} <span className="text-red-500">*</span>
             </Label>
-            <select
-              id="country"
-              value={formData.country}
-              onChange={(e) => handleInputChange("country", e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">{t("flagForm.countryPlaceholder") || "국가를 선택해주세요"}</option>
-              {countryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {errors.country && (
-              <p className="text-sm text-red-600">{errors.country}</p>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => handleInputChange("title", e.target.value)}
+              placeholder={t("flagForm.titlePlaceholder") || "Enter a title for your plan"}
+              className={errors.title ? "border-red-500" : ""}
+            />
+            {errors.title && (
+              <p className="text-sm text-red-600">{errors.title}</p>
             )}
           </div>
 
@@ -295,12 +506,9 @@ export default function FlagForm({
               <Label htmlFor="startDate">
                 {t("flagForm.startDate")} <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => handleInputChange("startDate", e.target.value)}
-                className={errors.startDate ? "border-red-500" : ""}
+              <DatePicker
+                date={formData.startDate ? new Date(formData.startDate) : undefined}
+                setDate={(date) => handleDateChange("startDate", date)}
               />
               {errors.startDate && (
                 <p className="text-sm text-red-600">{errors.startDate}</p>
@@ -310,12 +518,9 @@ export default function FlagForm({
               <Label htmlFor="endDate">
                 {t("flagForm.endDate")} <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => handleInputChange("endDate", e.target.value)}
-                className={errors.endDate ? "border-red-500" : ""}
+              <DatePicker
+                date={formData.endDate ? new Date(formData.endDate) : undefined}
+                setDate={(date) => handleDateChange("endDate", date)}
               />
               {errors.endDate && (
                 <p className="text-sm text-red-600">{errors.endDate}</p>
@@ -323,57 +528,19 @@ export default function FlagForm({
             </div>
           </div>
 
-          {/* 메모 */}
+          {/* 설명 (구 메모) */}
           <div className="space-y-2">
-            <Label htmlFor="note">{t("flagForm.note")}</Label>
+            <Label htmlFor="note">{t("flagForm.description") || "Description"}</Label>
             <Textarea
               id="note"
               value={formData.note}
               onChange={(e) => handleInputChange("note", e.target.value)}
-              placeholder={t("flagForm.notePlaceholder")}
+              placeholder={t("flagForm.descriptionPlaceholder") || "Describe your plan..."}
               className={errors.note ? "border-red-500" : ""}
               rows={3}
             />
             {errors.note && (
               <p className="text-sm text-red-600">{errors.note}</p>
-            )}
-          </div>
-
-          {/* 선호 사진 스타일 */}
-          <div className="space-y-2">
-            <Label>
-              {t("flagForm.photoStyle")} <span className="text-red-500">*</span>
-            </Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {PHOTO_STYLE_OPTIONS_ARRAY.map((option) => (
-                <div
-                  key={option.value}
-                  className={`
-                    flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-colors
-                    ${
-                      formData.photoStyles.includes(option.value)
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-gray-300 hover:border-gray-400"
-                    }
-                  `}
-                >
-                  <Checkbox
-                    id={`photo-${option.value}`}
-                    checked={formData.photoStyles.includes(option.value)}
-                    disabled={isSubmitting}
-                    onCheckedChange={(checked) => {
-                      if (checked === undefined) return;
-                      handlePhotoStyleToggle(option.value);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <span className="text-lg">{option.icon}</span>
-                  <span className="text-sm font-medium">{option.label}</span>
-                </div>
-              ))}
-            </div>
-            {errors.photoStyles && (
-              <p className="text-sm text-red-600">{errors.photoStyles}</p>
             )}
           </div>
 
@@ -414,26 +581,7 @@ export default function FlagForm({
             )}
           </div>
 
-          {/* 지도 선택 */}
-          <div className="space-y-2">
-            <Label>{t("flagForm.location")}</Label>
-            <Suspense
-              fallback={
-                <div className="w-full h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-                  <LoadingSpinner />
-                </div>
-              }
-            >
-              <LocationPickerMap
-                initialLat={formData.latitude}
-                initialLng={formData.longitude}
-                city={formData.city}
-                country={formData.country}
-                onLocationSelect={handleLocationSelect}
-                flyToRequest={flyToRequest}
-              />
-            </Suspense>
-          </div>
+
 
           {/* 버튼 */}
           <div className="flex justify-end space-x-3 pt-6 border-t">
