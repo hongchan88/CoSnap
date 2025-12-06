@@ -42,6 +42,7 @@ export const profiles = pgTable(
       .default("free")
       .notNull(),
     focusScore: integer("focus_score").default(0).notNull(),
+    stripeCustomerId: varchar("stripe_customer_id"),
     focusTier: varchar("focus_tier", {
       enum: ["Blurry", "Focusing", "Clear", "Crystal"],
     })
@@ -352,3 +353,42 @@ export const notifications = pgTable("notifications", {
 
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
+
+// Subscriptions table
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => profiles.profile_id, { onDelete: "cascade" })
+    .notNull(),
+  stripeSubscriptionId: varchar("stripe_subscription_id").notNull(),
+  status: varchar("status", {
+    enum: ["active", "canceled", "past_due", "incomplete", "trialing"],
+  }).notNull(),
+  planType: varchar("plan_type", {
+    enum: ["premium_monthly", "premium_yearly"],
+  }).notNull(),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+}, (table) => [
+  pgPolicy("subscriptions_insert_policy", {
+    for: "insert",
+    to: authenticatedRole,
+    as: "permissive",
+    withCheck: sql`true`, // Allow users to create subscriptions (mock flow)
+  }),
+  pgPolicy("subscriptions_select_policy", {
+    for: "select",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`${authUid} = ${table.userId}`,
+  }),
+]);
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions);
+export const selectSubscriptionSchema = createSelectSchema(subscriptions);
