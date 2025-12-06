@@ -1,35 +1,24 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/profile";
 import { useState, Suspense } from "react";
-import { useLoaderData, useActionData, useSubmit } from "react-router";
+import { useLoaderData, useActionData, useSubmit, useFetcher, Link } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Separator } from "../components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import ProfileForm from "../components/ProfileForm";
-import FocusMeter from "../components/FocusMeter";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import Avatar from "../components/Avatar";
+import { Avatar as AvatarComponent, AvatarFallback, AvatarImage } from "../components/ui/avatar";
 import Notification from "../components/ui/Notification";
-import ResponsiveGrid from "../components/ui/ResponsiveGrid";
-import { ResponsiveGridItem } from "../components/ui/ResponsiveGrid";
-import StatsCard from "../components/ui/StatsCard";
-import FocusChart from "../components/ui/FocusChart";
-import AnimatedNumber from "../components/ui/AnimatedNumber";
-import { NumberTicker } from "../components/ui/MagicNumberTicker";
-import GlowCard from "../components/ui/GlowCard";
-import ShimmerButton from "../components/ui/ShimmerButton";
-import { Skeleton } from "../components/ui/skeleton";
 import {
   Camera,
   MapPin,
-  Star,
   Settings,
   Users,
   TrendingUp,
-  Calendar,
   Award,
-  Smartphone,
 } from "lucide-react";
 import {
   Dialog,
@@ -37,10 +26,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { getLoggedInUserId, getUserProfile } from "~/users/queries";
-import { updateUserProfile } from "~/users/mutations";
+import { getLoggedInUserId, getUserProfile, getUserOffers } from "~/users/queries";
+import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
 import type { ProfileWithStats } from "~/users/queries";
+import { useLanguage } from "~/context/language-context";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -58,7 +48,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const { profile } = await getUserProfile(client, userId);
 
-  return { profile };
+  // Also fetch inbox data like inbox.tsx does
+  const { success, sent, received, error } = await getUserOffers(client, userId);
+
+  if (!success) {
+    console.error("Failed to fetch offers:", error);
+    throw new Response("Failed to load offers", { status: 500 });
+  }
+
+  return { profile, sent, received, userId };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -66,6 +64,20 @@ export async function action({ request }: Route.ActionArgs) {
   const userId = await getLoggedInUserId(client);
   const formData = await request.formData();
   const intent = formData.get("intent");
+  const offerId = formData.get("offerId") as string;
+
+  // Handle inbox actions (accept/decline/cancel offers)
+  if (intent === "accept_offer" || intent === "decline_offer" || intent === "cancel_offer") {
+    if (!offerId) return { success: false, error: "Offer ID is required" };
+
+    if (intent === "accept_offer") {
+      return await acceptOffer(client, offerId, userId);
+    } else if (intent === "decline_offer") {
+      return await declineOffer(client, offerId, userId);
+    } else if (intent === "cancel_offer") {
+      return await cancelOffer(client, offerId, userId);
+    }
+  }
 
   if (intent === "updateProfile") {
     const username = formData.get("username") as string;
@@ -164,40 +176,192 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
 function ProfileSkeleton() {
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row gap-6">
-        <Skeleton className="w-24 h-24 rounded-full" />
-        <div className="space-y-4 flex-1">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-16 w-full" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-20" />
-            <Skeleton className="h-6 w-20" />
-          </div>
+      <div className="flex gap-6">
+        <div className="lg:w-64">
+          <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
         </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Skeleton className="h-64 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl lg:col-span-2" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Skeleton className="h-32 rounded-xl" />
-        <Skeleton className="h-32 rounded-xl" />
-        <Skeleton className="h-32 rounded-xl" />
+        <div className="flex-1">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-4" />
+          <div className="h-64 bg-gray-200 rounded-lg animate-pulse" />
+        </div>
       </div>
     </div>
   );
 }
 
+function MessagesContent({ sent, received, userId }: { sent: any[]; received: any[]; userId: string }) {
+  const fetcher = useFetcher();
+  const { t } = useLanguage();
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{t ? t("inbox.status.pending") : "대기중"}</Badge>;
+      case "accepted":
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{t ? t("inbox.status.accepted") : "수락됨"}</Badge>;
+      case "declined":
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t ? t("inbox.status.declined") : "거절됨"}</Badge>;
+      case "cancelled":
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">{t ? t("inbox.status.cancelled") : "취소됨"}</Badge>;
+      case "expired":
+        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">{t ? t("inbox.status.expired") : "만료됨"}</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <h3 className="text-lg font-semibold text-gray-900">{t ? t("profile.tabs.messages") : "메세지"}</h3>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="received" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="received">{t ? t("inbox.receivedOffers") : "받은 오퍼"} ({received.length})</TabsTrigger>
+            <TabsTrigger value="sent">{t ? t("inbox.sentOffers") : "보낸 오퍼"} ({sent.length})</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="received" className="space-y-4">
+            {received.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">{t ? t("inbox.noReceivedOffers") : "아직 받은 오퍼가 없습니다."}</p>
+              </div>
+            ) : (
+              received.map((offer) => (
+                <Card key={offer.id} className="overflow-hidden">
+                  <CardHeader className="bg-gray-50/50 pb-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <AvatarComponent className="h-10 w-10">
+                          <AvatarImage src={offer.sender?.avatar_url || ""} />
+                          <AvatarFallback>{offer.sender?.username?.[0] || "?"}</AvatarFallback>
+                        </AvatarComponent>
+                        <div>
+                          <div className="font-semibold">{offer.sender?.username}</div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(offer.sent_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      {getStatusBadge(offer.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="mb-4">
+                      <div className="text-sm font-medium text-gray-500 mb-1">{t ? t("inbox.destination") : "여행지"}</div>
+                      <div className="text-gray-900">
+                        {offer.flag?.city}, {offer.flag?.country} ({new Date(offer.flag?.start_date || "").toLocaleDateString()} - {new Date(offer.flag?.end_date || "").toLocaleDateString()})
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4 whitespace-pre-wrap text-sm">
+                      {offer.message}
+                    </div>
+
+                    {offer.status === "pending" && (
+                      <div className="flex gap-2 justify-end">
+                        <fetcher.Form method="post">
+                          <input type="hidden" name="offerId" value={offer.id} />
+                          <input type="hidden" name="intent" value="decline_offer" />
+                          <Button variant="outline" type="submit" disabled={fetcher.state !== "idle"}>
+                            {t ? t("inbox.decline") : "거절하기"}
+                          </Button>
+                        </fetcher.Form>
+                        <fetcher.Form method="post">
+                          <input type="hidden" name="offerId" value={offer.id} />
+                          <input type="hidden" name="intent" value="accept_offer" />
+                          <Button type="submit" disabled={fetcher.state !== "idle"}>
+                            {t ? t("inbox.accept") : "수락하기"}
+                          </Button>
+                        </fetcher.Form>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="sent" className="space-y-4">
+            {sent.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">{t ? t("inbox.noSentOffers") : "아직 보낸 오퍼가 없습니다."}</p>
+                <Button variant="link" asChild className="mt-2">
+                  <Link to="/explore">{t ? t("inbox.exploreDestinations") : "여행지 둘러보기"}</Link>
+                </Button>
+              </div>
+            ) : (
+              sent.map((offer) => (
+                <Card key={offer.id} className="overflow-hidden">
+                  <CardHeader className="bg-gray-50/50 pb-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-3">
+                        <AvatarComponent className="h-10 w-10">
+                          <AvatarImage src={offer.receiver?.avatar_url || ""} />
+                          <AvatarFallback>{offer.receiver?.username?.[0] || "?"}</AvatarFallback>
+                        </AvatarComponent>
+                        <div>
+                          <div className="font-semibold">{t ? t("inbox.to") : "To:"} {offer.receiver?.username}</div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(offer.sent_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      {getStatusBadge(offer.status)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="mb-4">
+                      <div className="text-sm font-medium text-gray-500 mb-1">{t ? t("inbox.destination") : "여행지"}</div>
+                      <div className="text-gray-900">
+                        {offer.flag?.city}, {offer.flag?.country}
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4 whitespace-pre-wrap text-sm">
+                      {offer.message}
+                    </div>
+
+                    {offer.status === "pending" && (
+                      <div className="flex gap-2 justify-end">
+                        <fetcher.Form method="post">
+                          <input type="hidden" name="offerId" value={offer.id} />
+                          <input type="hidden" name="intent" value="cancel_offer" />
+                          <Button variant="outline" type="submit" disabled={fetcher.state !== "idle"}>
+                            {t ? t("inbox.cancel") : "취소하기"}
+                          </Button>
+                        </fetcher.Form>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ProfileContent({
   profileData,
+  sent,
+  received,
+  userId,
 }: {
   profileData: ProfileWithStats | null;
+  sent: any[];
+  received: any[];
+  userId: string;
 }) {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("profile");
+  const { t } = useLanguage();
 
   // Initialize profile from passed data with adapter
   const profile = adaptUserProfile(profileData);
@@ -222,75 +386,6 @@ function ProfileContent({
     setIsEditingProfile(false);
     setIsLoading(false);
   };
-
-  // Focus score history for chart
-  const focusHistory = [
-    { date: "2024-10-15", score: 45, event: "첫 CoSnap 완료" },
-    { date: "2024-10-20", score: 50, event: "긍정 리뷰 받음" },
-    { date: "2024-10-25", score: 55, event: "도쿄 여행 CoSnap" },
-    { date: "2024-11-01", score: 60, event: "프리미엄 보너스" },
-    { date: "2024-11-05", score: 65, event: "박철민 님과 CoSnap" },
-  ];
-
-  // Statistics
-  const stats = [
-    {
-      title: "완료된 CoSnap",
-      value: 12,
-      icon: <Users className="w-5 h-5" />,
-      color: "blue" as const,
-      trend: { value: 20, isPositive: true },
-    },
-    {
-      title: "평균 리뷰 점수",
-      value: 4.8,
-      icon: <Star className="w-5 h-5" />,
-      color: "green" as const,
-      suffix: "/5.0",
-      trend: { value: 5, isPositive: true },
-    },
-    {
-      title: "방문한 도시",
-      value: 8,
-      icon: <MapPin className="w-5 h-5" />,
-      color: "purple" as const,
-      trend: { value: 15, isPositive: true },
-    },
-  ];
-
-  // Focus 히스토리
-  const focusActivities = [
-    {
-      score: "+5",
-      description: "박철민 님과 CoSnap 완료",
-      time: "2일 전",
-      type: "positive",
-    },
-    {
-      score: "+5",
-      description: "이서아 님으로부터 긍정 리뷰",
-      time: "5일 전",
-      type: "positive",
-    },
-    {
-      score: "+10",
-      description: "프리미엄 보너스 (월간)",
-      time: "1주 전",
-      type: "bonus",
-    },
-    {
-      score: "-10",
-      description: "노쇼 페널티 (취소됨)",
-      time: "2주 전",
-      type: "negative",
-    },
-    {
-      score: "+5",
-      description: "김민준 님과 CoSnap 완료",
-      time: "3주 전",
-      type: "positive",
-    },
-  ];
 
   const getLanguageNames = (languages: string[]): string => {
     const languageMap: { [key: string]: string } = {
@@ -345,168 +440,193 @@ function ProfileContent({
         </DialogContent>
       </Dialog>
 
-      {/* 프로필 헤더 */}
-      <Card className="mb-6 sm:mb-8">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-            <Avatar
-              src={profile.avatarUrl}
-              size="lg"
-              alt={`${profile.username}의 프로필 사진`}
-            />
-            <div className="flex-1 w-full">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                  @{profile.username}
-                </h2>
-                <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
-                  프리미엄
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                <p className="text-sm sm:text-base text-gray-600">
-                  {profile.location}
-                </p>
-                {profile.cameraGear && (
-                  <>
-                    <span className="text-gray-300">|</span>
-                    <Camera className="w-4 h-4 text-gray-400" />
-                    <p className="text-sm sm:text-base text-gray-600">
-                      {profile.cameraGear}
-                    </p>
-                  </>
-                )}
-              </div>
-              <p className="text-sm sm:text-base text-gray-700 mb-4">
-                {profile.bio}
-              </p>
+      {/* 좌측 탭과 메인 콘텐츠 */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* 좌측 탭 */}
+        <div className="lg:w-64">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-1">
+              <TabsTrigger value="profile">{t ? t("profile.tabs.profile") : "프로필"}</TabsTrigger>
+              <TabsTrigger value="messages">{t ? t("profile.tabs.messages") : "메세지"}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
-              <div className="flex flex-wrap gap-2 mb-4">
-                {profile.photoStyles.map((style, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="text-xs sm:text-sm"
-                  >
-                    {style}
-                  </Badge>
-                ))}
-                <Badge variant="outline" className="text-xs sm:text-sm">
-                  {getLanguageNames(profile.languages)}
-                </Badge>
-              </div>
+        {/* 메인 콘텐츠 */}
+        <div className="flex-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="profile" className="mt-0">
+              <div className="space-y-6">
+                {/* 프로필 헤더 */}
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                      <Avatar
+                        src={profile.avatarUrl}
+                        size="lg"
+                        alt={`${profile.username}의 프로필 사진`}
+                      />
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                            @{profile.username}
+                          </h2>
+                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
+                            프리미엄
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          <p className="text-sm sm:text-base text-gray-600">
+                            {profile.location}
+                          </p>
+                          {profile.cameraGear && (
+                            <>
+                              <span className="text-gray-300">|</span>
+                              <Camera className="w-4 h-4 text-gray-400" />
+                              <p className="text-sm sm:text-base text-gray-600">
+                                {profile.cameraGear}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-sm sm:text-base text-gray-700 mb-4">
+                          {profile.bio}
+                        </p>
 
-              <Button
-                onClick={() => setIsEditingProfile(true)}
-                disabled={isLoading}
-                className="w-full sm:w-auto"
-              >
-                {isLoading ? (
-                  <>
-                    <LoadingSpinner size="sm" color="white" />
-                    로딩 중...
-                  </>
-                ) : (
-                  "프로필 편집"
-                )}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {profile.photoStyles.map((style, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="text-xs sm:text-sm"
+                            >
+                              {style}
+                            </Badge>
+                          ))}
+                          <Badge variant="outline" className="text-xs sm:text-sm">
+                            {getLanguageNames(profile.languages)}
+                          </Badge>
+                        </div>
 
+                        <Button
+                          onClick={() => setIsEditingProfile(true)}
+                          disabled={isLoading}
+                          className="w-full sm:w-auto"
+                        >
+                          {isLoading ? (
+                            <>
+                              <LoadingSpinner size="sm" color="white" />
+                              로딩 중...
+                            </>
+                          ) : (
+                            "프로필 편집"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
+                {/* 설정 */}
+                <Card>
+                  <CardHeader>
+                    <h3 className="text-lg font-semibold text-gray-900">설정</h3>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                            <Settings className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm sm:text-base">
+                              알림 설정
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              새 오퍼, 메시지, 매치 알림
+                            </div>
+                          </div>
+                        </div>
+                        <Settings className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                            <Award className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm sm:text-base">
+                              개인정보 보호
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              프로필 공개 설정, 데이터 관리
+                            </div>
+                          </div>
+                        </div>
+                        <Settings className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm sm:text-base">
+                              구독 관리
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              프리미엄 구독, 결제 정보
+                            </div>
+                          </div>
+                        </div>
+                        <Settings className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <Separator />
+                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                            <Users className="w-4 h-4 text-red-600" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-red-600 text-sm sm:text-base">
+                              로그아웃
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              계정에서 로그아웃
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                        >
+                          로그아웃
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-      {/* 설정 */}
-      <Card>
-        <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">설정</h3>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Settings className="w-4 h-4 text-blue-600" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900 text-sm sm:text-base">
-                    알림 설정
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500">
-                    새 오퍼, 메시지, 매치 알림
-                  </div>
-                </div>
-              </div>
-              <Settings className="w-4 h-4 text-gray-400" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
-                  <Award className="w-4 h-4 text-purple-600" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900 text-sm sm:text-base">
-                    개인정보 보호
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500">
-                    프로필 공개 설정, 데이터 관리
-                  </div>
-                </div>
-              </div>
-              <Settings className="w-4 h-4 text-gray-400" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-green-600" />
-                </div>
-                <div>
-                  <div className="font-medium text-gray-900 text-sm sm:text-base">
-                    구독 관리
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500">
-                    프리미엄 구독, 결제 정보
-                  </div>
-                </div>
-              </div>
-              <Settings className="w-4 h-4 text-gray-400" />
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-red-600" />
-                </div>
-                <div>
-                  <div className="font-medium text-red-600 text-sm sm:text-base">
-                    로그아웃
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-500">
-                    계정에서 로그아웃
-                  </div>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-red-600 hover:text-red-800 hover:bg-red-50"
-              >
-                로그아웃
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            <TabsContent value="messages" className="mt-0">
+              <MessagesContent sent={sent} received={received} userId={userId} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </>
   );
 }
 
 export default function ProfilePage() {
-  const { profile } = useLoaderData<typeof loader>();
+  const { profile, sent, received, userId } = useLoaderData<typeof loader>();
+  const { t } = useLanguage();
 
   console.log(profile, "profile data in ProfilePage");
   return (
@@ -515,15 +635,22 @@ export default function ProfilePage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            프로필
+            {t ? t("profile.title") : "프로필"}
           </h1>
           <p className="text-sm sm:text-base text-gray-600">
-            프로필 정보를 관리하고 CoSnap 활동을 확인하세요
+            {t ? t("profile.description") : "프로필 정보를 관리하고 CoSnap 활동을 확인하세요"}
           </p>
         </div>
 
         <Suspense fallback={<ProfileSkeleton />}>
-          {profile && <ProfileContent profileData={profile} />}
+          {profile && (
+            <ProfileContent
+              profileData={profile}
+              sent={sent}
+              received={received}
+              userId={userId}
+            />
+          )}
         </Suspense>
       </div>
     </div>

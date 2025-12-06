@@ -4,6 +4,7 @@ import { createSupabaseClient } from "~/lib/supabase";
 import { getLoggedInUserId, getUserOffers } from "~/users/queries";
 import { acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import type { Route } from "./+types/inbox";
+import { useLanguage } from "~/context/language-context";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
@@ -47,19 +48,20 @@ export async function action({ request }: Route.ActionArgs) {
 export default function Inbox() {
   const { sent, received, userId } = useLoaderData<typeof loader>();
   const fetcher = useFetcher();
+  const { t } = useLanguage();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">대기중</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">{t ? t("inbox.status.pending") : "대기중"}</Badge>;
       case "accepted":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">수락됨</Badge>;
+        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">{t ? t("inbox.status.accepted") : "수락됨"}</Badge>;
       case "declined":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">거절됨</Badge>;
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t ? t("inbox.status.declined") : "거절됨"}</Badge>;
       case "cancelled":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">취소됨</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">{t ? t("inbox.status.cancelled") : "취소됨"}</Badge>;
       case "expired":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">만료됨</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">{t ? t("inbox.status.expired") : "만료됨"}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -67,18 +69,18 @@ export default function Inbox() {
 
   return (
     <div className="container mx-auto max-w-4xl py-8 px-4">
-      <h1 className="text-2xl font-bold mb-6">메시지함</h1>
+      <h1 className="text-2xl font-bold mb-6">{t ? t("inbox.title") : "인박스"}</h1>
 
       <Tabs defaultValue="received" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">
-          <TabsTrigger value="received">받은 오퍼 ({received.length})</TabsTrigger>
-          <TabsTrigger value="sent">보낸 오퍼 ({sent.length})</TabsTrigger>
+          <TabsTrigger value="received">{t ? t("inbox.receivedOffers") : "받은 오퍼"} ({received.length})</TabsTrigger>
+          <TabsTrigger value="sent">{t ? t("inbox.sentOffers") : "보낸 오퍼"} ({sent.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="received" className="space-y-4">
           {received.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">아직 받은 오퍼가 없습니다.</p>
+              <p className="text-gray-500">{t ? t("inbox.noReceivedOffers") : "아직 받은 오퍼가 없습니다."}</p>
             </div>
           ) : (
             received.map((offer) => (
@@ -102,7 +104,7 @@ export default function Inbox() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="mb-4">
-                    <div className="text-sm font-medium text-gray-500 mb-1">여행지</div>
+                    <div className="text-sm font-medium text-gray-500 mb-1">{t ? t("inbox.destination") : "여행지"}</div>
                     <div className="text-gray-900">
                       {offer.flag?.city}, {offer.flag?.country} ({new Date(offer.flag?.start_date || "").toLocaleDateString()} - {new Date(offer.flag?.end_date || "").toLocaleDateString()})
                     </div>
@@ -118,14 +120,14 @@ export default function Inbox() {
                         <input type="hidden" name="offerId" value={offer.id} />
                         <input type="hidden" name="intent" value="decline_offer" />
                         <Button variant="outline" type="submit" disabled={fetcher.state !== "idle"}>
-                          거절하기
+                          {t ? t("inbox.decline") : "거절하기"}
                         </Button>
                       </fetcher.Form>
                       <fetcher.Form method="post">
                         <input type="hidden" name="offerId" value={offer.id} />
                         <input type="hidden" name="intent" value="accept_offer" />
                         <Button type="submit" disabled={fetcher.state !== "idle"}>
-                          수락하기
+                          {t ? t("inbox.accept") : "수락하기"}
                         </Button>
                       </fetcher.Form>
                     </div>
@@ -139,9 +141,9 @@ export default function Inbox() {
         <TabsContent value="sent" className="space-y-4">
           {sent.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">아직 보낸 오퍼가 없습니다.</p>
+              <p className="text-gray-500">{t ? t("inbox.noSentOffers") : "아직 보낸 오퍼가 없습니다."}</p>
               <Button variant="link" asChild className="mt-2">
-                <Link to="/explore">여행지 둘러보기</Link>
+                <Link to="/explore">{t ? t("inbox.exploreDestinations") : "여행지 둘러보기"}</Link>
               </Button>
             </div>
           ) : (
@@ -155,7 +157,7 @@ export default function Inbox() {
                         <AvatarFallback>{offer.receiver?.username?.[0] || "?"}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-semibold">To: {offer.receiver?.username}</div>
+                        <div className="font-semibold">{t ? t("inbox.to") : "To:"} {offer.receiver?.username}</div>
                         <div className="text-xs text-gray-500">
                           {new Date(offer.sent_at).toLocaleDateString()}
                         </div>
@@ -166,7 +168,7 @@ export default function Inbox() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="mb-4">
-                    <div className="text-sm font-medium text-gray-500 mb-1">여행지</div>
+                    <div className="text-sm font-medium text-gray-500 mb-1">{t ? t("inbox.destination") : "여행지"}</div>
                     <div className="text-gray-900">
                       {offer.flag?.city}, {offer.flag?.country}
                     </div>
@@ -182,7 +184,7 @@ export default function Inbox() {
                         <input type="hidden" name="offerId" value={offer.id} />
                         <input type="hidden" name="intent" value="cancel_offer" />
                         <Button variant="outline" type="submit" disabled={fetcher.state !== "idle"}>
-                          취소하기
+                          {t ? t("inbox.cancel") : "취소하기"}
                         </Button>
                       </fetcher.Form>
                     </div>

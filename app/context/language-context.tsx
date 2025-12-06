@@ -123,9 +123,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     "nav.home": "Home",
     "nav.explore": "Find Travelers",
-    "nav.flags": "Create Flags",
+    "nav.flags": "Travel Plans",
     "nav.matches": "Matches",
     "nav.profile": "Profile",
+    "nav.inbox": "Inbox",
     "nav.logout": "Logout",
     "nav.login": "Login",
     "nav.signup": "Sign Up",
@@ -222,6 +223,25 @@ const translations: Record<Language, Record<string, string>> = {
     "error.profile.notFound": "Profile not found. Please complete your profile setup first.",
     "error.profile.missing": "Your profile is incomplete. Please contact support.",
     "error.profile.offerFailed": "Cannot send offer: Profile setup required.",
+
+    // Inbox Page
+    "inbox.title": "Inbox",
+    "inbox.description": "View your messages and notifications",
+    "inbox.receivedOffers": "Received Offers",
+    "inbox.sentOffers": "Sent Offers",
+    "inbox.noReceivedOffers": "No received offers yet",
+    "inbox.noSentOffers": "No sent offers yet",
+    "inbox.exploreDestinations": "Explore Destinations",
+    "inbox.destination": "Destination",
+    "inbox.to": "To:",
+    "inbox.status.pending": "Pending",
+    "inbox.status.accepted": "Accepted",
+    "inbox.status.declined": "Declined",
+    "inbox.status.cancelled": "Cancelled",
+    "inbox.status.expired": "Expired",
+    "inbox.accept": "Accept",
+    "inbox.decline": "Decline",
+    "inbox.cancel": "Cancel",
 
     // Common
     "common.loadMore": "Load More",
@@ -335,9 +355,10 @@ const translations: Record<Language, Record<string, string>> = {
     // Navigation
     "nav.home": "홈",
     "nav.explore": "여행자 찾기",
-    "nav.flags": "Flags 만들기",
+    "nav.flags": "여행 계획",
     "nav.matches": "매치",
     "nav.profile": "프로필",
+    "nav.inbox": "인박스",
     "nav.logout": "로그아웃",
     "nav.login": "로그인",
     "nav.signup": "회원가입",
@@ -418,10 +439,47 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.sendOffer": "오퍼 보내기 →",
     "explore.days": "일",
 
+    // Profile Page
+    "profile.title": "Profile",
+    "profile.description": "Manage your profile and check CoSnap activity",
+    "profile.tabs.profile": "Profile",
+    "profile.tabs.messages": "Messages",
+    "profile.noMessages": "No messages yet",
+    "profile.noMessagesSub": "You have no new messages",
+    "profile.goToInbox": "Go to Inbox",
+
+    // Profile Page
+    "profile.title": "프로필",
+    "profile.description": "프로필 정보를 관리하고 CoSnap 활동을 확인하세요",
+    "profile.tabs.profile": "프로필",
+    "profile.tabs.messages": "메세지",
+    "profile.noMessages": "메세지가 없습니다",
+    "profile.noMessagesSub": "새로운 메세지가 없습니다",
+    "profile.goToInbox": "인박스로 이동",
+
     // Profile Error Messages
     "error.profile.notFound": "프로필을 찾을 수 없습니다. 먼저 프로필 설정을 완료해주세요.",
     "error.profile.missing": "프로필이 불완전합니다. 지원팀에 문의해주세요.",
     "error.profile.offerFailed": "오퍼를 보낼 수 없습니다: 프로필 설정이 필요합니다.",
+
+    // Inbox Page
+    "inbox.title": "인박스",
+    "inbox.description": "메시지와 알림을 확인하세요",
+    "inbox.receivedOffers": "받은 오퍼",
+    "inbox.sentOffers": "보낸 오퍼",
+    "inbox.noReceivedOffers": "아직 받은 오퍼가 없습니다",
+    "inbox.noSentOffers": "아직 보낸 오퍼가 없습니다",
+    "inbox.exploreDestinations": "여행지 둘러보기",
+    "inbox.destination": "여행지",
+    "inbox.to": "수신자:",
+    "inbox.status.pending": "대기중",
+    "inbox.status.accepted": "수락됨",
+    "inbox.status.declined": "거절됨",
+    "inbox.status.cancelled": "취소됨",
+    "inbox.status.expired": "만료됨",
+    "inbox.accept": "수락하기",
+    "inbox.decline": "거절하기",
+    "inbox.cancel": "취소하기",
 
     // Common
     "common.loadMore": "더 보기",

@@ -21,8 +21,8 @@ export default function Navigation({ user }: NavigationProps) {
   const navigation = [
     { name: t ? t("nav.home") : "홈", href: "/" },
     { name: t ? t("nav.explore") : "여행자 찾기", href: "/explore" },
-    { name: t ? t("nav.flags") : "Flags 만들기", href: "/flags" },
-    { name: t ? t("nav.matches") : "매치", href: "/matches" },
+    { name: t ? t("nav.flags") : "여행 계획", href: "/flags" },
+    { name: t ? t("nav.inbox") : "인박스", href: "/inbox" },
     { name: t ? t("nav.profile") : "프로필", href: "/profile" },
   ];
 
