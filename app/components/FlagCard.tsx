@@ -7,6 +7,7 @@ import { useLanguage } from "~/context/language-context";
 
 interface FlagCardProps {
   id: string;
+  title: string;
   destination: string;
   country: string;
   flag: string;
@@ -31,6 +32,7 @@ const statusVariants = {
 
 export default function FlagCard({
   id,
+  title,
   destination,
   country,
   flag,
@@ -62,9 +64,12 @@ export default function FlagCard({
             <div className="text-2xl">{flag}</div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">
-                {destination}, {country}
+                {title}
               </h3>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <p className="text-sm text-gray-600">
+                {destination}, {country}
+              </p>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                 <Calendar className="w-4 h-4" />
                 <span>
                   {new Date(startDate).toLocaleDateString("ko-KR")} -{" "}

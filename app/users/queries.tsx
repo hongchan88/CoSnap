@@ -39,6 +39,7 @@ export interface FlagWithDetails {
     avatar_url: string | null;
     focus_score?: number;
   };
+  type: string;
 }
 
 // Get all flags for a specific user with pagination
@@ -115,7 +116,8 @@ export const getUserAllFlags = async (
 export const getAllActiveFlags = async (
   client: SupabaseClient,
   limit: number = 20,
-  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
+  type?: string | null
 ) => {
   try {
     let query = client
@@ -140,6 +142,10 @@ export const getAllActiveFlags = async (
         .lte("latitude", bounds.maxLat)
         .gte("longitude", bounds.minLng)
         .lte("longitude", bounds.maxLng);
+    }
+
+    if (type && type !== "all") {
+      query = query.eq("type", type);
     }
 
     const { data, error } = await query;
@@ -513,3 +519,176 @@ export const getUserProfile = async (
     return { success: false, error: "Failed to fetch profile", profile: null };
   }
 };
+
+// --- Posts ---
+
+export interface PostWithDetails {
+  id: string;
+  user_id: string;
+  type: "help" | "emergency" | "free" | "meet" | "photo" | "offer";
+  title: string;
+  description: string;
+  price?: number;
+  currency?: string;
+  latitude: number;
+  longitude: number;
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  profiles?: {
+    username: string;
+    avatar_url: string | null;
+    focus_score: number;
+    focus_tier: string;
+  };
+}
+
+export const getAllActivePosts = async (
+  client: SupabaseClient,
+  limit: number = 20,
+  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+) => {
+  try {
+    let query = client
+      .from("posts")
+      .select(
+        `
+        *,
+        profiles!posts_user_id_profiles_profile_id_fk (
+          username,
+          avatar_url,
+          focus_score,
+          focus_tier
+        )
+      `
+      )
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (bounds) {
+      query = query
+        .gte("latitude", bounds.minLat)
+        .lte("latitude", bounds.maxLat)
+        .gte("longitude", bounds.minLng)
+        .lte("longitude", bounds.maxLng);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Error fetching active posts:", error);
+      return { success: false, error: error.message, posts: [] };
+    }
+
+    return { success: true, posts: data as PostWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching active posts:", error);
+    return { success: false, error: "Failed to fetch active posts", posts: [] };
+  }
+};
+
+export const getUserPosts = async (
+  client: SupabaseClient,
+  userId: string
+) => {
+  try {
+    const { data, error } = await client
+      .from("posts")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching user posts:", error);
+      return { success: false, error: error.message, posts: [] };
+    }
+
+    return { success: true, posts: data as PostWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching user posts:", error);
+    return { success: false, error: "Failed to fetch user posts", posts: [] };
+  }
+};
+
+// --- Conversations ---
+
+export interface ConversationWithDetails {
+  id: string;
+  user_a_id: string;
+  user_b_id: string;
+  post_id?: string;
+  offer_id?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  partner?: {
+    username: string;
+    avatar_url: string | null;
+  };
+  last_message?: {
+    content: string;
+    created_at: string;
+    sender_id: string;
+  };
+}
+
+export const getUserConversations = async (
+  client: SupabaseClient,
+  userId: string
+) => {
+  try {
+    const { data, error } = await client
+      .from("conversations")
+      .select(
+        `
+        *,
+        user_a:profiles!conversations_user_a_id_profiles_profile_id_fk (
+          username,
+          avatar_url
+        ),
+        user_b:profiles!conversations_user_b_id_profiles_profile_id_fk (
+          username,
+          avatar_url
+        ),
+        messages (
+          content,
+          created_at,
+          sender_id
+        )
+      `
+      )
+      .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching user conversations:", error);
+      return { success: false, error: error.message, conversations: [] };
+    }
+
+    // Process data to unify "partner" info and get last message
+    const conversations = data.map((conv: any) => {
+      const isUserA = conv.user_a_id === userId;
+      const partner = isUserA ? conv.user_b : conv.user_a;
+      
+      // Sort messages to get the last one
+      const sortedMessages = conv.messages?.sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      const last_message = sortedMessages?.[0];
+
+      return {
+        ...conv,
+        partner,
+        last_message,
+      };
+    });
+
+    return { success: true, conversations: conversations as ConversationWithDetails[] };
+  } catch (error) {
+    console.error("Unexpected error fetching user conversations:", error);
+    return { success: false, error: "Failed to fetch conversations", conversations: [] };
+  }
+};
+

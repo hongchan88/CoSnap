@@ -5,7 +5,7 @@ export default [
   route("logout", "routes/logout.tsx"),
   route("flags", "routes/flags.tsx"),
   route("explore", "routes/explore.tsx"),
-  route("inbox", "routes/inbox.tsx"),
+  route("inbox/:conversationId", "routes/inbox.$conversationId.tsx"),
   route("profile", "routes/profile.tsx"),
   route("login", "routes/login.tsx"),
   route("signup", "routes/signup.tsx"),

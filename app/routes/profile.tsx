@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { getLoggedInUserId, getUserProfile, getUserOffers } from "~/users/queries";
+import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations } from "~/users/queries";
 import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
 import type { ProfileWithStats } from "~/users/queries";
@@ -50,13 +50,14 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // Also fetch inbox data like inbox.tsx does
   const { success, sent, received, error } = await getUserOffers(client, userId);
+  const { success: convSuccess, conversations, error: convError } = await getUserConversations(client, userId);
 
-  if (!success) {
-    console.error("Failed to fetch offers:", error);
-    throw new Response("Failed to load offers", { status: 500 });
+  if (!success || !convSuccess) {
+    console.error("Failed to fetch profile data:", error || convError);
+    throw new Response("Failed to load profile data", { status: 500 });
   }
 
-  return { profile, sent, received, userId };
+  return { profile, sent, received, conversations: conversations || [], userId };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -189,7 +190,7 @@ function ProfileSkeleton() {
   );
 }
 
-function MessagesContent({ sent, received, userId }: { sent: any[]; received: any[]; userId: string }) {
+function MessagesContent({ sent, received, conversations, userId }: { sent: any[]; received: any[]; conversations: any[]; userId: string }) {
   const fetcher = useFetcher();
   const { t } = useLanguage();
 
@@ -216,11 +217,47 @@ function MessagesContent({ sent, received, userId }: { sent: any[]; received: an
         <h3 className="text-lg font-semibold text-gray-900">{t ? t("profile.tabs.messages") : "메세지"}</h3>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="received" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+        <Tabs defaultValue="messages" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="messages">메시지 ({conversations?.length || 0})</TabsTrigger>
             <TabsTrigger value="received">{t ? t("inbox.receivedOffers") : "받은 오퍼"} ({received.length})</TabsTrigger>
             <TabsTrigger value="sent">{t ? t("inbox.sentOffers") : "보낸 오퍼"} ({sent.length})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="messages" className="space-y-4">
+            {conversations && conversations.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">아직 대화가 없습니다.</p>
+                <Button variant="link" asChild className="mt-2">
+                  <Link to="/explore">여행지 둘러보기</Link>
+                </Button>
+              </div>
+            ) : (
+              conversations?.map((conv) => (
+                <Link key={conv.id} to={`/inbox/${conv.id}`}>
+                  <Card className="hover:bg-gray-50 transition-colors mb-4">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <AvatarComponent className="h-12 w-12">
+                        <AvatarImage src={conv.partner?.avatar_url || ""} />
+                        <AvatarFallback>{conv.partner?.username?.[0] || "?"}</AvatarFallback>
+                      </AvatarComponent>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className="font-semibold text-gray-900 truncate">{conv.partner?.username}</h3>
+                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                            {conv.last_message ? new Date(conv.last_message.created_at).toLocaleDateString() : new Date(conv.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 truncate">
+                          {conv.last_message?.content || "대화를 시작해보세요."}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))
+            )}
+          </TabsContent>
 
           <TabsContent value="received" className="space-y-4">
             {received.length === 0 ? (
@@ -349,11 +386,13 @@ function ProfileContent({
   profileData,
   sent,
   received,
+  conversations,
   userId,
 }: {
   profileData: ProfileWithStats | null;
   sent: any[];
   received: any[];
+  conversations: any[];
   userId: string;
 }) {
   const actionData = useActionData<typeof action>();
@@ -407,8 +446,8 @@ function ProfileContent({
           <Notification
             type={actionData.success ? "success" : "error"}
             message={
-              actionData.error ||
-              (actionData.action === "updateProfile"
+              (actionData && "error" in actionData ? actionData.error : undefined) ||
+              (actionData && "action" in actionData && actionData.action === "updateProfile"
                 ? "프로필이 업데이트되었습니다."
                 : "")
             }
@@ -615,7 +654,7 @@ function ProfileContent({
             </TabsContent>
 
             <TabsContent value="messages" className="mt-0">
-              <MessagesContent sent={sent} received={received} userId={userId} />
+              <MessagesContent sent={sent} received={received} conversations={conversations} userId={userId} />
             </TabsContent>
           </Tabs>
         </div>
@@ -625,7 +664,7 @@ function ProfileContent({
 }
 
 export default function ProfilePage() {
-  const { profile, sent, received, userId } = useLoaderData<typeof loader>();
+  const { profile, sent, received, conversations, userId } = useLoaderData<typeof loader>();
   const { t } = useLanguage();
 
   console.log(profile, "profile data in ProfilePage");
@@ -648,6 +687,7 @@ export default function ProfilePage() {
               profileData={profile}
               sent={sent}
               received={received}
+              conversations={conversations}
               userId={userId}
             />
           )}

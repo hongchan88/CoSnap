@@ -1,0 +1,1 @@
+ALTER TABLE "flags" ADD COLUMN "title" varchar(255) DEFAULT '' NOT NULL;
