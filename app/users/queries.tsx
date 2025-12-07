@@ -40,6 +40,7 @@ export interface FlagWithDetails {
     focus_score?: number;
   };
   type: string;
+  title?: string;
 }
 
 // Get all flags for a specific user with pagination

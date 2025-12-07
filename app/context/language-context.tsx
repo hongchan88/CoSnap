@@ -262,6 +262,15 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     "common.loadMore": "Load More",
     "common.loading": "Loading...",
+
+    // Flag Types
+    "flagType.meet": "👋 Meetup",
+    "flagType.help": "🙏 Help Request",
+    "flagType.emergency": "Emergency",
+    "flagType.free": "Free/Sharing",
+    "flagType.photo": "Photo Shoot",
+    "flagType.offer": "Offer Help",
+    "flagType.other": "Other",
   },
   ko: {
     // Navigation (already exists above)
@@ -513,6 +522,15 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     "common.loadMore": "더 보기",
     "common.loading": "로딩 중...",
+
+    // Flag Types
+    "flagType.meet": "👋 번개/모임",
+    "flagType.help": "🙏 Help 요청",
+    "flagType.emergency": "긴급",
+    "flagType.free": "나눔/무료",
+    "flagType.photo": "사진 촬영",
+    "flagType.offer": "도움 제안",
+    "flagType.other": "기타",
   },
 };
 

@@ -680,6 +680,8 @@ function FlagsContent({
                     }
                     styles={flag.styles}
                     note={flag.note}
+                    type={flag.type}
+                    languages={flag.languages}
                     canEdit={!flag.isSentOfferFlag}
                     onEdit={
                       !flag.isSentOfferFlag
@@ -766,6 +768,8 @@ function FlagsContent({
                   offerCount={flag.offerCount}
                   styles={flag.styles}
                   note={flag.note}
+                  type={flag.type}
+                  languages={flag.languages}
                   canEdit={false}
                   offers={flag.offers}
                 />

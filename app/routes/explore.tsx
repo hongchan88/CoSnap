@@ -399,6 +399,19 @@ export default function Explore() {
     profileFetcher.load(`/api/user-profile/${userId}`);
   };
 
+  const getTypeLabel = (type?: string) => {
+    switch (type) {
+      case "meet": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" };
+      case "meetup": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" }; // Legacy support
+      case "help": return { label: t("flagType.help"), color: "bg-red-100 text-red-800 border-red-200" };
+      case "emergency": return { label: t("flagType.emergency"), color: "bg-red-500 text-white border-red-600" };
+      case "free": return { label: t("flagType.free"), color: "bg-green-100 text-green-800 border-green-200" };
+      case "photo": return { label: t("flagType.photo"), color: "bg-purple-100 text-purple-800 border-purple-200" };
+      case "offer": return { label: t("flagType.offer"), color: "bg-blue-100 text-blue-800 border-blue-200" };
+      default: return { label: type || t("flagType.other"), color: "bg-gray-100 text-gray-800 border-gray-200" };
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col md:flex-row">
       {/* Left Panel - Search & List */}
@@ -535,76 +548,76 @@ export default function Explore() {
                       handleToggleExpand(flag.id);
                     }}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">
-                          {flag.city}, {flag.country}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {new Date(flag.start_date).toLocaleDateString()} -{" "}
-                          {new Date(flag.end_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {flag.profiles && (
-                          <button
-                            className="text-right hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer"
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          {flag.type && (
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium border mb-1 ${getTypeLabel(flag.type).color}`}>
+                              {getTypeLabel(flag.type).label}
+                            </span>
+                          )}
+                          <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">
+                            {flag.title || `${flag.city} 여행`}
+                          </h3>
+                          <div className="text-sm text-gray-600 font-medium">
+                            {flag.city}, {flag.country}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(flag.start_date).toLocaleDateString()} -{" "}
+                            {new Date(flag.end_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {flag.profiles && (
+                            <button
+                              className="text-right hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleProfileClick(flag);
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {flag.profiles.avatar_url ? (
+                                  <img
+                                    src={flag.profiles.avatar_url}
+                                    alt={flag.profiles.username}
+                                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
+                                    {flag.profiles.username.charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 h-6 w-6 rounded-full"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleProfileClick(flag);
+                              handleToggleExpand(flag.id);
                             }}
                           >
-                            <div className="flex items-center gap-2">
-                              {flag.profiles.avatar_url ? (
-                                <img
-                                  src={flag.profiles.avatar_url}
-                                  alt={flag.profiles.username}
-                                  className="w-8 h-8 rounded-full object-cover border border-gray-200"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
-                                  {flag.profiles.username.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 flex items-center gap-1">
-                                  {flag.profiles.username}
-                                </div>
-                                <div className="text-xs text-blue-600">
-                                  Focus: {flag.profiles.focus_score}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="p-1 h-6 w-6 rounded-full"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleExpand(flag.id);
-                          }}
-                        >
-                          <svg
-                            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7" />
-                          </svg>
-                        </Button>
+                            <svg
+                              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7" />
+                            </svg>
+                          </Button>
+                        </div>
                       </div>
-                    </div>
 
-                    {flag.note && (
-                      <div className={`${isExpanded ? '' : 'line-clamp-2'}`}>
-                        <p className="text-gray-600 text-sm mb-3">
-                          {flag.note}
-                        </p>
-                      </div>
-                    )}
+                      {flag.note && (
+                        <div className={`mt-2 ${isExpanded ? '' : 'line-clamp-2'}`}>
+                          <p className="text-gray-700 text-sm whitespace-pre-wrap">
+                            {flag.note}
+                          </p>
+                        </div>
+                      )}
 
                     {/* Expanded content */}
                     {isExpanded && (

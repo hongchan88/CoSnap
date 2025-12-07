@@ -22,6 +22,9 @@ interface FlagCardProps {
   onDelete?: () => void;
   offers?: any[];
   isSentOfferFlag?: boolean;
+  type?: string;
+  languages?: string[];
+  serviceLevel?: string | null;
 }
 
 const statusVariants = {
@@ -47,6 +50,9 @@ export default function FlagCard({
   onDelete,
   offers = [],
   isSentOfferFlag = false,
+  type,
+  languages,
+  serviceLevel,
 }: FlagCardProps) {
   const { t } = useLanguage();
 
@@ -56,20 +62,40 @@ export default function FlagCard({
     expired: t ? t("flagCard.status.expired") : "만료",
   };
 
+  const getTypeLabel = (type?: string) => {
+    // Basic mapping, can be expanded
+    switch (type) {
+      case "meet": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" };
+      case "meetup": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" }; // Legacy support
+      case "help": return { label: t("flagType.help"), color: "bg-red-100 text-red-800 border-red-200" };
+      case "emergency": return { label: t("flagType.emergency"), color: "bg-red-500 text-white border-red-600" };
+      case "free": return { label: t("flagType.free"), color: "bg-green-100 text-green-800 border-green-200" };
+      case "photo": return { label: t("flagType.photo"), color: "bg-purple-100 text-purple-800 border-purple-200" };
+      case "offer": return { label: t("flagType.offer"), color: "bg-blue-100 text-blue-800 border-blue-200" };
+      default: return { label: type || t("flagType.other"), color: "bg-gray-100 text-gray-800 border-gray-200" };
+    }
+  };
+
+  const typeInfo = getTypeLabel(type);
+
   return (
     <Card className="hover:shadow-md transition-all duration-200">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">{flag}</div>
+            <div className="text-3xl">{flag}</div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">
+              <div className="flex items-center gap-2 mb-1">
+                 {type && <Badge variant="outline" className={`text-xs font-semibold ${typeInfo.color}`}>{typeInfo.label}</Badge>}
+                 {serviceLevel && <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">{serviceLevel}</Badge>}
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 leading-tight">
                 {title}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm font-medium text-gray-600 mt-1">
                 {destination}, {country}
               </p>
-              <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+              <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
                 <Calendar className="w-4 h-4" />
                 <span>
                   {new Date(startDate).toLocaleDateString("ko-KR")} -{" "}
@@ -84,33 +110,47 @@ export default function FlagCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* 메모 */}
+        {/* Description / Note */}
         {note && (
           <div>
-            <p className="text-gray-700 text-sm bg-gray-50 p-3 rounded-lg">
+            <h4 className="sr-only">설명</h4>
+            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
               {note}
             </p>
           </div>
         )}
 
-        {/* 사진 스타일 */}
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">
-            {t ? t("flagCard.photoStyle") : "선호 사진 스타일"}
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {styles.map((style, index) => (
-              <Badge
-                key={index}
-                variant="outline"
-                className="text-xs flex items-center gap-1"
-              >
-                <span>{PHOTO_STYLE_ICONS_RECORD[style] || "📷"}</span>
-                {style}
+        {/* Languages */}
+        {languages && languages.length > 0 && (
+          <div className="flex gap-1 flex-wrap pt-2 border-t border-gray-100">
+            {languages.map(lang => (
+              <Badge key={lang} variant="secondary" className="text-xs bg-gray-100 hover:bg-gray-200">
+                {lang === 'ko' ? '🇰🇷 한국어' : lang === 'en' ? '🇺🇸 English' : lang}
               </Badge>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* 사진 스타일 - Legacy or if provided */}
+        {styles && styles.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">
+              {t ? t("flagCard.photoStyle") : "선호 사진 스타일"}
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {styles.map((style, index) => (
+                <Badge
+                  key={index}
+                  variant="outline"
+                  className="text-xs flex items-center gap-1"
+                >
+                  <span>{PHOTO_STYLE_ICONS_RECORD[style] || "📷"}</span>
+                  {style}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 오퍼 정보 */}
         <div>

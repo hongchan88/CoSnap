@@ -28,7 +28,6 @@ interface OfferModalProps {
 interface OfferFormData {
   message: string;
   preferredDates: string[];
-  photoStyles: string[];
   location: string;
 }
 
@@ -36,21 +35,9 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
   const fetcher = useFetcher();
   const { t } = useLanguage();
 
-  // Define options inside component to have access to t function
-  const photoStyleOptions = [
-    { value: 'portrait', label: t("offerModal.photoStyle.portrait") || '인물 사진', icon: '👤' },
-    { value: 'landscape', label: t("offerModal.photoStyle.landscape") || '풍경 사진', icon: '🏞️' },
-    { value: 'street', label: t("offerModal.photoStyle.street") || '거리 사진', icon: '🏙️' },
-    { value: 'food', label: t("offerModal.photoStyle.food") || '음식 사진', icon: '🍽️' },
-    { value: 'night', label: t("offerModal.photoStyle.night") || '야경 사진', icon: '🌃' },
-    { value: 'architecture', label: t("offerModal.photoStyle.architecture") || '건축 사진', icon: '🏛️' },
-    { value: 'candid', label: t("offerModal.photoStyle.candid") || '자연스러운 순간', icon: '📸' },
-    { value: 'cultural', label: t("offerModal.photoStyle.cultural") || '문화/축제', icon: '🎭' },
-  ];
   const [formData, setFormData] = useState<OfferFormData>({
     message: '',
     preferredDates: [],
-    photoStyles: [],
     location: '',
   });
 
@@ -66,7 +53,6 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
         setFormData({
           message: '',
           preferredDates: [],
-          photoStyles: [],
           location: '',
         });
         setTimeout(() => {
@@ -96,10 +82,6 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
       newErrors.preferredDates = [t("offerModal.error.datesRequired")];
     }
 
-    if (formData.photoStyles.length === 0) {
-      newErrors.photoStyles = [t("offerModal.error.photoStylesRequired")];
-    }
-
     if (!formData.location.trim()) {
       newErrors.location = t("offerModal.error.locationRequired");
     }
@@ -122,7 +104,6 @@ ${formData.message}
 ---
 📍 희망 장소: ${formData.location}
 📅 희망 날짜: ${formData.preferredDates.join(', ')}
-📸 선호 스타일: ${formData.photoStyles.map(s => photoStyleOptions.find(opt => opt.value === s)?.label).join(', ')}
     `.trim();
 
     fetcher.submit(
@@ -145,20 +126,6 @@ ${formData.message}
       setFormData(prev => ({
         ...prev,
         preferredDates: prev.preferredDates.filter(d => d !== date)
-      }));
-    }
-  };
-
-  const handlePhotoStyleChange = (style: string, checked: boolean) => {
-    if (checked) {
-      setFormData(prev => ({
-        ...prev,
-        photoStyles: [...prev.photoStyles, style]
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        photoStyles: prev.photoStyles.filter(s => s !== style)
       }));
     }
   };
@@ -261,31 +228,6 @@ ${formData.message}
               </div>
               {errors.preferredDates && (
                 <p className="text-sm text-red-600">{errors.preferredDates[0]}</p>
-              )}
-            </div>
-
-            {/* 선호 사진 스타일 */}
-            <div className="space-y-3">
-              <Label>
-                {t("offerModal.photoStylesLabel")} <span className="text-red-500">*</span>
-              </Label>
-              <div className="grid grid-cols-2 gap-3">
-                {photoStyleOptions.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`style-${option.value}`}
-                      checked={formData.photoStyles.includes(option.value)}
-                      onCheckedChange={(checked) => handlePhotoStyleChange(option.value, checked as boolean)}
-                      disabled={isSubmitting}
-                    />
-                    <Label htmlFor={`style-${option.value}`} className="text-sm font-normal">
-                      {option.icon} {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-              {errors.photoStyles && (
-                <p className="text-sm text-red-600">{errors.photoStyles[0]}</p>
               )}
             </div>
 
