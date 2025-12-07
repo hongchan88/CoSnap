@@ -119,7 +119,7 @@ export default function Index() {
                   interactive={true}
                   showControls={false}
                   onMarkerClick={handleMarkerClick}
-                  maxZoom={4}
+                  maxZoom={18}
                   minZoom={1.5}
                   maxBounds={[
                     [-90, -180],

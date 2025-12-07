@@ -1,36 +1,28 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useLoaderData, Form, useNavigation, redirect, useSearchParams, useFetcher } from "react-router";
-import type { LatLngBounds } from "leaflet";
+import { useLoaderData, useNavigation, redirect, useSearchParams, useFetcher } from "react-router";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
 import type { Route } from "./+types/explore";
-import CityCard from "~/components/CityCard";
 import OfferModal from "~/components/OfferModal";
 import ProfileModal from "~/components/ProfileModal";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { createOffer } from "~/users/mutations";
+import { CITY_COORDINATES, POPULAR_DESTINATIONS } from "~/lib/constants";
+import { Button } from "~/components/ui/button";
+
+// Extracted Components & Hooks
+import ExploreFilters from "~/components/explore/ExploreFilters";
+import FlagList from "~/components/explore/FlagList";
+import { useExploreMap } from "~/hooks/useExploreMap";
 
 // Lazy load MapView to avoid SSR issues with Leaflet
 const MapView = lazy(() => import("~/components/MapView"));
 
 export async function loader({ request }: Route.LoaderArgs) {
-  console.log("🔍 Explore loader started");
-
   try {
     const { client, headers } = createSupabaseClient(request);
-    console.log("✅ Supabase client created successfully");
 
     // Require authentication similar to flags page
     const userId = await getLoggedInUserId(client).catch(() => null);
-    console.log("👤 User ID:", userId || "Not logged in");
 
     // Parse search params
     const url = new URL(request.url);
@@ -51,14 +43,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       : undefined;
 
     // Fetch active flags
-    console.log("🚩 Fetching active flags...", bounds ? `with bounds: ${JSON.stringify(bounds)}` : "no bounds", `type: ${type}`);
     const { success, flags, error } = await getAllActiveFlags(client, 100, bounds, type);
-
-    console.log("📊 Flag fetch results:");
-    console.log("  Success:", success);
-    console.log("  Error:", error);
-    console.log("  Flags count:", flags?.length || 0);
-    console.log("  Flags data:", flags);
 
     if (!success) {
       console.error("❌ Failed to fetch flags:", error);
@@ -80,48 +65,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
 
     // No server-side filtering - return all active flags
-    // Aggregate flags by city for map markers
-    const cityGroups = flagsWithCounts.reduce(
-      (acc, flag) => {
-        const key = `${flag.city}, ${flag.country}`;
-        if (!acc[key]) {
-          acc[key] = {
-            city: flag.city,
-            country: flag.country,
-            count: 0,
-            flags: [],
-            imageUrl: flag.avatar_url, // Using user avatar as placeholder if no city image
-            lat: flag.latitude,
-            lng: flag.longitude,
-          };
-        }
-        // If the group doesn't have coordinates yet but this flag does, update it
-        if ((!acc[key].lat || !acc[key].lng) && flag.latitude && flag.longitude) {
-          acc[key].lat = flag.latitude;
-          acc[key].lng = flag.longitude;
-        }
-
-        acc[key].count++;
-        acc[key].flags.push(flag);
-        return acc;
-      },
-      {} as Record<
-        string,
-        {
-          city: string;
-          country: string;
-          count: number;
-          flags: any[];
-          imageUrl?: string;
-          lat?: number;
-          lng?: number;
-        }
-      >
-    );
-
     return {
       flags: flagsWithCounts,
-      cityGroups: Object.values(cityGroups).sort((a, b) => b.count - a.count),
       searchParams: { location, startDate, endDate, travelers, type },
       currentUserId: userId,
     };
@@ -181,137 +126,34 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
-import { CITY_COORDINATES, POPULAR_DESTINATIONS, PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
-import { useLanguage } from "~/context/language-context";
-
 export default function Explore() {
-  const { flags, cityGroups, searchParams, currentUserId } = useLoaderData<typeof loader>();
-  const { t } = useLanguage();
+  const { flags, searchParams: loaderSearchParams, currentUserId } = useLoaderData<typeof loader>();
+  
+  // Hooks
+  const [, setSearchParams] = useSearchParams();
+  const profileFetcher = useFetcher<any>();
+  const {
+    mapCenter,
+    mapZoom,
+    mapBounds,
+    initialCity,
+    setMapCenter,
+    setMapZoom,
+    setMapBounds
+  } = useExploreMap(flags, loaderSearchParams);
 
-  // Initialize selectedCity from URL param if it matches a popular destination
-  const initialCity = useMemo(() => {
-    if (!searchParams?.location) return null;
-    const paramLoc = searchParams.location.trim().toLowerCase();
-
-    // 1. Try matching country_code
-    const codeMatch = POPULAR_DESTINATIONS.find(
-      (d) => d.country_code.toLowerCase() === paramLoc
-    );
-    if (codeMatch) return codeMatch.city;
-
-    // 2. Try matching city name
-    const cityMatch = POPULAR_DESTINATIONS.find(
-      (d) => d.city.toLowerCase() === paramLoc
-    );
-    return cityMatch ? cityMatch.city : null;
-  }, [searchParams?.location]);
-
+  // State
   const [selectedCity, setSelectedCity] = useState<string | null>(initialCity);
   const [selectedFlag, setSelectedFlag] = useState<any | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
-  const [mapBounds, setMapBounds] = useState<LatLngBounds | null>(null);
   const [expandedFlagId, setExpandedFlagId] = useState<string | null>(null);
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [selectedType, setSelectedType] = useState<string>(searchParams?.type || "all");
-  const navigation = useNavigation();
-  const [, setSearchParams] = useSearchParams();
-  const profileFetcher = useFetcher<any>();
+  const [selectedType, setSelectedType] = useState<string>(loaderSearchParams?.type || "all");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  const [highlightedFlagId, setHighlightedFlagId] = useState<string | null>(null);
 
-  // Sync selectedCity when URL param changes
-  useEffect(() => {
-    if (initialCity) {
-      setSelectedCity(initialCity);
-    }
-  }, [initialCity]);
-
-  // Handle profile data from fetcher
-  useEffect(() => {
-    if (profileFetcher.data?.success && profileFetcher.data?.profile) {
-      setSelectedProfile(profileFetcher.data.profile);
-      setIsProfileModalOpen(true);
-    }
-  }, [profileFetcher.data]);
-
-  // Update URL params when map bounds change (debounced)
-  useEffect(() => {
-    if (!mapBounds) return;
-
-    const timeoutId = setTimeout(() => {
-      setSearchParams((prev) => {
-        const newParams = new URLSearchParams(prev);
-        newParams.set("minLat", mapBounds.getSouth().toFixed(4));
-        newParams.set("maxLat", mapBounds.getNorth().toFixed(4));
-        newParams.set("minLng", mapBounds.getWest().toFixed(4));
-        newParams.set("maxLng", mapBounds.getEast().toFixed(4));
-        if (selectedType && selectedType !== "all") {
-          newParams.set("type", selectedType);
-        } else {
-          newParams.delete("type");
-        }
-        return newParams;
-      });
-    }, 1000); // 1 second debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [mapBounds, setSearchParams]);
-
-  // Determine map center based on search location, or fall back to default
-  const initialCenter = useMemo(() => {
-    if (searchParams?.location) {
-      const locationName = searchParams.location.trim().toLowerCase();
-
-      // 1. Try finding in POPULAR_DESTINATIONS by country_code
-      const codeDest = POPULAR_DESTINATIONS.find(
-        (d) => d.country_code.toLowerCase() === locationName
-      );
-      if (codeDest) {
-        return { lat: codeDest.lat, lng: codeDest.lng };
-      }
-
-      // 2. Try finding in POPULAR_DESTINATIONS by city
-      const cityDest = POPULAR_DESTINATIONS.find(
-        (d) => d.city.toLowerCase() === locationName
-      );
-      if (cityDest) {
-        return { lat: cityDest.lat, lng: cityDest.lng };
-      }
-
-      // 3. Try CITY_COORDINATES
-      if (CITY_COORDINATES[locationName]) {
-        return CITY_COORDINATES[locationName];
-      }
-    }
-    return { lat: 37.5665, lng: 126.978 };
-  }, [searchParams?.location]);
-
-  const [mapCenter, setMapCenter] = useState(initialCenter);
-  const [mapZoom, setMapZoom] = useState(searchParams?.location ? 5 : 3);
-
-  // Update map center when URL param changes
-  useEffect(() => {
-    setMapCenter(initialCenter);
-    if (searchParams?.location) {
-      setMapZoom(5);
-    }
-  }, [initialCenter, searchParams?.location]);
-
-  // Center to user GPS on mount if available, BUT ONLY if no location param
-  useEffect(() => {
-    if (searchParams?.location) return;
-    if (!navigator?.geolocation) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setMapCenter({ lat: latitude, lng: longitude });
-        setTimeout(() => setMapZoom((z) => Math.max(z, 8)), 300);
-      },
-      () => {},
-      { timeout: 5000 }
-    );
-  }, [searchParams?.location]);
-
+  // Derived State
   const flagsInView = useMemo(() => {
     if (!mapBounds) return [];
 
@@ -324,55 +166,101 @@ export default function Explore() {
     });
   }, [flags, mapBounds]);
 
-  const postsInView = useMemo(() => {
-    return [];
+  // Effects
+  useEffect(() => {
+    if (initialCity) {
+      setSelectedCity(initialCity);
+    }
+  }, [initialCity]);
+
+  // Fetch real user location on mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          });
+        },
+        (err) => {
+          console.log("Geolocation permission denied or error:", err);
+          setUserLocation(undefined);
+        }
+      );
+    }
   }, []);
 
-  // Prepare markers: Use all city groups (real data)
-  const mapCityGroups = useMemo(() => {
-    return cityGroups.map((group) => {
-      let lat = group.lat;
-      let lng = group.lng;
+  useEffect(() => {
+    if (profileFetcher.data?.success && profileFetcher.data?.profile) {
+      setSelectedProfile(profileFetcher.data.profile);
+      setIsProfileModalOpen(true);
+    }
+  }, [profileFetcher.data]);
 
-      // Fallback to CITY_COORDINATES if no lat/lng in data
-      if (!lat || !lng) {
-        const coords =
-          CITY_COORDINATES[group.city.toLowerCase()] ||
-          CITY_COORDINATES[group.city];
-        if (coords) {
-          lat = coords.lat;
-          lng = coords.lng;
-        } else {
-          lat = 37.5665;
-          lng = 126.978;
-        }
-      }
+  // Update URL params when map bounds change (debounced)
+  // useEffect(() => {
+  //   if (!mapBounds) return;
 
-      return {
-        id: `${group.city}-${group.country}`,
-        lat: lat,
-        lng: lng,
-        city: group.city,
-        country: group.country,
-        imageUrl: group.imageUrl,
-        count: group.count,
-        flags: group.flags,
-        type: "city_group"
-      };
-    });
-  }, [cityGroups]);
+  //   const timeoutId = setTimeout(() => {
+  //     setSearchParams((prev) => {
+  //       const newParams = new URLSearchParams(prev);
+  //       newParams.set("minLat", mapBounds.getSouth().toFixed(4));
+  //       newParams.set("maxLat", mapBounds.getNorth().toFixed(4));
+  //       newParams.set("minLng", mapBounds.getWest().toFixed(4));
+  //       newParams.set("maxLng", mapBounds.getEast().toFixed(4));
+  //       if (selectedType && selectedType !== "all") {
+  //         newParams.set("type", selectedType);
+  //       } else {
+  //         newParams.delete("type");
+  //       }
+  //       return newParams;
+  //     });
+  //   }, 1000); // 1 second debounce
 
+  //   return () => clearTimeout(timeoutId);
+  // }, [mapBounds, setSearchParams, selectedType]);
+
+  // Handlers
+  // Handlers
   const handleMarkerClick = (marker: any) => {
-    if (marker.type === "city_group") {
-      setMapCenter({ lat: marker.lat, lng: marker.lng });
-      setMapZoom(12);
+    // Check if it's a city group (interpolated lat/lng) or individual flag
+    
+    // If it's a cluster (has 'count' property)
+    if (marker.count && marker.latSum) {
+        const lat = marker.latSum / marker.count;
+        const lng = marker.lngSum / marker.count;
+        setMapCenter({ lat, lng });
+        
+        // Smart zoom: 
+        // If Country Level (< 5), zoom to City Level (7)
+        // If City Level (>= 5), zoom to Detail Level (13)
+        // Note: mapZoom might be slightly lagging or precise, so we use threshold 5.
+        if (mapZoom < 5) {
+            setMapZoom(7);
+        } else {
+            setMapZoom(13);
+        }
+        return;
+    }
+
+    // Individual flag
+    const lat = typeof marker.lat === 'number' ? marker.lat : marker.latitude;
+    const lng = typeof marker.lng === 'number' ? marker.lng : marker.longitude;
+    
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      setMapCenter({ lat, lng });
+      setMapZoom(14); // Zoom close to individual flag
+      // Optional: Expand the flag in the list if it's an individual flag
+      if (marker.id) {
+         // Check if visible in list logic (handled by list component usually)
+      }
     }
   };
 
   const handleToggleExpand = (flagId: string) => {
     setExpandedFlagId(prev => prev === flagId ? null : flagId);
   };
-
 
   const handleProfileClick = (flag: any) => {
     const userId = flag.user_id;
@@ -399,16 +287,70 @@ export default function Explore() {
     profileFetcher.load(`/api/user-profile/${userId}`);
   };
 
-  const getTypeLabel = (type?: string) => {
-    switch (type) {
-      case "meet": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" };
-      case "meetup": return { label: t("flagType.meet"), color: "bg-orange-100 text-orange-800 border-orange-200" }; // Legacy support
-      case "help": return { label: t("flagType.help"), color: "bg-red-100 text-red-800 border-red-200" };
-      case "emergency": return { label: t("flagType.emergency"), color: "bg-red-500 text-white border-red-600" };
-      case "free": return { label: t("flagType.free"), color: "bg-green-100 text-green-800 border-green-200" };
-      case "photo": return { label: t("flagType.photo"), color: "bg-purple-100 text-purple-800 border-purple-200" };
-      case "offer": return { label: t("flagType.offer"), color: "bg-blue-100 text-blue-800 border-blue-200" };
-      default: return { label: type || t("flagType.other"), color: "bg-gray-100 text-gray-800 border-gray-200" };
+  const handleViewOnMap = (flag: any) => {
+    if (typeof flag.latitude === 'number' && typeof flag.longitude === 'number') {
+      setMapCenter({ lat: flag.latitude, lng: flag.longitude });
+      setMapZoom(12);
+    }
+  };
+
+  const handleSendOffer = (flag: any) => {
+    if (!currentUserId) {
+      window.location.href = "/login";
+      return;
+    }
+    setSelectedFlag({
+      id: flag.id,
+      destination: flag.city,
+      country: flag.country,
+      startDate: flag.start_date,
+      endDate: flag.end_date,
+      ownerName: flag.profiles?.username || "Unknown User",
+    });
+    setIsOfferModalOpen(true);
+  };
+
+  const handeCityChange = (value: string) => {
+    setSelectedCity(value);
+  };
+
+  const handleTypeChange = (value: string) => {
+    setSelectedType(value);
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      if (value && value !== "all") {
+        newParams.set("type", value);
+      } else {
+        newParams.delete("type");
+      }
+      return newParams;
+    });
+  };
+
+  const handleGoToMap = () => {
+    if (selectedCity) {
+      const dest = POPULAR_DESTINATIONS.find(
+        (d) => d.city === selectedCity
+      );
+      if (dest) {
+        setMapCenter({ lat: dest.lat, lng: dest.lng });
+        setMapZoom(5);
+      }
+    }
+  };
+
+  const handleCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setMapCenter({ lat: latitude, lng: longitude });
+          setMapZoom(12);
+          setUserLocation({ lat: latitude, lng: longitude }); // Update user location here too
+        },
+        (err) => console.error(err),
+        { enableHighAccuracy: true }
+      );
     }
   };
 
@@ -416,326 +358,27 @@ export default function Explore() {
     <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col md:flex-row">
       {/* Left Panel - Search & List */}
       <div className="w-full md:w-[60%] lg:w-[65%] flex flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden">
-        {/* Search Header */}
-        <div className="p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            {t("explore.title")}
-          </h1>
-          <div className="flex flex-col gap-3">
-            <div className="flex gap-2">
-              <Select
-                value={selectedCity || ""}
-                onValueChange={(value) => setSelectedCity(value)}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder={t("explore.selectDestination")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {POPULAR_DESTINATIONS.map((dest) => (
-                    <SelectItem key={dest.city} value={dest.city}>
-                      {dest.country} - {dest.city}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                onClick={() => {
-                  if (selectedCity) {
-                    const dest = POPULAR_DESTINATIONS.find(
-                      (d) => d.city === selectedCity
-                    );
-                    if (dest) {
-                      setMapCenter({ lat: dest.lat, lng: dest.lng });
-                      setMapZoom(5);
-                    }
-                  }
-                }}
-                disabled={!selectedCity}
-              >
-                {t("explore.goToMap")}
-              </Button>
-            </div>
+        
+        <ExploreFilters
+          selectedCity={selectedCity}
+          selectedType={selectedType}
+          onCityChange={handeCityChange}
+          onTypeChange={handleTypeChange}
+          onGoToMap={handleGoToMap}
+          onCurrentLocation={handleCurrentLocation}
+        />
 
-            {/* Type Filter */}
-            <Select
-              value={selectedType}
-              onValueChange={(value) => {
-                setSelectedType(value);
-                setSearchParams((prev) => {
-                  const newParams = new URLSearchParams(prev);
-                  if (value && value !== "all") {
-                    newParams.set("type", value);
-                  } else {
-                    newParams.delete("type");
-                  }
-                  return newParams;
-                });
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Filter by Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="meet">👋 Meetup</SelectItem>
-                <SelectItem value="help">🙏 Help Needed</SelectItem>
-                <SelectItem value="emergency">🚨 Emergency</SelectItem>
-                <SelectItem value="free">🎁 Free / Giveaway</SelectItem>
-                <SelectItem value="photo">📷 Photo Exchange</SelectItem>
-                <SelectItem value="offer">🤝 Offer Help</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                if (navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const { latitude, longitude } = pos.coords;
-                      setMapCenter({ lat: latitude, lng: longitude });
-                      setMapZoom(12);
-                    },
-                    (err) => console.error(err),
-                    { enableHighAccuracy: true }
-                  );
-                }
-              }}
-            >
-              {t("explore.currentLocation")}
-            </Button>
-          </div>
-        </div>
-
-        {/* City List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Flags List (Visible on Map) */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {mapBounds ? t("explore.travelPlansInArea") : t("explore.loadingMap")}
-              </h2>
-              <span className="text-sm text-gray-500">
-                {mapBounds ? `${flagsInView.length + postsInView.length} items` : ""}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {!mapBounds && (
-                <div className="text-center py-10 text-gray-500">
-                  {t("explore.loadingMap")}
-                </div>
-              )}
-
-              {mapBounds && flagsInView.length === 0 && (
-                <div className="text-center py-10 text-gray-500">
-                  <p className="mb-2">🗺️</p>
-                  <p>{t("explore.noPlansInArea")}</p>
-                  <p className="text-sm">{t("explore.moveMapToFind")}</p>
-                </div>
-              )}
-
-              {flagsInView.map((flag) => {
-                const isExpanded = expandedFlagId === flag.id;
-                return (
-                  <div
-                    key={flag.id}
-                    className={`bg-white rounded-xl border ${
-                      isExpanded ? 'border-blue-300 shadow-lg' : 'border-gray-200'
-                    } p-4 hover:shadow-md transition-all cursor-pointer`}
-                    onClick={() => {
-                      handleToggleExpand(flag.id);
-                    }}
-                  >
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          {flag.type && (
-                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium border mb-1 ${getTypeLabel(flag.type).color}`}>
-                              {getTypeLabel(flag.type).label}
-                            </span>
-                          )}
-                          <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">
-                            {flag.title || `${flag.city} 여행`}
-                          </h3>
-                          <div className="text-sm text-gray-600 font-medium">
-                            {flag.city}, {flag.country}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {new Date(flag.start_date).toLocaleDateString()} -{" "}
-                            {new Date(flag.end_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {flag.profiles && (
-                            <button
-                              className="text-right hover:bg-gray-50 rounded-lg p-2 transition-colors cursor-pointer"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleProfileClick(flag);
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                {flag.profiles.avatar_url ? (
-                                  <img
-                                    src={flag.profiles.avatar_url}
-                                    alt={flag.profiles.username}
-                                    className="w-8 h-8 rounded-full object-cover border border-gray-200"
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
-                                    {flag.profiles.username.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
-                              </div>
-                            </button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="p-1 h-6 w-6 rounded-full"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleExpand(flag.id);
-                            }}
-                          >
-                            <svg
-                              className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7" />
-                            </svg>
-                          </Button>
-                        </div>
-                      </div>
-
-                      {flag.note && (
-                        <div className={`mt-2 ${isExpanded ? '' : 'line-clamp-2'}`}>
-                          <p className="text-gray-700 text-sm whitespace-pre-wrap">
-                            {flag.note}
-                          </p>
-                        </div>
-                      )}
-
-                    {/* Expanded content */}
-                    {isExpanded && (
-                      <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
-
-                        {/* Photo Styles */}
-                        {flag.styles && flag.styles.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-semibold text-gray-700 mb-2">{t("explore.photoStyles")}</h4>
-                            <div className="flex flex-wrap gap-2">
-                              {flag.styles.map((style: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1"
-                                >
-                                  <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
-                                  {style}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Flag Details */}
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-700 mb-2">{t("explore.travelDetails")}</h4>
-                          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                            <div>
-                              <span className="font-medium">{t("explore.startDate")}</span> {new Date(flag.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </div>
-                            <div>
-                              <span className="font-medium">{t("explore.endDate")}</span> {new Date(flag.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                            </div>
-                            <div>
-                              <span className="font-medium">{t("explore.duration")}</span> {Math.ceil((new Date(flag.end_date).getTime() - new Date(flag.start_date).getTime()) / (1000 * 60 * 60 * 24))} {t("explore.days")}
-                            </div>
-                            <div>
-                              <span className="font-medium">{t("explore.planType")}</span> {flag.source_policy_type === 'premium' ? t("flagCard.premium") : t("explore.free")}
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row gap-2 mt-4">
-                      <div className="flex gap-2 flex-wrap">
-                        {!isExpanded && flag.styles &&
-                          flag.styles
-                            .slice(0, 2)
-                            .map((style: string, idx: number) => (
-                              <span
-                                key={idx}
-                                className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded flex items-center gap-1"
-                              >
-                                <span>{PHOTO_STYLE_ICONS_RECORD[style] || '📷'}</span>
-                                {style}
-                              </span>
-                            ))}
-                      </div>
-
-                      <div className="flex gap-2 ml-auto">
-                        {/* 지도에서 가까이 보기 버튼 */}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-gray-600 hover:text-gray-800 border-gray-300 hover:border-gray-400"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (flag.latitude && flag.longitude) {
-                              setMapCenter({ lat: flag.latitude, lng: flag.longitude });
-                              setMapZoom(12);
-                            }
-                          }}
-                        >
-                          {t("explore.viewOnMap")}
-                        </Button>
-
-                        {currentUserId === flag.user_id ? (
-                          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
-                            <span className="text-xs font-medium text-yellow-700">
-                              {t("explore.receivedOffers")} {(flag as any).offer_count || 0}{t("explore.count")}
-                            </span>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!currentUserId) {
-                                window.location.href = "/login";
-                                return;
-                              }
-                              // Map data to match OfferModal expectations
-                              setSelectedFlag({
-                                id: flag.id,
-                                destination: flag.city,
-                                country: flag.country,
-                                startDate: flag.start_date,
-                                endDate: flag.end_date,
-                                ownerName: flag.profiles?.username || "Unknown User",
-                              });
-                              setIsOfferModalOpen(true);
-                            }}
-                          >
-                            {t("explore.sendOffer")}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <FlagList
+          flags={flagsInView}
+          mapBounds={mapBounds}
+          expandedFlagId={expandedFlagId}
+          currentUserId={currentUserId}
+          onToggleExpand={handleToggleExpand}
+          onViewOnMap={handleViewOnMap}
+          onProfileClick={handleProfileClick}
+          onSendOffer={handleSendOffer}
+          highlightedFlagId={highlightedFlagId}
+        />
       </div>
 
       {/* Right Panel - Map */}
@@ -749,25 +392,17 @@ export default function Explore() {
             }
           >
             <MapView
-              flags={mapCityGroups}
+              flags={flags}
               center={mapCenter}
               zoom={mapZoom}
               onBoundsChange={setMapBounds}
               onMarkerClick={handleMarkerClick}
-              userLocation={
-                navigator.geolocation
-                  ? {
-                      lat: mapCenter.lat,
-                      lng: mapCenter.lng,
-                    }
-                  : undefined
-              }
+              userLocation={userLocation}
+              onMarkerHover={setHighlightedFlagId}
             />
           </Suspense>
         </div>
       </div>
-      
-      {/* Other Modals... */}
       
       {/* Floating Action Button for Mobile (if needed) */}
       <div className="absolute bottom-8 right-8 md:hidden">
@@ -796,9 +431,9 @@ export default function Explore() {
             camera_gear: selectedProfile.camera_gear,
             languages: selectedProfile.languages,
             bio: selectedProfile.bio,
-            is_verified: selectedProfile.is_verified || false,
+            is_verified: selectedProfile.is_verified,
           }}
-          userFlags={selectedProfile.userFlags || []}
+          userFlags={selectedProfile.userFlags}
         />
       )}
     </div>

@@ -46,8 +46,12 @@ interface MapControllerProps {
 interface CustomMarkerProps {
   position: [number, number];
   onClick?: () => void;
+  onHover?: () => void;
+  onLeave?: () => void;
   children: ReactNode;
 }
+
+// ... MapController ...
 
 function MapController({
   center,
@@ -78,7 +82,7 @@ function MapController({
 
     if (centerChanged || zoomChanged) {
       lastPropsRef.current = { center, zoom };
-      map.setView([center.lat, center.lng], zoom, { animate: false });
+      map.setView([center.lat, center.lng], zoom, { animate: true });
     }
 
     if (!hasReportedInitialState.current) {
@@ -91,9 +95,9 @@ function MapController({
   return null;
 }
 
-function CustomMarker({ position, onClick, children }: CustomMarkerProps) {
+function CustomMarker({ position, onClick, onHover, onLeave, children }: CustomMarkerProps) {
   const markerRef = useRef<L.Marker | null>(null);
-  
+
   const icon = useMemo(
     () =>
       L.divIcon({
@@ -109,12 +113,14 @@ function CustomMarker({ position, onClick, children }: CustomMarkerProps) {
       click: onClick ? () => onClick() : undefined,
       mouseover: (e: L.LeafletMouseEvent) => {
         e.target.setZIndexOffset(1000);
+        onHover?.();
       },
       mouseout: (e: L.LeafletMouseEvent) => {
         e.target.setZIndexOffset(0);
+        onLeave?.();
       },
     }),
-    [onClick]
+    [onClick, onHover, onLeave]
   );
 
   return (
@@ -127,6 +133,28 @@ function CustomMarker({ position, onClick, children }: CustomMarkerProps) {
   );
 }
 
+// Helper to get flag emoji
+const getFlagEmoji = (type?: string) => {
+  if (!type) return "📍";
+  switch (type.toLowerCase()) {
+    case "meet":
+    case "meetup":
+      return "👋";
+    case "help":
+      return "🤝";
+    case "emergency":
+      return "🚨";
+    case "photo":
+      return "📷";
+    case "free":
+      return "🎁";
+    case "offer":
+      return "📨";
+    default:
+      return "📍";
+  }
+};
+
 export default function MapView({
   flags,
   center = { lat: 37.5665, lng: 126.978 },
@@ -134,27 +162,44 @@ export default function MapView({
   zoom = 3,
   onMarkerClick,
   onBoundsChange,
+  onZoomChange,
   interactive = true,
   showControls = true,
   minZoom,
   maxZoom,
   maxBounds,
   noWrap = false,
-  clusteringThreshold = 4,
-}: MapViewProps) {
+  clusteringThreshold = 11,
+  onMarkerHover,
+}: MapViewProps & { onMarkerHover?: (city: string | null) => void; onZoomChange?: (zoom: number) => void }) {
   const [currentZoom, setCurrentZoom] = useState(zoom);
   const [isClient, setIsClient] = useState(false);
-
+  
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Sync zoom state
+  useEffect(() => {
+    setCurrentZoom(zoom);
+  }, [zoom]);
+
+  const handleZoomChange = (newZoom: number) => {
+    setCurrentZoom(newZoom);
+    if (onZoomChange) onZoomChange(newZoom);
+  };
 
   const markers = useMemo(() => {
     const validFlags = flags.filter(
-      (flag) => typeof flag.lat === "number" && typeof flag.lng === "number"
+      (flag) => {
+        const lat = typeof flag.lat === "number" ? flag.lat : flag.latitude;
+        const lng = typeof flag.lng === "number" ? flag.lng : flag.longitude;
+        return typeof lat === "number" && typeof lng === "number";
+      }
     );
 
-    if (currentZoom < clusteringThreshold) {
+    // Level 1: Country Clustering (Zoom < 5)
+    if (currentZoom < 5) {
       const countryGroups: Record<
         string,
         {
@@ -168,8 +213,8 @@ export default function MapView({
       > = {};
 
       validFlags.forEach((flag) => {
-        const lat = flag.lat;
-        const lng = flag.lng;
+        const lat = typeof flag.lat === "number" ? flag.lat : flag.latitude;
+        const lng = typeof flag.lng === "number" ? flag.lng : flag.longitude;
 
         if (!countryGroups[flag.country]) {
           countryGroups[flag.country] = {
@@ -184,7 +229,7 @@ export default function MapView({
         countryGroups[flag.country].latSum += lat;
         countryGroups[flag.country].lngSum += lng;
         countryGroups[flag.country].count += 1;
-        countryGroups[flag.country].totalFlags += flag.count ?? 0;
+        countryGroups[flag.country].totalFlags += flag.count ?? 1; // Default to 1 if no count
 
         if (!countryGroups[flag.country].imageUrl && flag.imageUrl) {
           countryGroups[flag.country].imageUrl = flag.imageUrl;
@@ -200,11 +245,55 @@ export default function MapView({
       }));
     }
 
+    // Level 2: City Clustering (5 <= Zoom < 11)
+    if (currentZoom < clusteringThreshold) {
+       const cityGroups: Record<
+        string,
+        {
+          latSum: number;
+          lngSum: number;
+          count: number;
+          city: string;
+          country: string;
+          imageUrl?: string;
+        }
+      > = {};
+
+      validFlags.forEach((flag) => {
+        const lat = typeof flag.lat === "number" ? flag.lat : flag.latitude;
+        const lng = typeof flag.lng === "number" ? flag.lng : flag.longitude;
+        const key = `${flag.city}-${flag.country}`;
+
+        if (!cityGroups[key]) {
+          cityGroups[key] = {
+            latSum: 0,
+            lngSum: 0,
+            count: 0,
+            city: flag.city,
+            country: flag.country,
+            imageUrl: flag.avatar_url, // Use avatar as fallback image
+          };
+        }
+        cityGroups[key].latSum += lat;
+        cityGroups[key].lngSum += lng;
+        cityGroups[key].count += 1;
+      });
+
+      return Object.values(cityGroups).map((group) => ({
+        id: `city-${group.city}-${group.country}`,
+        lat: group.latSum / group.count,
+        lng: group.lngSum / group.count,
+        type: "city_group" as const,
+        data: group,
+      }));
+    }
+
+    // Level 3: Individual Flags (Zoom >= 11)
     return validFlags.map((flag) => ({
       id: flag.id,
-      lat: flag.lat,
-      lng: flag.lng,
-      type: "city" as const,
+      lat: typeof flag.lat === "number" ? flag.lat : flag.latitude,
+      lng: typeof flag.lng === "number" ? flag.lng : flag.longitude,
+      type: "flag" as const,
       data: flag,
     }));
   }, [flags, currentZoom, clusteringThreshold]);
@@ -239,7 +328,7 @@ export default function MapView({
         <MapController
           center={center}
           zoom={zoom}
-          onZoomChange={setCurrentZoom}
+          onZoomChange={handleZoomChange}
           onBoundsChange={onBoundsChange}
         />
 
@@ -252,7 +341,6 @@ export default function MapView({
                 position={[marker.lat, marker.lng]}
                 onClick={() => {
                   if (onMarkerClick) {
-                    // Try to find country code from POPULAR_DESTINATIONS
                     const dest = POPULAR_DESTINATIONS.find(
                       (d) =>
                         d.country.toLowerCase() === group.country.toLowerCase()
@@ -295,7 +383,7 @@ export default function MapView({
                         {group.country}
                       </h3>
                       <span className="text-[10px] font-medium text-blue-700">
-                        총 {group.totalFlags}개의 여행 계획
+                        Total {group.totalFlags} Plans
                       </span>
                     </div>
                     <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-blue-50 border-r-2 border-b-2 border-blue-500 transform rotate-45 shadow-lg -z-10"></div>
@@ -305,31 +393,73 @@ export default function MapView({
             );
           }
 
+          if (marker.type === "city_group") {
+            const group = marker.data;
+            return (
+              <CustomMarker
+                key={marker.id}
+                position={[marker.lat, marker.lng]}
+                onClick={() => onMarkerClick && onMarkerClick(group)}
+              >
+                <div
+                  className="relative cursor-pointer flex flex-col items-center group hover:z-50"
+                  style={{ transform: "translate(-50%, -100%)" }}
+                >
+                  <div className="px-3 py-2 bg-white/95 backdrop-blur-sm border border-green-500/30 rounded-2xl shadow-lg relative transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl group-hover:border-green-500/50">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-xs font-bold text-gray-800 leading-tight whitespace-nowrap">
+                        {group.city}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-semibold text-green-600">
+                          {group.count}
+                        </span>
+                        <span className="text-[10px] text-gray-500">flags</span>
+                      </div>
+                    </div>
+                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white/95 backdrop-blur-sm border-r border-b border-green-500/30 transform rotate-45"></div>
+                  </div>
+                </div>
+              </CustomMarker>
+            );
+          }
+
+          // Individual Flag Marker
           const flag = marker.data;
           return (
             <CustomMarker
               key={marker.id}
               position={[marker.lat, marker.lng]}
-              onClick={() => onMarkerClick && onMarkerClick(flag.city)}
+              onClick={() => onMarkerClick && onMarkerClick(flag)}
+              onHover={() => onMarkerHover?.(flag.id)}
+              onLeave={() => onMarkerHover?.(null)}
             >
               <div
                 className="relative cursor-pointer flex flex-col items-center group hover:z-50"
                 style={{ transform: "translate(-50%, -100%)" }}
               >
-                <div className="px-3 py-2 bg-white/95 backdrop-blur-sm border border-green-500/30 rounded-2xl shadow-lg relative transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl group-hover:border-green-500/50">
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-xs font-bold text-gray-800 leading-tight whitespace-nowrap">
-                      {flag.city}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[10px] font-semibold text-green-600">
-                        {flag.count}
+                <div className="w-8 h-8 rounded-full border-2 border-white shadow-lg overflow-hidden relative transition-transform duration-200 group-hover:scale-110 group-hover:ring-2 group-hover:ring-blue-500">
+                  {flag.avatar_url ? (
+                    <img
+                      src={flag.avatar_url}
+                      alt={flag.city}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                         // Fallback to placeholder if avatar fails
+                         e.currentTarget.src = "https://via.placeholder.com/32?text=?";
+                      }}
+                    />
+
+                  ) : (
+                    <div className="w-full h-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-[14px]">
+                        {getFlagEmoji(flag.type)}
                       </span>
-                      <span className="text-[10px] text-gray-500">flags</span>
                     </div>
-                  </div>
-                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white/95 backdrop-blur-sm border-r border-b border-green-500/30 transform rotate-45"></div>
+                  )}
                 </div>
+                {/* Pin Tip */}
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white transform rotate-45 shadow-sm"></div>
               </div>
             </CustomMarker>
           );
