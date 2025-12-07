@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { ClientOnly } from "~/components/ClientOnly";
 import { createSupabaseClient } from "~/lib/supabase";
-import { getAllActiveFlags } from "~/users/queries";
+import { getAllActiveFlags, getTopProfiles, getCommunityStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
 
 const MapView = lazy(() => import("~/components/MapView"));
@@ -31,11 +31,14 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   console.log(activeFlags, "flags");
 
-  // TODO: Fetch top profiles and stats from DB
+  // Fetch top profiles and stats from DB
+  const { profiles: topProfiles = [] } = await getTopProfiles(client);
+  const { stats } = await getCommunityStats(client);
+
   return {
     activeFlags,
-    topProfiles: [],
-    stats: {
+    topProfiles,
+    stats: stats || {
       totalActiveFlags: activeFlags.length,
       totalProfiles: 0,
       averageFocusScore: 0,

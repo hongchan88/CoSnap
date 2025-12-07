@@ -369,17 +369,10 @@ export default function Explore() {
     }
   };
 
-  const handleOfferSubmit = async (offerData: any) => {
-    // In a real app, we would submit via useSubmit or useFetcher
-    // For this demo, we'll just close the modal
-    console.log("Submitting offer:", offerData);
-    setIsOfferModalOpen(false);
-    // TODO: Implement actual submission logic using useFetcher
-  };
-
   const handleToggleExpand = (flagId: string) => {
     setExpandedFlagId(prev => prev === flagId ? null : flagId);
   };
+
 
   const handleProfileClick = (flag: any) => {
     const userId = flag.user_id;
@@ -774,7 +767,6 @@ export default function Explore() {
           isOpen={isOfferModalOpen}
           onClose={() => setIsOfferModalOpen(false)}
           flagData={selectedFlag}
-          onSubmit={handleOfferSubmit}
         />
       )}
 

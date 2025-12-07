@@ -692,3 +692,73 @@ export const getUserConversations = async (
   }
 };
 
+
+// --- Stats & Search ---
+
+export const getTopProfiles = async (client: SupabaseClient, limit: number = 3) => {
+  try {
+    const { data, error } = await client
+      .from("profiles")
+      .select("*")
+      .order("focus_score", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("Error fetching top profiles:", error);
+      return { success: false, error: error.message, profiles: [] };
+    }
+
+    return { success: true, profiles: data as ProfileWithStats[] };
+  } catch (error) {
+    console.error("Unexpected error fetching top profiles:", error);
+    return { success: false, error: "Failed to fetch top profiles", profiles: [] };
+  }
+};
+
+export const getCommunityStats = async (client: SupabaseClient) => {
+  try {
+    // Parallel fetch for counts
+    const [flagsRes, profilesRes, matchesRes] = await Promise.all([
+      client.from("flags").select("*", { count: "exact", head: true }).eq("visibility_status", "active"),
+      client.from("profiles").select("*", { count: "exact", head: true }),
+      client.from("matches").select("*", { count: "exact", head: true }).eq("status", "completed")
+    ]);
+
+    // For average focus score, we'll just take a simple average of the top 50 users to avoid scanning the whole table
+    // or just valid profiles. For now, let's keep it simple and just use 0 or a sample.
+    // Let's fetch the average of non-zero focus scores if possible, strictly limiting to 100 for perf.
+    const { data: scores } = await client
+      .from("profiles")
+      .select("focus_score")
+      .gt("focus_score", 0)
+      .limit(100);
+    
+    let avgScore = 0;
+    if (scores && scores.length > 0) {
+      const sum = scores.reduce((acc, curr) => acc + (curr.focus_score || 0), 0);
+      avgScore = Math.round((sum / scores.length) * 10) / 10;
+    }
+
+    return {
+      success: true,
+      stats: {
+        totalActiveFlags: flagsRes.count || 0,
+        totalProfiles: profilesRes.count || 0,
+        averageFocusScore: avgScore,
+        totalCoSnaps: matchesRes.count || 0,
+      }
+    };
+  } catch (error) {
+    console.error("Unexpected error fetching stats:", error);
+    return { 
+      success: false, 
+      error: "Failed to fetch stats", 
+      stats: {
+        totalActiveFlags: 0,
+        totalProfiles: 0,
+        averageFocusScore: 0,
+        totalCoSnaps: 0,
+      } 
+    };
+  }
+};

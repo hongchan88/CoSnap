@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations } from "~/users/queries";
+import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations, getUserAllFlags } from "~/users/queries";
 import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
 import type { ProfileWithStats } from "~/users/queries";
@@ -46,7 +46,23 @@ export async function loader({ request }: Route.LoaderArgs) {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
 
-  const { profile } = await getUserProfile(client, userId);
+  const { profile, error: profileError } = await getUserProfile(client, userId);
+  
+  if (profileError || !profile) {
+     console.error("Failed to fetch profile:", profileError);
+     // If authenticated but no profile, this is a critical state. 
+     // For now throwing error, but ideal would be redirect to onboarding.
+     throw new Response("Profile not found", { status: 404 });
+  }
+
+  // Fetch all flags to determine location
+  const { flags = [] } = await getUserAllFlags(client, userId);
+  
+  // Derive location from the most recent active flag
+  const activeFlag = flags?.find(f => f.visibility_status === 'active');
+  const location = activeFlag 
+    ? `${activeFlag.city}, ${activeFlag.country}` 
+    : "위치 정보 미설정"; // "Location not set"
 
   // Also fetch inbox data like inbox.tsx does
   const { success, sent, received, error } = await getUserOffers(client, userId);
@@ -54,10 +70,17 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   if (!success || !convSuccess) {
     console.error("Failed to fetch profile data:", error || convError);
-    throw new Response("Failed to load profile data", { status: 500 });
+    // Don't crash entire page for inbox error, just return empty arrays
   }
 
-  return { profile, sent, received, conversations: conversations || [], userId };
+  return { 
+    profile, 
+    location, // Pass derived location
+    sent: sent || [], 
+    received: received || [], 
+    conversations: conversations || [], 
+    userId 
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -147,7 +170,8 @@ interface UserProfile {
 }
 
 // Adapter function to convert database profile to UI format
-const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
+// Adapter function to convert database profile to UI format
+const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?: string): UserProfile => {
   if (!dbProfile) {
     return {
       username: "User",
@@ -155,7 +179,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
       cameraGear: "",
       photoStyles: [],
       languages: [],
-      location: "위치 정보",
+      location: locationFromFlags || "위치 정보 미설정",
       isPremium: false,
       focusScore: 0,
     };
@@ -167,7 +191,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
     cameraGear: dbProfile.camera_gear || "",
     photoStyles: dbProfile.styles || [],
     languages: dbProfile.languages || [],
-    location: "위치 정보", // TODO: Add location field to profile or get from flags
+    location: locationFromFlags || "위치 정보 미설정", 
     isPremium: dbProfile.role === "premium",
     focusScore: dbProfile.focus_score || 0,
     avatarUrl: dbProfile.avatar_url,
@@ -382,19 +406,23 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
   );
 }
 
-function ProfileContent({
-  profileData,
-  sent,
-  received,
-  conversations,
-  userId,
-}: {
+interface ProfileContentProps {
   profileData: ProfileWithStats | null;
+  location: string;
   sent: any[];
   received: any[];
   conversations: any[];
   userId: string;
-}) {
+}
+
+function ProfileContent({
+  profileData,
+  location,
+  sent,
+  received,
+  conversations,
+  userId,
+}: ProfileContentProps) {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -403,7 +431,7 @@ function ProfileContent({
   const { t } = useLanguage();
 
   // Initialize profile from passed data with adapter
-  const profile = adaptUserProfile(profileData);
+  const profile = adaptUserProfile(profileData, location);
 
   const handleUpdateProfile = async (formData: any) => {
     setIsLoading(true);
@@ -664,7 +692,7 @@ function ProfileContent({
 }
 
 export default function ProfilePage() {
-  const { profile, sent, received, conversations, userId } = useLoaderData<typeof loader>();
+  const { profile, location, sent, received, conversations, userId } = useLoaderData<typeof loader>();
   const { t } = useLanguage();
 
   console.log(profile, "profile data in ProfilePage");
@@ -685,6 +713,7 @@ export default function ProfilePage() {
           {profile && (
             <ProfileContent
               profileData={profile}
+              location={location}
               sent={sent}
               received={received}
               conversations={conversations}
