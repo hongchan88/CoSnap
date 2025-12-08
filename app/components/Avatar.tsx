@@ -55,13 +55,7 @@ export default function Avatar({
             <div className="w-full h-full bg-gray-200 rounded-full animate-pulse" />
           )}
           <img
-            src={
-              src
-                ? src.startsWith('data:')
-                  ? src
-                  : `${src}?t=${Date.now()}`
-                : undefined
-            }
+            src={src || undefined}
             alt={alt}
             className={`
               w-full h-full object-cover

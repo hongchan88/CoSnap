@@ -1,7 +1,7 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/profile";
-import { useState, Suspense } from "react";
-import { useLoaderData, useActionData, useSubmit, useFetcher, Link } from "react-router";
+import { useState, Suspense, useEffect } from "react";
+import { useLoaderData, useActionData, useSubmit, useFetcher, Link, Await, useSearchParams, useNavigate, useNavigation } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -26,11 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
-import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations } from "~/users/queries";
+import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations, getUserAllFlags, getConversationDetails } from "~/users/queries";
 import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
 import type { ProfileWithStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
+import ChatWindow, { ChatWindowSkeleton } from "~/components/ChatWindow";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -46,18 +47,76 @@ export async function loader({ request }: Route.LoaderArgs) {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
 
-  const { profile } = await getUserProfile(client, userId);
+  const dataPromise = (async () => {
+    const { profile, error: profileError } = await getUserProfile(client, userId);
+  
+    if (profileError || !profile) {
+       console.error("Failed to fetch profile:", profileError);
+       throw new Response("Profile not found", { status: 404 });
+    }
 
-  // Also fetch inbox data like inbox.tsx does
-  const { success, sent, received, error } = await getUserOffers(client, userId);
-  const { success: convSuccess, conversations, error: convError } = await getUserConversations(client, userId);
+    // Fetch all flags to determine location
+    const { flags = [] } = await getUserAllFlags(client, userId);
+    
+    // Derive location from the most recent active flag
+    const activeFlag = flags?.find(f => f.visibility_status === 'active');
+    const location = activeFlag 
+      ? `${activeFlag.city}, ${activeFlag.country}` 
+      : "위치 정보 미설정"; // "Location not set"
+    
+    // Check for active conversation param
+    const url = new URL(request.url);
+    const conversationId = url.searchParams.get("conversationId");
+    let activeConversation = null;
 
-  if (!success || !convSuccess) {
-    console.error("Failed to fetch profile data:", error || convError);
-    throw new Response("Failed to load profile data", { status: 500 });
+    if (conversationId) {
+       const result = await getConversationDetails(client, conversationId, userId);
+       if (result.success) {
+         activeConversation = result;
+       }
+    }
+
+    // Also fetch inbox data like inbox.tsx does
+    const { success, sent, received, error } = await getUserOffers(client, userId);
+    const { success: convSuccess, conversations, error: convError } = await getUserConversations(client, userId);
+
+    if (!success || !convSuccess) {
+      console.error("Failed to fetch profile data:", error || convError);
+    }
+
+    return { 
+      profile, 
+      location, 
+      sent: sent || [], 
+      received: received || [], 
+      conversations: conversations || [], 
+      userId,
+      activeConversation
+    };
+  })();
+
+  return { data: dataPromise };
+}
+
+export function shouldRevalidate({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}: {
+  currentUrl: URL;
+  nextUrl: URL;
+  defaultShouldRevalidate: boolean;
+}) {
+  // Don't revalidate if only the 'tab' search param changes
+  const currentTab = currentUrl.searchParams.get("tab");
+  const nextTab = nextUrl.searchParams.get("tab");
+  
+  // If tabs are different but paths are same, don't reload
+  if (currentUrl.pathname === nextUrl.pathname && currentTab !== nextTab) {
+    return false; 
   }
 
-  return { profile, sent, received, conversations: conversations || [], userId };
+  return defaultShouldRevalidate;
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -78,6 +137,29 @@ export async function action({ request }: Route.ActionArgs) {
     } else if (intent === "cancel_offer") {
       return await cancelOffer(client, offerId, userId);
     }
+  }
+
+  // Handle sending message from embedded chat
+  if (intent === "send_message") {
+      const conversationId = formData.get("conversationId") as string;
+      const content = formData.get("content") as string;
+
+      if (!conversationId || !content) {
+          return { success: false, error: "Missing required fields" };
+      }
+
+      const { error } = await client
+        .from("messages")
+        .insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content,
+        });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true };
   }
 
   if (intent === "updateProfile") {
@@ -147,7 +229,8 @@ interface UserProfile {
 }
 
 // Adapter function to convert database profile to UI format
-const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
+// Adapter function to convert database profile to UI format
+const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?: string): UserProfile => {
   if (!dbProfile) {
     return {
       username: "User",
@@ -155,7 +238,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
       cameraGear: "",
       photoStyles: [],
       languages: [],
-      location: "위치 정보",
+      location: locationFromFlags || "위치 정보 미설정",
       isPremium: false,
       focusScore: 0,
     };
@@ -167,7 +250,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null): UserProfile => {
     cameraGear: dbProfile.camera_gear || "",
     photoStyles: dbProfile.styles || [],
     languages: dbProfile.languages || [],
-    location: "위치 정보", // TODO: Add location field to profile or get from flags
+    location: locationFromFlags || "위치 정보 미설정", 
     isPremium: dbProfile.role === "premium",
     focusScore: dbProfile.focus_score || 0,
     avatarUrl: dbProfile.avatar_url,
@@ -190,9 +273,14 @@ function ProfileSkeleton() {
   );
 }
 
-function MessagesContent({ sent, received, conversations, userId }: { sent: any[]; received: any[]; conversations: any[]; userId: string }) {
+function MessagesContent({ sent, received, conversations, userId, activeConversation }: { sent: any[]; received: any[]; conversations: any[]; userId: string; activeConversation: any }) {
   const fetcher = useFetcher();
+  const navigate = useNavigate();
+  const navigation = useNavigation();
   const { t } = useLanguage();
+
+  const isNavigatingToChat = navigation.state === "loading" && 
+      new URLSearchParams(navigation.location.search).has("conversationId");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -212,19 +300,39 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-[600px] flex flex-col">
+      <CardHeader className="flex-none">
         <h3 className="text-lg font-semibold text-gray-900">{t ? t("profile.tabs.messages") : "메세지"}</h3>
       </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="messages" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+      <CardContent className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        {isNavigatingToChat ? (
+             <div className="h-full">
+                 <ChatWindowSkeleton />
+             </div>
+        ) : activeConversation ? (
+            <div className="h-full">
+                <ChatWindow 
+                    conversation={activeConversation.conversation}
+                    messages={activeConversation.messages}
+                    userId={userId}
+                    partner={activeConversation.partner}
+                    onBack={() => {
+                        // Navigate back to messages list (remove query param)
+                        navigate("/profile?tab=messages");
+                    }}
+                    actionUrl="/profile?tab=messages" 
+                />
+            </div>
+        ) : (
+        <Tabs defaultValue="messages" className="w-full h-full flex flex-col">
+          <TabsList className="grid w-full grid-cols-3 mb-6 flex-none">
             <TabsTrigger value="messages">메시지 ({conversations?.length || 0})</TabsTrigger>
             <TabsTrigger value="received">{t ? t("inbox.receivedOffers") : "받은 오퍼"} ({received.length})</TabsTrigger>
             <TabsTrigger value="sent">{t ? t("inbox.sentOffers") : "보낸 오퍼"} ({sent.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="messages" className="space-y-4">
+          <div className="flex-1 overflow-y-auto">
+          <TabsContent value="messages" className="space-y-4 m-0">
             {conversations && conversations.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">아직 대화가 없습니다.</p>
@@ -234,7 +342,7 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
               </div>
             ) : (
               conversations?.map((conv) => (
-                <Link key={conv.id} to={`/inbox/${conv.id}`}>
+                <Link key={conv.id} to={`/profile?tab=messages&conversationId=${conv.id}`}>
                   <Card className="hover:bg-gray-50 transition-colors mb-4">
                     <CardContent className="p-4 flex items-center gap-4">
                       <AvatarComponent className="h-12 w-12">
@@ -259,14 +367,14 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
             )}
           </TabsContent>
 
-          <TabsContent value="received" className="space-y-4">
+          <TabsContent value="received" className="space-y-4 m-0">
             {received.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">{t ? t("inbox.noReceivedOffers") : "아직 받은 오퍼가 없습니다."}</p>
               </div>
             ) : (
               received.map((offer) => (
-                <Card key={offer.id} className="overflow-hidden">
+                <Card key={offer.id} className="overflow-hidden mb-4">
                   <CardHeader className="bg-gray-50/50 pb-4">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
@@ -320,7 +428,7 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
             )}
           </TabsContent>
 
-          <TabsContent value="sent" className="space-y-4">
+          <TabsContent value="sent" className="space-y-4 m-0">
             {sent.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">{t ? t("inbox.noSentOffers") : "아직 보낸 오퍼가 없습니다."}</p>
@@ -330,7 +438,7 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
               </div>
             ) : (
               sent.map((offer) => (
-                <Card key={offer.id} className="overflow-hidden">
+                <Card key={offer.id} className="overflow-hidden mb-4">
                   <CardHeader className="bg-gray-50/50 pb-4">
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-3">
@@ -376,34 +484,44 @@ function MessagesContent({ sent, received, conversations, userId }: { sent: any[
               ))
             )}
           </TabsContent>
+          </div>
         </Tabs>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function ProfileContent({
-  profileData,
-  sent,
-  received,
-  conversations,
-  userId,
-}: {
+interface ProfileContentProps {
   profileData: ProfileWithStats | null;
+  location: string;
   sent: any[];
   received: any[];
   conversations: any[];
   userId: string;
-}) {
+  activeConversation?: any;
+}
+
+// ProfileContent handles tab contents and profile editing
+function ProfileContent({
+  profileData,
+  location,
+  sent,
+  received,
+  conversations,
+  userId,
+  activeConversation
+}: ProfileContentProps) {
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
   const { t } = useLanguage();
+  // Note: activeTab is now controlled by parent, but TabsContent requires being inside Tabs.
+  // We rely on the parent ProfilePage wrapping this in <Tabs>.
 
   // Initialize profile from passed data with adapter
-  const profile = adaptUserProfile(profileData);
+  const profile = adaptUserProfile(profileData, location);
 
   const handleUpdateProfile = async (formData: any) => {
     setIsLoading(true);
@@ -464,234 +582,267 @@ function ProfileContent({
             <DialogTitle>프로필 편집</DialogTitle>
           </DialogHeader>
           <ProfileForm
-            onSubmit={handleUpdateProfile}
-            onCancel={() => setIsEditingProfile(false)}
-            initialData={{
-              username: profile.username,
-              bio: profile.bio,
-              cameraGear: profile.cameraGear,
-              photoStyles: profile.photoStyles,
-              languages: profile.languages,
-              location: profile.location,
-              avatarUrl: profile.avatarUrl,
-            }}
-          />
+             onSubmit={handleUpdateProfile}
+             onCancel={() => setIsEditingProfile(false)}
+             initialData={{
+               username: profile.username,
+               bio: profile.bio,
+               cameraGear: profile.cameraGear,
+               photoStyles: profile.photoStyles,
+               languages: profile.languages,
+               location: profile.location,
+               avatarUrl: profile.avatarUrl,
+             }}
+           />
         </DialogContent>
       </Dialog>
-
-      {/* 좌측 탭과 메인 콘텐츠 */}
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* 좌측 탭 */}
-        <div className="lg:w-64">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-1">
-              <TabsTrigger value="profile">{t ? t("profile.tabs.profile") : "프로필"}</TabsTrigger>
-              <TabsTrigger value="messages">{t ? t("profile.tabs.messages") : "메세지"}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        {/* 메인 콘텐츠 */}
-        <div className="flex-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value="profile" className="mt-0">
-              <div className="space-y-6">
-                {/* 프로필 헤더 */}
-                <Card>
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-                      <Avatar
-                        src={profile.avatarUrl}
-                        size="lg"
-                        alt={`${profile.username}의 프로필 사진`}
-                      />
-                      <div className="flex-1 w-full">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
-                          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                            @{profile.username}
-                          </h2>
-                          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
-                            프리미엄
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <p className="text-sm sm:text-base text-gray-600">
-                            {profile.location}
-                          </p>
-                          {profile.cameraGear && (
-                            <>
-                              <span className="text-gray-300">|</span>
-                              <Camera className="w-4 h-4 text-gray-400" />
-                              <p className="text-sm sm:text-base text-gray-600">
-                                {profile.cameraGear}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                        <p className="text-sm sm:text-base text-gray-700 mb-4">
-                          {profile.bio}
+      
+      {/* 탭 컨텐츠 */}
+      <TabsContent value="profile" className="mt-0">
+        <div className="space-y-6">
+          {/* 프로필 헤더 */}
+          <Card>
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+                <Avatar
+                  src={profile.avatarUrl}
+                  size="lg"
+                  alt={`${profile.username}의 프로필 사진`}
+                />
+                <div className="flex-1 w-full">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      @{profile.username}
+                    </h2>
+                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
+                      프리미엄
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <p className="text-sm sm:text-base text-gray-600">
+                      {profile.location}
+                    </p>
+                    {profile.cameraGear && (
+                      <>
+                        <span className="text-gray-300">|</span>
+                        <Camera className="w-4 h-4 text-gray-400" />
+                        <p className="text-sm sm:text-base text-gray-600">
+                          {profile.cameraGear}
                         </p>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-sm sm:text-base text-gray-700 mb-4">
+                    {profile.bio}
+                  </p>
 
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {profile.photoStyles.map((style, index) => (
-                            <Badge
-                              key={index}
-                              variant="secondary"
-                              className="text-xs sm:text-sm"
-                            >
-                              {style}
-                            </Badge>
-                          ))}
-                          <Badge variant="outline" className="text-xs sm:text-sm">
-                            {getLanguageNames(profile.languages)}
-                          </Badge>
-                        </div>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {profile.photoStyles.map((style, index) => (
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="text-xs sm:text-sm"
+                      >
+                        {style}
+                      </Badge>
+                    ))}
+                    <Badge variant="outline" className="text-xs sm:text-sm">
+                      {getLanguageNames(profile.languages)}
+                    </Badge>
+                  </div>
 
-                        <Button
-                          onClick={() => setIsEditingProfile(true)}
-                          disabled={isLoading}
-                          className="w-full sm:w-auto"
-                        >
-                          {isLoading ? (
-                            <>
-                              <LoadingSpinner size="sm" color="white" />
-                              로딩 중...
-                            </>
-                          ) : (
-                            "프로필 편집"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* 설정 */}
-                <Card>
-                  <CardHeader>
-                    <h3 className="text-lg font-semibold text-gray-900">설정</h3>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                            <Settings className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm sm:text-base">
-                              알림 설정
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              새 오퍼, 메시지, 매치 알림
-                            </div>
-                          </div>
-                        </div>
-                        <Settings className="w-4 h-4 text-gray-400" />
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
-                            <Award className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm sm:text-base">
-                              개인정보 보호
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              프로필 공개 설정, 데이터 관리
-                            </div>
-                          </div>
-                        </div>
-                        <Settings className="w-4 h-4 text-gray-400" />
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm sm:text-base">
-                              구독 관리
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              프리미엄 구독, 결제 정보
-                            </div>
-                          </div>
-                        </div>
-                        <Settings className="w-4 h-4 text-gray-400" />
-                      </div>
-                      <Separator />
-                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                            <Users className="w-4 h-4 text-red-600" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-red-600 text-sm sm:text-base">
-                              로그아웃
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              계정에서 로그아웃
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                        >
-                          로그아웃
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                  <Button
+                    onClick={() => setIsEditingProfile(true)}
+                    disabled={isLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    {isLoading ? (
+                      <>
+                        <LoadingSpinner size="sm" color="white" />
+                        로딩 중...
+                      </>
+                    ) : (
+                      "프로필 편집"
+                    )}
+                  </Button>
+                </div>
               </div>
-            </TabsContent>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="messages" className="mt-0">
-              <MessagesContent sent={sent} received={received} conversations={conversations} userId={userId} />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
-    </>
-  );
-}
+          {/* 설정 */}
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold text-gray-900">설정</h3>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between h-auto py-3 px-2 hover:bg-gray-50 text-gray-900 font-normal"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                        <Settings className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-sm sm:text-base">
+                          알림 설정
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-500">
+                          새 오퍼, 메시지, 매치 알림
+                        </div>
+                      </div>
+                    </div>
+                    <Settings className="w-4 h-4 text-gray-400" />
+                  </Button>
+                  <Separator />
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between h-auto py-3 px-2 hover:bg-gray-50 text-gray-900 font-normal"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                        <Award className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-sm sm:text-base">
+                          개인정보 보호
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-500">
+                          프로필 공개 설정, 데이터 관리
+                        </div>
+                      </div>
+                    </div>
+                    <Settings className="w-4 h-4 text-gray-400" />
+                  </Button>
+                  <Separator />
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between h-auto py-3 px-2 hover:bg-green-50 text-gray-900 font-normal"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-sm sm:text-base">
+                          구독 관리
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-500">
+                          프리미엄 구독, 결제 정보
+                        </div>
+                      </div>
+                    </div>
+                    <Settings className="w-4 h-4 text-gray-400" />
+                  </Button>
+                  <Separator />
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between h-auto py-3 px-2 hover:bg-red-50 text-red-600 hover:text-red-700 font-normal"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
+                        <Users className="w-4 h-4 text-red-600" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-sm sm:text-base">
+                          로그아웃
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-500">
+                          계정에서 로그아웃
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-export default function ProfilePage() {
-  const { profile, sent, received, conversations, userId } = useLoaderData<typeof loader>();
-  const { t } = useLanguage();
+        <TabsContent value="messages" className="mt-0">
+          <MessagesContent 
+            sent={sent} 
+            received={received} 
+            conversations={conversations} 
+            userId={userId} 
+            activeConversation={activeConversation}
+          />
+        </TabsContent>
+      </>
+    );
+  }
 
-  console.log(profile, "profile data in ProfilePage");
-  return (
-    <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            {t ? t("profile.title") : "프로필"}
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            {t ? t("profile.description") : "프로필 정보를 관리하고 CoSnap 활동을 확인하세요"}
-          </p>
-        </div>
+  export default function ProfilePage() {
+    const { data } = useLoaderData<typeof loader>();
+    const { t } = useLanguage();
+    const [searchParams, setSearchParams] = useSearchParams();
+    
+    // Initialize activeTab from URL search param or default to "profile"
+    const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
+  
+    // Sync state with URL param if it changes (e.g. from navigation)
+    useEffect(() => {
+      const tab = searchParams.get("tab");
+      if (tab && tab !== activeTab) {
+        setActiveTab(tab);
+      }
+    }, [searchParams]);
+  
+    // Update URL when tab changes
+    const handleTabChange = (value: string) => {
+      setActiveTab(value);
+      setSearchParams(prev => {
+        prev.set("tab", value);
+        return prev;
+      }, { replace: true });
+    };
+  
+    return (
+      <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Header */}
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              {t ? t("profile.title") : "프로필"}
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600">
+              {t ? t("profile.description") : "프로필 정보를 관리하고 CoSnap 활동을 확인하세요"}
+            </p>
+          </div>
+  
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* 좌측 탭 */}
+              <div className="lg:w-64">
+                  <TabsList className="grid w-full grid-cols-1 h-auto">
+                    <TabsTrigger value="profile">{t ? t("profile.tabs.profile") : "프로필"}</TabsTrigger>
+                    <TabsTrigger value="messages">{t ? t("profile.tabs.messages") : "메세지"}</TabsTrigger>
+                  </TabsList>
+              </div>
 
-        <Suspense fallback={<ProfileSkeleton />}>
-          {profile && (
-            <ProfileContent
-              profileData={profile}
-              sent={sent}
-              received={received}
-              conversations={conversations}
-              userId={userId}
-            />
-          )}
-        </Suspense>
+            {/* 메인 콘텐츠 */}
+            <div className="flex-1">
+              <Suspense fallback={<ProfileSkeleton />}>
+                <Await resolve={data}>
+                  {(resolvedData) => (
+                   <ProfileContent
+                    profileData={resolvedData.profile}
+                    location={resolvedData.location}
+                    sent={resolvedData.sent}
+                    received={resolvedData.received}
+                    conversations={resolvedData.conversations}
+                    userId={resolvedData.userId}
+                    activeConversation={resolvedData.activeConversation}
+                  />
+                )}
+                </Await>
+              </Suspense>
+            </div>
+          </div>
+        </Tabs>
       </div>
     </div>
   );

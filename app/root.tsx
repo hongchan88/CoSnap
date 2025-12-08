@@ -34,7 +34,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     data: { user },
   } = await client.auth.getUser();
 
-  return data({ user: user || null }, { headers });
+  return data({ 
+    user: user || null,
+    ENV: {
+      SUPABASE_URL: process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!,
+      SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!
+    }
+  }, { headers });
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -50,6 +56,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
         <ScrollRestoration />
         <Scripts />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.ENV = ${JSON.stringify(
+              // @ts-ignore
+              data.ENV
+            )}`,
+          }}
+        />
       </body>
     </html>
   );

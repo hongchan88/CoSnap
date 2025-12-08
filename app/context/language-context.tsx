@@ -21,49 +21,52 @@ const translations: Record<Language, Record<string, string>> = {
     "lang.english": "English",
 
     // Home page
-    "home.title": "CoSnap - Photo Exchange Community for Travelers",
+    "home.title": "CoSnap Connect - Community Where Travelers Rely on Each Other",
     "home.description":
-      "CoSnap where travelers take photos of each other! Meet new people and capture unforgettable moments together.",
-    "home.howItWorks.title": "How CoSnap Works",
+      "From travel help and advice to sharing hobbies. A community where travelers and locals help each other through any difficulty.",
+    "home.howItWorks.title": "How CoSnap Connect Works",
     "home.howItWorks.subtitle":
-      "Start your new travel experience in 4 simple steps",
-    "home.howItWorks.step1.title": "Create Flag",
+      "Get help, meet people, and share resources in 4 steps",
+    "home.howItWorks.step1.title": "Discover",
     "home.howItWorks.step1.desc":
-      "Register your travel plan as a Flag and let other travelers know",
-    "home.howItWorks.step2.title": "Exchange Offers",
+      "Find help requests, meetups, and free items on the map",
+    "home.howItWorks.step2.title": "Post & Flag",
     "home.howItWorks.step2.desc":
-      "Send or receive offers to travelers you're interested in",
-    "home.howItWorks.step3.title": "Get Matched",
+      "Create posts for help, travel advice, or hobbies. Premium users can drop flags anywhere.",
+    "home.howItWorks.step3.title": "Connect",
     "home.howItWorks.step3.desc":
-      "When an offer is accepted, the match is confirmed and you arrange to meet",
-    "home.howItWorks.step4.title": "Earn Focus",
+      "DM directly to offer help or join events. Local experts can assist you.",
+    "home.howItWorks.step4.title": "Review",
     "home.howItWorks.step4.desc":
-      "After a successful CoSnap, leave reviews for each other and build Focus",
+      "Build trust with honest reviews after every interaction.",
 
-    "home.whyCoSnap.title": "Why CoSnap?",
+    "home.whyCoSnap.title": "Community for Travelers",
     "home.whyCoSnap.subtitle":
-      "Experience safe and enjoyable travel in a trust-based community",
-    "home.whyCoSnap.focus.title": "Focus System",
+      "Ever faced difficulties while traveling? Lean on each other with CoSnap.",
+    "home.whyCoSnap.focus.title": "Trust via Reviews",
     "home.whyCoSnap.focus.desc":
-      "Build a safe community with trust scores. The more successful CoSnaps, the higher your Focus.",
-    "home.whyCoSnap.planning.title": "Plan-based Matching",
+      "Check user reviews and ratings before connecting. Honest feedback builds a safer community.",
+    "home.whyCoSnap.planning.title": "Location-First",
     "home.whyCoSnap.planning.desc":
-      "Share travel plans in advance and choose partners carefully. Safer and more meaningful interactions than real-time matching.",
-    "home.whyCoSnap.premium.title": "Premium Benefits",
+      "Everything is map-based. Find what you need exactly where you are or where you're going.",
+    "home.whyCoSnap.premium.title": "Premium Features",
     "home.whyCoSnap.premium.desc":
-      "Enjoy more opportunities and convenience with Premium. Create and modify travel plans anytime.",
+      "Get 5 flags, place them anywhere, unlimited DMs, and priority visibility.",
+    "home.whyCoSnap.premium.list1": "Unlimited DMs to connect freely",
+    "home.whyCoSnap.premium.list2": "Create Unlimited Flags for every plan",
+    "home.whyCoSnap.premium.list3": "Priority visibility to reach more locals",
 
-    "home.activeFlags.title": "Currently Active Travel Plans",
+    "home.activeFlags.title": "Live Community Activity",
     "home.activeFlags.subtitle":
-      "Check real travel plans from other travelers and apply for CoSnaps",
-    "home.activeFlags.noFlags": "No active travel plans yet",
-    "home.activeFlags.createFirst": "Create First Travel Plan",
+      "See what's happening around you right now",
+    "home.activeFlags.noFlags": "No active posts in this area",
+    "home.activeFlags.createFirst": "Create the first Post",
     "home.activeFlags.viewDetails": "View Details →",
     "home.activeFlags.premium": "Premium",
     "home.activeFlags.regular": "Regular",
 
-    "home.topProfiles.title": "Top CoSnap Users",
-    "home.topProfiles.subtitle": "Trusted users with high Focus scores",
+    "home.topProfiles.title": "Top Reviewed Users",
+    "home.topProfiles.subtitle": "Trusted users with high ratings and reviews",
     "home.topProfiles.equipment": "Equipment:",
     "home.topProfiles.style": "Style:",
     "home.topProfiles.languages": "Languages:",
@@ -111,13 +114,9 @@ const translations: Record<Language, Record<string, string>> = {
     "offerModal.photoStyle.candid": "Candid moments",
     "offerModal.photoStyle.cultural": "Cultural/festival photos",
 
-    // Focus Meter
-    "focusMeter.tier.blurry": "Blurry",
-    "focusMeter.tier.focusing": "Focusing",
-    "focusMeter.tier.clear": "Clear",
-    "focusMeter.tier.crystal": "Crystal",
-    "focusMeter.nextTierPoints": "Points needed to reach next tier: ",
-    "focusMeter.points": " points",
+    // Review System
+    "review.stars": "Stars",
+    "review.count": "Reviews",
     "characters": "characters",
 
     // Navigation
@@ -139,8 +138,8 @@ const translations: Record<Language, Record<string, string>> = {
     "flags.notification.deleted": "Flag has been deleted!",
     "flags.createButton": "Create New Travel Plan",
     "flags.processing": "Processing...",
-    "flags.activeSection": "Upcoming Travels",
-    "flags.pastSection": "Past Travels",
+    "flags.activeSection": "Current flags",
+    "flags.pastSection": "Expired flags",
     "flags.emptyActive": "No upcoming travel plans",
     "flags.emptyActiveSub": "Create a new Flag to share your travel plan",
     "flags.emptyPast": "No past travel records",
@@ -224,6 +223,8 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.viewOnMap": "🗺️ View closer on map",
     "explore.receivedOffers": "Received offers",
     "explore.sendOffer": "Send Offer →",
+    "explore.chat": "Chat",
+    "explore.pending": "Pending",
     "explore.days": "days",
 
     // Profile Error Messages
@@ -239,6 +240,7 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noMessages": "No messages yet",
     "profile.noMessagesSub": "You have no new messages",
     "profile.goToInbox": "Go to Inbox",
+    "profile.messageButton": "Go to Messages",
 
     // Inbox Page
     "inbox.title": "Inbox",
@@ -262,6 +264,15 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     "common.loadMore": "Load More",
     "common.loading": "Loading...",
+
+    // Flag Types
+    "flagType.meet": "👋 Meetup",
+    "flagType.help": "🙏 Help Request",
+    "flagType.emergency": "Emergency",
+    "flagType.free": "Free/Sharing",
+    "flagType.photo": "Photo Shoot",
+    "flagType.offer": "Offer Help",
+    "flagType.other": "Other",
   },
   ko: {
     // Navigation (already exists above)
@@ -269,49 +280,52 @@ const translations: Record<Language, Record<string, string>> = {
     "lang.english": "English",
 
     // Home page
-    "home.title": "CoSnap - 여행자들의 사진 교환 커뮤니티",
+    "home.title": "CoSnap Connect - 서로 의지하는 여행자 커뮤니티",
     "home.description":
-      "여행자들이 서로의 사진을 찍어주는 CoSnap! 새로운 사람들을 만나고 잊지 못할 순간들을 함께 담아보세요.",
-    "home.howItWorks.title": "CoSnap은 이렇게 작동해요",
-    "home.howItWorks.subtitle": "간단한 4단계로 새로운 여행 경험을 시작하세요",
-    "home.howItWorks.step1.title": "Flag 생성",
+      "여행 중 겪는 어려움, 도움, 조언, 그리고 취미 생활까지. 현지인과 여행자가 서로 돕는 따뜻한 커뮤니티, CoSnap입니다.",
+    "home.howItWorks.title": "CoSnap Connect 이용 방법",
+    "home.howItWorks.subtitle": "도움, 만남, 나눔을 위한 간단한 4단계",
+    "home.howItWorks.step1.title": "탐색 (Discover)",
     "home.howItWorks.step1.desc":
-      "여행 계획을 Flag로 등록하고 다른 여행자들에게 알리세요",
-    "home.howItWorks.step2.title": "Offer 교환",
+      "지도 위에서 도움 요청, 번개 모임, 무료 나눔을 찾아보세요",
+    "home.howItWorks.step2.title": "등록 (Post & Flag)",
     "home.howItWorks.step2.desc":
-      "마음에 드는 여행자에게 오퍼를 보내거나 받으세요",
-    "home.howItWorks.step3.title": "Match 성사",
+      "도움이 필요하거나 취미를 공유하고 싶을 때 글을 남기세요. 프리미엄은 어디든 Flag를 꽂을 수 있어요.",
+    "home.howItWorks.step3.title": "연결 (Connect)",
     "home.howItWorks.step3.desc":
-      "오퍼가 수락되면 매치가 확정되고 만남을 약속해요",
-    "home.howItWorks.step4.title": "Focus 획득",
+      "현지인에게 도움을 요청하거나, 여행자들과 서로 의지하세요.",
+    "home.howItWorks.step4.title": "리뷰 (Review)",
     "home.howItWorks.step4.desc":
-      "성공적인 CoSnap 후 서로 리뷰를 남기고 Focus를 쌓아요",
+      "활동 후 서로에게 리뷰를 남겨주세요. 솔직한 리뷰가 신뢰를 만듭니다.",
 
-    "home.whyCoSnap.title": "왜 CoSnap인가요?",
+    "home.whyCoSnap.title": "여행자를 위한 커뮤니티",
     "home.whyCoSnap.subtitle":
-      "신뢰 기반의 커뮤니티에서 안전하고 즐거운 여행 경험을 만나보세요",
-    "home.whyCoSnap.focus.title": "Focus 시스템",
+      "여행하면서 어려움을 겪으신 적 있나요? 이제 CoSnap에서 서로 의지하세요.",
+    "home.whyCoSnap.focus.title": "리뷰 기반의 신뢰",
     "home.whyCoSnap.focus.desc":
-      "신뢰도 점수로 안전한 커뮤니티를 구축합니다. 성공적인 CoSnap일수록 Focus가 올라가요.",
-    "home.whyCoSnap.planning.title": "계획 기반 매칭",
+      "사용자의 리뷰와 평점을 미리 확인하세요. 검증된 여행자와 안전하게 만날 수 있습니다.",
+    "home.whyCoSnap.planning.title": "위치 기반 리얼타임",
     "home.whyCoSnap.planning.desc":
-      "여행 계획을 미리 공유하고 신중하게 파트너를 선택하세요. 실시간 매칭보다 더 안전하고 깊이 있는 교류가 가능해요.",
+      "모든 정보는 지도 위에 있습니다. 내 주변의 도움과 만남을 직관적으로 확인하세요.",
     "home.whyCoSnap.premium.title": "프리미엄 혜택",
     "home.whyCoSnap.premium.desc":
-      "프리미엄으로 더 많은 기회와 편리함을 누리세요. 언제든지 여행 계획을 만들고 수정할 수 있어요.",
+      "5개의 Flag, 자유로운 위치 설정, 무제한 DM, 그리고 우선 노출 혜택을 누리세요.",
+    "home.whyCoSnap.premium.list1": "자유로운 소통을 위한 무제한 DM",
+    "home.whyCoSnap.premium.list2": "모든 계획을 담을 수 있는 무제한 Flag",
+    "home.whyCoSnap.premium.list3": "내 글이 더 잘 보이는 우선 노출 혜택",
 
-    "home.activeFlags.title": "현재 활성화된 여행 계획",
+    "home.activeFlags.title": "실시간 커뮤니티 활동",
     "home.activeFlags.subtitle":
-      "다른 여행자들의 실제 여행 계획을 확인하고 CoSnap을 신청해보세요",
-    "home.activeFlags.noFlags": "아직 활성화된 여행 계획이 없습니다",
-    "home.activeFlags.createFirst": "첫 여행 계획 만들기",
+      "지금 주변에서 일어나고 있는 일들을 확인해보세요",
+    "home.activeFlags.noFlags": "아직 이 주변에 활동이 없습니다",
+    "home.activeFlags.createFirst": "첫 활동 시작하기",
     "home.activeFlags.viewDetails": "자세히 보기 →",
     "home.activeFlags.premium": "프리미엄",
     "home.activeFlags.regular": "일반",
 
-    "home.topProfiles.title": "Top CoSnap 사용자",
+    "home.topProfiles.title": "베스트 리뷰 유저",
     "home.topProfiles.subtitle":
-      "높은 Focus 점수를 보유한 신뢰할 수 있는 사용자들",
+      "좋은 평판과 많은 리뷰를 보유한 신뢰할 수 있는 사용자들",
     "home.topProfiles.equipment": "장비:",
     "home.topProfiles.style": "스타일:",
     "home.topProfiles.languages": "언어:",
@@ -359,13 +373,9 @@ const translations: Record<Language, Record<string, string>> = {
     "offerModal.photoStyle.candid": "자연스러운 순간",
     "offerModal.photoStyle.cultural": "문화/축제",
 
-    // Focus Meter
-    "focusMeter.tier.blurry": "흐릿",
-    "focusMeter.tier.focusing": "집중",
-    "focusMeter.tier.clear": "명선",
-    "focusMeter.tier.crystal": "크리스탈",
-    "focusMeter.nextTierPoints": "다음 티어까지 ",
-    "focusMeter.points": "점",
+    // Review System
+    "review.stars": "별점",
+    "review.count": "개의 리뷰",
     "characters": "자",
 
     // Navigation
@@ -387,8 +397,8 @@ const translations: Record<Language, Record<string, string>> = {
     "flags.notification.deleted": "Flag가 삭제되었습니다!",
     "flags.createButton": "새 여행 계획 만들기",
     "flags.processing": "처리 중...",
-    "flags.activeSection": "예정된 여행",
-    "flags.pastSection": "지난 여행",
+    "flags.activeSection": "현재 flags",
+    "flags.pastSection": "만료된 flags",
     "flags.emptyActive": "예정된 여행 계획이 없습니다",
     "flags.emptyActiveSub": "새로운 Flag를 만들어 여행 계획을 공유해보세요",
     "flags.emptyPast": "지난 여행 기록이 없습니다",
@@ -474,6 +484,8 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.viewOnMap": "🗺️ 지도에서 가까이 보기",
     "explore.receivedOffers": "받은 오퍼",
     "explore.sendOffer": "오퍼 보내기 →",
+    "explore.chat": "대화하기",
+    "explore.pending": "대기중",
     "explore.days": "일",
 
 
@@ -485,6 +497,7 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noMessages": "메세지가 없습니다",
     "profile.noMessagesSub": "새로운 메세지가 없습니다",
     "profile.goToInbox": "인박스로 이동",
+    "profile.messageButton": "메시지함으로 이동",
 
     // Profile Error Messages
     "error.profile.notFound": "프로필을 찾을 수 없습니다. 먼저 프로필 설정을 완료해주세요.",
@@ -513,6 +526,15 @@ const translations: Record<Language, Record<string, string>> = {
     // Common
     "common.loadMore": "더 보기",
     "common.loading": "로딩 중...",
+
+    // Flag Types
+    "flagType.meet": "👋 번개/모임",
+    "flagType.help": "🙏 Help 요청",
+    "flagType.emergency": "긴급",
+    "flagType.free": "나눔/무료",
+    "flagType.photo": "사진 촬영",
+    "flagType.offer": "도움 제안",
+    "flagType.other": "기타",
   },
 };
 

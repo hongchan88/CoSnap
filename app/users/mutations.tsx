@@ -517,6 +517,36 @@ export const acceptOffer = async (
       return { success: false, error: "Failed to create match" };
     }
 
+    // 4. Create or Get Conversation (Auto-link)
+    // Check if one exists for this offer or post context
+    const { data: existingConv } = await client
+        .from("conversations")
+        .select("id")
+        .eq("offer_id", offerId)
+        .single();
+    
+    let conversationId = existingConv?.id;
+
+    if (!conversationId) {
+        const { data: newConv, error: convError } = await client
+            .from("conversations")
+            .insert({
+                user_a_id: offer.sender_id,
+                user_b_id: offer.receiver_id,
+                offer_id: offerId,
+                post_id: offer.post_id // if exists
+            })
+            .select("id")
+            .single();
+        
+        if (!convError && newConv) {
+            conversationId = newConv.id;
+        } else {
+             console.error("Error auto-creating conversation:", convError);
+             // We don't fail the whole operation, just log it. User can create manual DM later if needed.
+        }
+    }
+
     // Send notification to sender (who is now user_a in match)
     await createNotification(client, {
       recipientId: offer.sender_id,
@@ -526,7 +556,7 @@ export const acceptOffer = async (
       referenceType: "match",
     });
 
-    return { success: true, match };
+    return { success: true, match, conversationId };
   } catch (error) {
     console.error("Unexpected error accepting offer:", error);
     return { success: false, error: "Failed to accept offer" };
