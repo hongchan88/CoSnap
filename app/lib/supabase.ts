@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import {
   createServerClient,
+  createBrowserClient,
   parseCookieHeader,
   serializeCookieHeader,
   type CookieMethodsServer,
@@ -20,8 +21,8 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 
 // Supabase 클라이언트를 안전하게 생성하는 함수 (SSR & CSR 호환)
 export function createSupabaseClient(request?: Request) {
-  const supabaseUrl = process.env.SUPABASE_URL!;
-  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY!;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
@@ -62,6 +63,30 @@ export function createSupabaseClient(request?: Request) {
   });
 
   return { client: serversideClient, headers };
+}
+
+// Client-side helper to get authenticated client for browser usage
+export function getSupabaseBrowserClient() {
+  if (typeof window === "undefined") return null;
+
+  // Try Vite env vars first (standard for client-side)
+  const envUrl = import.meta.env.VITE_SUPABASE_URL;
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (envUrl && envKey) {
+    return createBrowserClient(envUrl, envKey);
+  }
+  
+  // Fallback to window.ENV if injected
+  // @ts-ignore
+  const env = window.ENV;
+  
+  if (!env?.SUPABASE_URL || !env?.SUPABASE_ANON_KEY) {
+    console.error("Supabase env vars missing in browser environment");
+    return null;
+  }
+
+  return createBrowserClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
 }
 
 // Avatar upload functions

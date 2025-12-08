@@ -694,6 +694,76 @@ export const getUserConversations = async (
 };
 
 
+export const getConversationDetails = async (
+  client: SupabaseClient,
+  conversationId: string,
+  userId: string
+) => {
+  try {
+    // 1. Fetch basic conversation record
+    const { data: conversation, error: convError } = await client
+      .from("conversations")
+      .select("*")
+      .eq("id", conversationId)
+      .single();
+
+    if (convError || !conversation) {
+      console.error("Error fetching conversation basic:", convError);
+      return { success: false, error: "Conversation not found" };
+    }
+
+    // 2. Determine partner ID
+    const isUserA = conversation.user_a_id === userId;
+    const partnerId = isUserA ? conversation.user_b_id : conversation.user_a_id;
+
+    // 3. Fetch related data (Manual joins for safety)
+    const [partnerRes, offerRes, postRes] = await Promise.all([
+      client.from("profiles").select("username, avatar_url").eq("profile_id", partnerId).single(),
+      conversation.offer_id 
+        ? client.from("offers").select("id, status, price, currency").eq("id", conversation.offer_id).single() 
+        : { data: null },
+      conversation.post_id 
+        ? client.from("posts").select("title, type").eq("id", conversation.post_id).single() 
+        : { data: null }
+    ]);
+
+    const partner = partnerRes.data;
+
+    // 4. Reconstruct conversation object
+    const conversationWithDetails = {
+      ...conversation,
+      user_a: isUserA ? null : partner,
+      user_b: isUserA ? partner : null,
+      offer: offerRes.data,
+      post: postRes.data,
+      // For compatibility with some UI that might expect partner at top level
+      partner: partner 
+    };
+
+    // 5. Fetch messages
+    const { data: messages, error: msgError } = await client
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: true });
+
+    if (msgError) {
+      return { success: false, error: "Failed to load messages" };
+    }
+
+    return { 
+      success: true, 
+      conversation: conversationWithDetails, 
+      messages, 
+      partner 
+    };
+
+  } catch (error) {
+    console.error("Unexpected error in getConversationDetails:", error);
+    return { success: false, error: "Failed to fetch conversation details" };
+  }
+};
+
 // --- Stats & Search ---
 
 export const getTopProfiles = async (client: SupabaseClient, limit: number = 3) => {

@@ -1,5 +1,6 @@
 import { Button } from "~/components/ui/button";
 import { PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
+import { useNavigate } from "react-router";
 import { useLanguage } from "~/context/language-context";
 
 interface FlagListItemProps {
@@ -23,6 +24,7 @@ export default function FlagListItem({
   onSendOffer,
   isHighlighted,
 }: FlagListItemProps) {
+  const navigate = useNavigate();
   const { t } = useLanguage();
 
   const getTypeLabel = (type?: string) => {
@@ -196,6 +198,7 @@ export default function FlagListItem({
             {t("explore.viewOnMap")}
           </Button>
 
+          {/* Dynamic Action Button based on Offer Status */}
           {currentUserId === flag.user_id ? (
             <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-full border border-yellow-100">
               <span className="text-xs font-medium text-yellow-700">
@@ -203,17 +206,47 @@ export default function FlagListItem({
               </span>
             </div>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-blue-600 hover:text-blue-800 font-medium"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSendOffer(flag);
-              }}
-            >
-              {t("explore.sendOffer")}
-            </Button>
+            <>
+              {flag.my_offer_status === 'accepted' ? (
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Redirect to profile messages tab with conversation open
+                    if (flag.my_conversation_id) {
+                      navigate(`/profile?tab=messages&conversationId=${flag.my_conversation_id}`);
+                    } else {
+                      // Fallback or error handling if conversation ID missing despite acceptance
+                      console.error("Conversation ID not found for accepted offer");
+                    }
+                  }}
+                >
+                  {t("explore.chat")} 💬
+                </Button>
+              ) : flag.my_offer_status === 'pending' ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled
+                  className="bg-gray-100 text-gray-500 cursor-not-allowed"
+                >
+                   {t("explore.pending")} ⏳
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-600 hover:text-blue-800 font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSendOffer(flag);
+                  }}
+                >
+                  {t("explore.sendOffer")}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
 import { useLoaderData, useNavigation, redirect, useSearchParams, useFetcher, Await } from "react-router";
 import { createSupabaseClient } from "~/lib/supabase";
-import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag } from "~/users/queries";
+import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag, getUserOffers, getUserConversations } from "~/users/queries";
 import type { Route } from "./+types/explore";
 import OfferModal from "~/components/OfferModal";
 import ProfileModal from "~/components/ProfileModal";
@@ -54,13 +54,49 @@ export async function loader({ request }: Route.LoaderArgs) {
 
         let flagsWithCounts = flags;
         if (userId) {
+          // Optimization: Fetch all my sent offers and conversations once
+          const [offersRes, conversationsRes] = await Promise.all([
+             getUserOffers(client, userId),
+             getUserConversations(client, userId)
+          ]);
+
+          const myOffers = offersRes.success ? offersRes.sent : [];
+          const myConversations = conversationsRes.success ? conversationsRes.conversations : [];
+
+          // Create lookup maps
+          const offerMap = new Map();
+          myOffers.forEach((o: any) => {
+              offerMap.set(o.flag_id, o);
+          });
+          
+          const conversationMap = new Map();
+          // Map conversation by offer_id (most reliable link for this flow)
+          myConversations.forEach((c: any) => {
+              if (c.offer_id) conversationMap.set(c.offer_id, c);
+          });
+
           flagsWithCounts = await Promise.all(
             flags.map(async (flag) => {
+              // If I am the owner, get received offer count
               if (flag.user_id === userId) {
                 const { count } = await getOfferCountByFlag(client, flag.id);
                 return { ...flag, offer_count: count };
               }
-              return flag;
+              
+              // If I am a viewer, attach my interaction status
+              const myOffer = offerMap.get(flag.id);
+              let myConversationId = undefined;
+              
+              if (myOffer && myOffer.status === 'accepted') {
+                  const conv = conversationMap.get(myOffer.id);
+                  if (conv) myConversationId = conv.id;
+              }
+
+              return { 
+                  ...flag, 
+                  my_offer_status: myOffer?.status,
+                  my_conversation_id: myConversationId 
+              };
             })
           );
         }

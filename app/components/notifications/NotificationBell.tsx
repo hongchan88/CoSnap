@@ -106,8 +106,19 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
 
     // Navigate based on type
-    if (notification.type.includes("offer") || notification.type.includes("match")) {
-      navigate("/inbox");
+    if (notification.type.includes("offer")) {
+      if (notification.type === "offer_received") {
+        navigate("/profile?tab=received");
+      } else if (notification.type === "offer_accepted") {
+        navigate("/profile?tab=sent");
+      } else {
+        navigate("/profile?tab=messages");
+      }
+    } else if (notification.type.includes("match")) {
+      navigate("/profile?tab=messages");
+    } else {
+      // Default fallback
+      navigate("/profile?tab=messages");
     }
   };
 

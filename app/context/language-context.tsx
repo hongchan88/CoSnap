@@ -223,6 +223,8 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.viewOnMap": "🗺️ View closer on map",
     "explore.receivedOffers": "Received offers",
     "explore.sendOffer": "Send Offer →",
+    "explore.chat": "Chat",
+    "explore.pending": "Pending",
     "explore.days": "days",
 
     // Profile Error Messages
@@ -238,6 +240,7 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noMessages": "No messages yet",
     "profile.noMessagesSub": "You have no new messages",
     "profile.goToInbox": "Go to Inbox",
+    "profile.messageButton": "Go to Messages",
 
     // Inbox Page
     "inbox.title": "Inbox",
@@ -481,6 +484,8 @@ const translations: Record<Language, Record<string, string>> = {
     "explore.viewOnMap": "🗺️ 지도에서 가까이 보기",
     "explore.receivedOffers": "받은 오퍼",
     "explore.sendOffer": "오퍼 보내기 →",
+    "explore.chat": "대화하기",
+    "explore.pending": "대기중",
     "explore.days": "일",
 
 
@@ -492,6 +497,7 @@ const translations: Record<Language, Record<string, string>> = {
     "profile.noMessages": "메세지가 없습니다",
     "profile.noMessagesSub": "새로운 메세지가 없습니다",
     "profile.goToInbox": "인박스로 이동",
+    "profile.messageButton": "메시지함으로 이동",
 
     // Profile Error Messages
     "error.profile.notFound": "프로필을 찾을 수 없습니다. 먼저 프로필 설정을 완료해주세요.",
