@@ -1,7 +1,7 @@
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/profile";
 import { useState, Suspense } from "react";
-import { useLoaderData, useActionData, useSubmit, useFetcher, Link } from "react-router";
+import { useLoaderData, useActionData, useSubmit, useFetcher, Link, Await } from "react-router";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -46,41 +46,42 @@ export async function loader({ request }: Route.LoaderArgs) {
   const { client } = createSupabaseClient(request);
   const userId = await getLoggedInUserId(client);
 
-  const { profile, error: profileError } = await getUserProfile(client, userId);
+  const dataPromise = (async () => {
+    const { profile, error: profileError } = await getUserProfile(client, userId);
   
-  if (profileError || !profile) {
-     console.error("Failed to fetch profile:", profileError);
-     // If authenticated but no profile, this is a critical state. 
-     // For now throwing error, but ideal would be redirect to onboarding.
-     throw new Response("Profile not found", { status: 404 });
-  }
+    if (profileError || !profile) {
+       console.error("Failed to fetch profile:", profileError);
+       throw new Response("Profile not found", { status: 404 });
+    }
 
-  // Fetch all flags to determine location
-  const { flags = [] } = await getUserAllFlags(client, userId);
-  
-  // Derive location from the most recent active flag
-  const activeFlag = flags?.find(f => f.visibility_status === 'active');
-  const location = activeFlag 
-    ? `${activeFlag.city}, ${activeFlag.country}` 
-    : "위치 정보 미설정"; // "Location not set"
+    // Fetch all flags to determine location
+    const { flags = [] } = await getUserAllFlags(client, userId);
+    
+    // Derive location from the most recent active flag
+    const activeFlag = flags?.find(f => f.visibility_status === 'active');
+    const location = activeFlag 
+      ? `${activeFlag.city}, ${activeFlag.country}` 
+      : "위치 정보 미설정"; // "Location not set"
 
-  // Also fetch inbox data like inbox.tsx does
-  const { success, sent, received, error } = await getUserOffers(client, userId);
-  const { success: convSuccess, conversations, error: convError } = await getUserConversations(client, userId);
+    // Also fetch inbox data like inbox.tsx does
+    const { success, sent, received, error } = await getUserOffers(client, userId);
+    const { success: convSuccess, conversations, error: convError } = await getUserConversations(client, userId);
 
-  if (!success || !convSuccess) {
-    console.error("Failed to fetch profile data:", error || convError);
-    // Don't crash entire page for inbox error, just return empty arrays
-  }
+    if (!success || !convSuccess) {
+      console.error("Failed to fetch profile data:", error || convError);
+    }
 
-  return { 
-    profile, 
-    location, // Pass derived location
-    sent: sent || [], 
-    received: received || [], 
-    conversations: conversations || [], 
-    userId 
-  };
+    return { 
+      profile, 
+      location, 
+      sent: sent || [], 
+      received: received || [], 
+      conversations: conversations || [], 
+      userId 
+    };
+  })();
+
+  return { data: dataPromise };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -636,7 +637,7 @@ function ProfileContent({
                         <Settings className="w-4 h-4 text-gray-400" />
                       </div>
                       <Separator />
-                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between py-3 px-2 rounded-lg hover:bg-green-50 transition-colors cursor-pointer">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
                             <TrendingUp className="w-4 h-4 text-green-600" />
@@ -692,10 +693,10 @@ function ProfileContent({
 }
 
 export default function ProfilePage() {
-  const { profile, location, sent, received, conversations, userId } = useLoaderData<typeof loader>();
+  const { data } = useLoaderData<typeof loader>();
   const { t } = useLanguage();
 
-  console.log(profile, "profile data in ProfilePage");
+  console.log(data, "profile data in ProfilePage");
   return (
     <div className="min-h-screen bg-gray-50 py-4 sm:py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -710,16 +711,18 @@ export default function ProfilePage() {
         </div>
 
         <Suspense fallback={<ProfileSkeleton />}>
-          {profile && (
-            <ProfileContent
-              profileData={profile}
-              location={location}
-              sent={sent}
-              received={received}
-              conversations={conversations}
-              userId={userId}
+          <Await resolve={data}>
+            {(resolvedData) => (
+             <ProfileContent
+              profileData={resolvedData.profile}
+              location={resolvedData.location}
+              sent={resolvedData.sent}
+              received={resolvedData.received}
+              conversations={resolvedData.conversations}
+              userId={resolvedData.userId}
             />
           )}
+          </Await>
         </Suspense>
       </div>
     </div>

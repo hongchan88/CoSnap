@@ -798,33 +798,26 @@ function FlagsContent({
 }
 
 export default function FlagsPage() {
-  const { t } = useLanguage();
   const { dataPromise } = useLoaderData<typeof loader>();
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {t("flags.title")}
-          </h1>
-          <p className="text-gray-600">{t("flags.description")}</p>
-        </div>
-
-        <Suspense fallback={<FlagsSkeleton />}>
-          <Await resolve={dataPromise}>
-            {(data) => (
-              <FlagsContent
-                initialFlags={data?.flags || []}
-                receivedOffers={data?.receivedOffers || []}
-                sentOffers={data?.sentOffers || []}
-                userId={data?.userId || ""}
-              />
-            )}
-          </Await>
-        </Suspense>
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">My Travel Plans</h1>
       </div>
+
+      <Suspense fallback={<FlagsSkeleton />}>
+        <Await resolve={dataPromise}>
+          {(resolvedData) => (
+            <FlagsContent
+              initialFlags={resolvedData?.flags || []}
+              receivedOffers={resolvedData?.receivedOffers || []}
+              sentOffers={resolvedData?.sentOffers || []}
+              userId={resolvedData?.userId || ""}
+            />
+          )}
+        </Await>
+      </Suspense>
     </div>
   );
 }

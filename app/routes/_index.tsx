@@ -1,6 +1,6 @@
 import { Suspense, lazy, useRef } from "react";
 import type { Route } from "./+types/_index";
-import { Link, Form, useLoaderData, useNavigate } from "react-router";
+import { Link, Form, useLoaderData, useNavigate, Await } from "react-router";
 import { POPULAR_DESTINATIONS } from "~/lib/constants";
 import { motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
@@ -8,6 +8,7 @@ import { ClientOnly } from "~/components/ClientOnly";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getTopProfiles, getCommunityStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
+import { Skeleton } from "~/components/ui/skeleton";
 
 const MapView = lazy(() => import("~/components/MapView"));
 
@@ -23,35 +24,54 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const response = new Response();
   const { client } = createSupabaseClient(request);
 
-  // Fetch active flags for the map
-  const { flags: activeFlags = [] } = await getAllActiveFlags(client);
+  // Defer all data fetching
+  const dataPromise = (async () => {
+    try {
+      const [
+        { flags: activeFlags = [] },
+        { profiles: topProfiles = [] },
+        { stats }
+      ] = await Promise.all([
+        getAllActiveFlags(client),
+        getTopProfiles(client),
+        getCommunityStats(client)
+      ]);
 
-  console.log(activeFlags, "flags");
+      return {
+        activeFlags,
+        topProfiles,
+        stats: stats || {
+          totalActiveFlags: activeFlags.length,
+          totalProfiles: 0,
+          averageFocusScore: 0,
+          totalCoSnaps: 0,
+        }
+      };
+    } catch (error) {
+      console.error("Home loader error:", error);
+      return {
+        activeFlags: [],
+        topProfiles: [],
+        stats: {
+          totalActiveFlags: 0,
+          totalProfiles: 0,
+          averageFocusScore: 0,
+          totalCoSnaps: 0,
+        }
+      };
+    }
+  })();
 
-  // Fetch top profiles and stats from DB
-  const { profiles: topProfiles = [] } = await getTopProfiles(client);
-  const { stats } = await getCommunityStats(client);
-
-  return {
-    activeFlags,
-    topProfiles,
-    stats: stats || {
-      totalActiveFlags: activeFlags.length,
-      totalProfiles: 0,
-      averageFocusScore: 0,
-      totalCoSnaps: 0,
-    },
-  };
+  return { data: dataPromise };
 }
 
-export default function Index() {
+function HomeContent({ data }: { data: any }) {
   const navigate = useNavigate();
-  const loaderData = useLoaderData<typeof loader>();
   const contentRef = useRef<HTMLDivElement>(null);
   const { t } = useLanguage();
+  const { activeFlags, topProfiles, stats } = data;
 
   const handleMarkerClick = (city: string) => {
     console.log("click handle marker click");
@@ -65,7 +85,7 @@ export default function Index() {
   };
 
   // Calculate flag counts per country
-  const countryCounts = loaderData.activeFlags.reduce(
+  const countryCounts = activeFlags.reduce(
     (acc: Record<string, number>, flag: any) => {
       const country = flag.country;
       acc[country] = (acc[country] || 0) + 1;
@@ -73,7 +93,7 @@ export default function Index() {
     },
     {}
   );
-  console.log(countryCounts, "country count");
+  
   // Merge POPULAR_DESTINATIONS with real counts
   const heroMarkers = POPULAR_DESTINATIONS.map((dest) => ({
     id: `popular-${dest.city}`,
@@ -346,7 +366,7 @@ export default function Index() {
             whileInView="whileInView"
             viewport={{ once: false, amount: 0.3 }}
           >
-            {loaderData.activeFlags.map((flag: any) => (
+            {activeFlags.map((flag: any) => (
               <motion.div
                 key={flag.id}
                 className="bg-gray-50 rounded-xl p-6 hover:shadow-md transition-shadow"
@@ -404,7 +424,7 @@ export default function Index() {
             ))}
           </motion.div>
 
-          {loaderData.activeFlags.length === 0 && (
+          {activeFlags.length === 0 && (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🗺️</div>
               <p className="text-gray-500 mb-4">
@@ -444,7 +464,7 @@ export default function Index() {
             whileInView="whileInView"
             viewport={{ once: false, amount: 0.3 }}
           >
-            {loaderData.topProfiles.map((profile: any) => (
+            {topProfiles.map((profile: any) => (
               <motion.div
                 key={profile.id}
                 className="bg-white rounded-xl p-6 shadow-sm"
@@ -651,4 +671,44 @@ export default function Index() {
       </section>
     </div>
   );
+}
+
+function HomeSkeleton() {
+    return (
+        <div className="min-h-screen bg-white">
+            <div className="relative h-screen w-full overflow-hidden bg-gray-50">
+                <Skeleton className="w-full h-full" />
+                <div className="absolute inset-x-0 bottom-24 flex justify-center z-10">
+                     <Skeleton className="h-12 w-64 rounded-full" />
+                </div>
+            </div>
+            
+            <div className="max-w-7xl mx-auto px-4 py-24">
+                 <div className="flex justify-center mb-16">
+                     <Skeleton className="h-10 w-64" />
+                 </div>
+                 <div className="grid md:grid-cols-4 gap-8">
+                     {[...Array(4)].map((_, i) => (
+                        <div key={i} className="flex flex-col items-center">
+                            <Skeleton className="h-20 w-20 rounded-2xl mb-6" />
+                             <Skeleton className="h-6 w-32 mb-3" />
+                             <Skeleton className="h-4 w-48" />
+                        </div>
+                     ))}
+                 </div>
+            </div>
+        </div>
+    )
+}
+
+export default function Index() {
+  const { data } = useLoaderData<typeof loader>();
+  
+    return (
+        <Suspense fallback={<HomeSkeleton />}>
+        <Await resolve={data}>
+            {(resolvedData) => <HomeContent data={resolvedData} />}
+        </Await>
+        </Suspense>
+    );
 }
