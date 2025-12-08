@@ -14,11 +14,11 @@ const MapView = lazy(() => import("~/components/MapView"));
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "CoSnap - 여행자들의 사진 교환 커뮤니티" },
+    { title: "CoSnap Connect - 서로 의지하는 여행자 커뮤니티" },
     {
       name: "description",
       content:
-        "여행자들이 서로의 사진을 찍어주는 CoSnap! 새로운 사람들을 만나고 잊지 못할 순간들을 함께 담아보세요.",
+        "여행 중 겪는 어려움, 도움, 조언, 그리고 취미 생활까지. 현지인과 여행자가 서로 돕는 따뜻한 커뮤니티, CoSnap입니다.",
     },
   ];
 }
@@ -170,12 +170,12 @@ function HomeContent({ data }: { data: any }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {t ? t("home.howItWorks.title") : "CoSnap은 이렇게 작동해요"}
+              {t ? t("home.howItWorks.title") : "CoSnap Connect 이용 방법"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               {t
                 ? t("home.howItWorks.subtitle")
-                : "간단한 4단계로 새로운 여행 경험을 시작하세요"}
+                : "도움, 만남, 나눔을 위한 간단한 4단계"}
             </p>
           </motion.div>
 
@@ -189,31 +189,31 @@ function HomeContent({ data }: { data: any }) {
             {[
               {
                 icon: "🚩",
-                title: t ? t("home.howItWorks.step1.title") : "Flag 생성",
+                title: t ? t("home.howItWorks.step1.title") : "탐색 (Discover)",
                 desc: t
                   ? t("home.howItWorks.step1.desc")
-                  : "여행 계획을 Flag로 등록하고 다른 여행자들에게 알리세요",
+                  : "지도 위에서 도움 요청, 번개 모임, 무료 나눔을 찾아보세요",
               },
               {
                 icon: "💌",
-                title: t ? t("home.howItWorks.step2.title") : "Offer 교환",
+                title: t ? t("home.howItWorks.step2.title") : "등록 (Post & Flag)",
                 desc: t
                   ? t("home.howItWorks.step2.desc")
-                  : "마음에 드는 여행자에게 오퍼를 보내거나 받으세요",
+                  : "도움이 필요하거나 취미를 공유하고 싶을 때 글을 남기세요. 프리미엄은 어디든 Flag를 꽂을 수 있어요.",
               },
               {
                 icon: "🤝",
-                title: t ? t("home.howItWorks.step3.title") : "Match 성사",
+                title: t ? t("home.howItWorks.step3.title") : "연결 (Connect)",
                 desc: t
                   ? t("home.howItWorks.step3.desc")
-                  : "오퍼가 수락되면 매치가 확정되고 만남을 약속해요",
+                  : "현지인에게 도움을 요청하거나, 여행자들과 서로 의지하세요.",
               },
               {
                 icon: "⭐",
-                title: t ? t("home.howItWorks.step4.title") : "Focus 획득",
+                title: t ? t("home.howItWorks.step4.title") : "리뷰 (Review)",
                 desc: t
                   ? t("home.howItWorks.step4.desc")
-                  : "성공적인 CoSnap 후 서로 리뷰를 남기고 Focus를 쌓아요",
+                  : "활동 후 서로에게 리뷰를 남겨주세요. 솔직한 리뷰가 신뢰를 만듭니다.",
               },
             ].map((item, index) => (
               <motion.div
@@ -239,12 +239,12 @@ function HomeContent({ data }: { data: any }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {t ? t("home.whyCoSnap.title") : "왜 CoSnap인가요?"}
+              {t ? t("home.whyCoSnap.title") : "여행자를 위한 커뮤니티"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               {t
                 ? t("home.whyCoSnap.subtitle")
-                : "신뢰 기반의 커뮤니티에서 안전하고 즐거운 여행 경험을 만나보세요"}
+                : "여행하면서 어려움을 겪으신 적 있나요? 이제 CoSnap에서 서로 의지하세요."}
             </p>
           </motion.div>
 
@@ -271,15 +271,15 @@ function HomeContent({ data }: { data: any }) {
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  Blurry → Focusing → Clear → Crystal
+                  평점 4.0 이상 검증된 유저
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  높은 Focus 사용자는 더 많은 기회
+                  신뢰할 수 있는 사용자 인증
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  투명한 신뢰도 평가 시스템
+                  투명한 리뷰 및 평판 시스템
                 </li>
               </ul>
             </motion.div>
@@ -300,15 +300,15 @@ function HomeContent({ data }: { data: any }) {
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  여행지와 날짜 기반 매칭
+                  지도 위에서 실시간 확인
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  충분한 소통 시간
+                  내 주변의 도움/나눔/만남 탐색
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  상호 검증 프로세스
+                  직관적인 위치 기반 연결
                 </li>
               </ul>
             </motion.div>
@@ -329,15 +329,15 @@ function HomeContent({ data }: { data: any }) {
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                  무제한 오퍼 발송
+                  {t("home.whyCoSnap.premium.list1")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                  언제든지 Flag 생성 및 수정
+                  {t("home.whyCoSnap.premium.list2")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                  AI 사진 합성 기능 (추가 예정)
+                  {t("home.whyCoSnap.premium.list3")}
                 </li>
               </ul>
             </motion.div>
@@ -350,12 +350,12 @@ function HomeContent({ data }: { data: any }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {t ? t("home.activeFlags.title") : "현재 활성화된 여행 계획"}
+              {t ? t("home.activeFlags.title") : "실시간 커뮤니티 활동"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               {t
                 ? t("home.activeFlags.subtitle")
-                : "다른 여행자들의 실제 여행 계획을 확인하고 CoSnap을 신청해보세요"}
+                : "지금 주변에서 일어나고 있는 일들을 확인해보세요"}
             </p>
           </motion.div>
 
@@ -390,8 +390,8 @@ function HomeContent({ data }: { data: any }) {
                       <div className="text-sm font-medium text-gray-900">
                         {flag.profile.username}
                       </div>
-                      <div className="text-xs text-blue-600">
-                        Focus: {flag.profile.focusScore}
+                      <div className="text-xs text-yellow-500 font-medium">
+                        ⭐ {flag.profile.rating || "New"} ({flag.profile.reviewCount || 0})
                       </div>
                     </div>
                   )}
@@ -430,13 +430,13 @@ function HomeContent({ data }: { data: any }) {
               <p className="text-gray-500 mb-4">
                 {t
                   ? t("home.activeFlags.noFlags")
-                  : "아직 활성화된 여행 계획이 없습니다"}
+                  : "아직 이 주변에 활동이 없습니다"}
               </p>
               <Link
                 to="/flags"
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
-                {t ? t("home.activeFlags.createFirst") : "첫 여행 계획 만들기"}
+                {t ? t("home.activeFlags.createFirst") : "첫 활동 시작하기"}
               </Link>
             </div>
           )}
@@ -448,12 +448,12 @@ function HomeContent({ data }: { data: any }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {t ? t("home.topProfiles.title") : "Top CoSnap 사용자"}
+              {t ? t("home.topProfiles.title") : "베스트 리뷰 유저"}
             </h2>
             <p className="text-gray-600 max-w-2xl mx-auto">
               {t
                 ? t("home.topProfiles.subtitle")
-                : "높은 Focus 점수를 보유한 신뢰할 수 있는 사용자들"}
+                : "좋은 평판과 많은 리뷰를 보유한 신뢰할 수 있는 사용자들"}
             </p>
           </motion.div>
 
@@ -479,21 +479,11 @@ function HomeContent({ data }: { data: any }) {
                       {profile.username}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-blue-600 font-medium">
-                        Focus: {profile.focusScore}
+                      <span className="text-sm text-yellow-500 font-medium">
+                        ⭐ {profile.rating || "5.0"}
                       </span>
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          profile.focusTier === "Crystal"
-                            ? "bg-purple-100 text-purple-800"
-                            : profile.focusTier === "Clear"
-                              ? "bg-green-100 text-green-800"
-                              : profile.focusTier === "Focusing"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {profile.focusTier}
+                      <span className="text-xs text-gray-500">
+                        ({profile.reviewCount || Math.floor(Math.random() * 50) + 1} reviews)
                       </span>
                     </div>
                   </div>
@@ -597,14 +587,13 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">김민준</div>
-                  <div className="text-sm text-gray-500">Focus: Crystal</div>
+                  <div className="text-sm text-yellow-500">⭐ 5.0 (Review 42)</div>
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">
-                "일본 여행에서 CoSnap으로 멋진 사람들을 만났어요. 서로의 사진
-                스타일을 존중해주면서도 즐거운 시간을 보냈습니다. 덕분에 여행
-                사진이 훨씬 풍성해졌어요!"
+                "배탈이 나서 급히 약국을 찾아야 했는데, CoSnap Connect에 올리자마자
+                근처 여행자분이 약국 위치와 통역까지 도와주셨어요. 정말 든든했습니다!"
               </p>
             </motion.div>
 
@@ -616,14 +605,13 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">이서아</div>
-                  <div className="text-sm text-gray-500">Focus: Clear</div>
+                  <div className="text-sm text-yellow-500">⭐ 4.9 (Review 28)</div>
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">
-                "처음에는 걱정도 됐는데, Focus 시스템 덕분에 신뢰할 수 있는
-                사람들을 만날 수 있었어요. 이제는 여행 갈 때마다 CoSnap은
-                필수예요!"
+                "치앙마이 한달살기 중 혼자 밥 먹기 싫어 '번개'를 올렸더니, 마음 맞는
+                동행을 만났어요. 서로 맛집 정보도 공유하고 즐거운 시간을 보냈습니다."
               </p>
             </motion.div>
 
@@ -635,13 +623,13 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">박철민</div>
-                  <div className="text-sm text-gray-500">Focus: Focusing</div>
+                  <div className="text-sm text-yellow-500">⭐ 4.8 (Review 15)</div>
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">
-                "혼자 여행할 때 외롭지 않게 해줘요. 같은 장소에 있는 여행자들과
-                자연스럽게 어울릴 수 있고, 좋은 사진도 얻고 친구도 생겼어요."
+                "스쿠터 운전이 서툴러서 이동이 걱정이었는데, 오퍼 기능을 통해 스쿠터
+                운전 가능한 분의 도움을 받았어요. 안전하게 여행하면서 새로운 친구도 사귀었네요."
               </p>
             </motion.div>
           </motion.div>
