@@ -188,6 +188,9 @@ export default function FlagListItem({
             onClick={(e) => {
               e.stopPropagation();
               onViewOnMap(flag);
+              if (!isExpanded) {
+                onToggleExpand(flag.id);
+              }
             }}
           >
             {t("explore.viewOnMap")}

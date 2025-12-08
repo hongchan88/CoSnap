@@ -49,6 +49,7 @@ interface CustomMarkerProps {
   onHover?: () => void;
   onLeave?: () => void;
   children: ReactNode;
+  zIndexOffset?: number;
 }
 
 // ... MapController ...
@@ -95,7 +96,7 @@ function MapController({
   return null;
 }
 
-function CustomMarker({ position, onClick, onHover, onLeave, children }: CustomMarkerProps) {
+function CustomMarker({ position, onClick, onHover, onLeave, children, zIndexOffset }: CustomMarkerProps) {
   const markerRef = useRef<L.Marker | null>(null);
 
   const icon = useMemo(
@@ -116,11 +117,11 @@ function CustomMarker({ position, onClick, onHover, onLeave, children }: CustomM
         onHover?.();
       },
       mouseout: (e: L.LeafletMouseEvent) => {
-        e.target.setZIndexOffset(0);
+        e.target.setZIndexOffset(zIndexOffset || 0);
         onLeave?.();
       },
     }),
-    [onClick, onHover, onLeave]
+    [onClick, onHover, onLeave, zIndexOffset]
   );
 
   return (
@@ -129,6 +130,7 @@ function CustomMarker({ position, onClick, onHover, onLeave, children }: CustomM
       icon={icon} 
       eventHandlers={eventHandlers}
       ref={markerRef}
+      zIndexOffset={zIndexOffset}
     />
   );
 }
@@ -171,7 +173,8 @@ export default function MapView({
   noWrap = false,
   clusteringThreshold = 11,
   onMarkerHover,
-}: MapViewProps & { onMarkerHover?: (city: string | null) => void; onZoomChange?: (zoom: number) => void }) {
+  selectedFlagId,
+}: MapViewProps & { onMarkerHover?: (city: string | null) => void; onZoomChange?: (zoom: number) => void; selectedFlagId?: string | null }) {
   const [currentZoom, setCurrentZoom] = useState(zoom);
   const [isClient, setIsClient] = useState(false);
   
@@ -426,6 +429,8 @@ export default function MapView({
 
           // Individual Flag Marker
           const flag = marker.data;
+          const isSelected = selectedFlagId === flag.id;
+          
           return (
             <CustomMarker
               key={marker.id}
@@ -433,12 +438,13 @@ export default function MapView({
               onClick={() => onMarkerClick && onMarkerClick(flag)}
               onHover={() => onMarkerHover?.(flag.id)}
               onLeave={() => onMarkerHover?.(null)}
+              zIndexOffset={isSelected ? 1000 : 0}
             >
               <div
-                className="relative cursor-pointer flex flex-col items-center group hover:z-50"
+                className={`relative cursor-pointer flex flex-col items-center group ${isSelected ? 'z-[1000]' : 'hover:z-50'}`}
                 style={{ transform: "translate(-50%, -100%)" }}
               >
-                <div className="w-8 h-8 rounded-full border-2 border-white shadow-lg overflow-hidden relative transition-transform duration-200 group-hover:scale-110 group-hover:ring-2 group-hover:ring-blue-500">
+                <div className={`w-8 h-8 rounded-full border-2 shadow-lg overflow-hidden relative transition-transform duration-200 ${isSelected ? 'border-blue-500 scale-110 ring-2 ring-blue-300' : 'border-white group-hover:scale-110 group-hover:ring-2 group-hover:ring-blue-500'}`}>
                   {flag.avatar_url ? (
                     <img
                       src={flag.avatar_url}
@@ -459,7 +465,7 @@ export default function MapView({
                   )}
                 </div>
                 {/* Pin Tip */}
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white transform rotate-45 shadow-sm"></div>
+                <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 transform rotate-45 shadow-sm ${isSelected ? 'bg-blue-500' : 'bg-white'}`}></div>
               </div>
             </CustomMarker>
           );

@@ -6,7 +6,7 @@ import type { Route } from "./+types/explore";
 import OfferModal from "~/components/OfferModal";
 import ProfileModal from "~/components/ProfileModal";
 import { createOffer } from "~/users/mutations";
-import { CITY_COORDINATES, POPULAR_DESTINATIONS } from "~/lib/constants";
+import { POPULAR_DESTINATIONS } from "~/lib/constants";
 import { Button } from "~/components/ui/button";
 
 // Extracted Components & Hooks
@@ -398,6 +398,7 @@ export default function Explore() {
               onBoundsChange={setMapBounds}
               onMarkerClick={handleMarkerClick}
               userLocation={userLocation}
+              selectedFlagId={expandedFlagId}
               onMarkerHover={setHighlightedFlagId}
             />
           </Suspense>
