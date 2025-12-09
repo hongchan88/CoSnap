@@ -57,6 +57,7 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
   const scrollRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [messages, setMessages] = useState(initialMessages);
+  const [inputValue, setInputValue] = useState("");
 
   // Sync state with props if they change (e.g. switching conversations)
   useEffect(() => {
@@ -69,17 +70,29 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  useEffect(() => {
-    // Reset form after submission
-    if (fetcher.state === "submitting" && formRef.current) {
-      formRef.current.reset();
-    }
-  }, [fetcher.state]);
   
   // Derive partnerId robustly (fallback if partner.profile_id is missing)
   const partnerId = partner?.profile_id || 
     (conversation.user_a_id === userId ? conversation.user_b_id : conversation.user_a_id);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    const formData = new FormData();
+    formData.append("intent", "send_message");
+    formData.append("conversationId", conversation.id);
+    formData.append("content", inputValue);
+
+    // Optimistically clear input
+    setInputValue("");
+    
+    // Submit
+    fetcher.submit(formData, { 
+      method: "post", 
+      action: actionUrl 
+    });
+  };
 
   // Real-time subscription
   useEffect(() => {
@@ -233,21 +246,19 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
 
       {/* Input */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        <fetcher.Form method="post" action={actionUrl} className="flex gap-2" ref={formRef}>
-          {/* If posting to main profile route, distinguish intent */}
-          <input type="hidden" name="intent" value="send_message" />
-          <input type="hidden" name="conversationId" value={conversation.id} />
-          
+        <form onSubmit={handleSendMessage} className="flex gap-2">
           <Input
             name="content"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 focus-visible:ring-blue-500"
             autoComplete="off"
           />
-          <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700" disabled={fetcher.state === "submitting"}>
+          <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700">
             <Send className="w-4 h-4" />
           </Button>
-        </fetcher.Form>
+        </form>
       </div>
     </div>
   );
