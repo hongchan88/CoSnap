@@ -363,14 +363,14 @@ export const notifications = pgTable("notifications", {
     for: "select",
     to: authenticatedRole,
     as: "permissive",
-    using: sql`${authUid} = ${table.recipientId}`,
+    using: sql`${authUid} = ${table.recipientId} OR ${authUid} = ${table.senderId}`,
   }),
   pgPolicy("notifications_update_policy", {
     for: "update",
     to: authenticatedRole,
     as: "permissive",
-    using: sql`${authUid} = ${table.recipientId}`,
-    withCheck: sql`${authUid} = ${table.recipientId}`,
+    using: sql`${authUid} = ${table.recipientId} OR ${authUid} = ${table.senderId}`,
+    withCheck: sql`${authUid} = ${table.recipientId} OR ${authUid} = ${table.senderId}`,
   }),
 ]);
 

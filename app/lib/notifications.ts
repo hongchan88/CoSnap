@@ -124,8 +124,8 @@ export const markMessagesAsRead = async (
   console.log(`[markMessagesAsRead] START: user=${userId}, sender=${senderId}, conv=${conversationId}`);
   
   try {
-    // 1. Mark 'message_received' notifications from this sender as read
-    const { data: notifData, error: notifError, count: notifCount } = await client
+    // Queries
+    const notifQuery = client
       .from("notifications")
       .update({ is_read: true })
       .eq("recipient_id", userId)
@@ -134,14 +134,7 @@ export const markMessagesAsRead = async (
       .eq("is_read", false)
       .select();
 
-    if (notifError) {
-      console.error("[markMessagesAsRead] FAILED to update notifications:", notifError.message);
-    } else {
-      console.log(`[markMessagesAsRead] Updated ${notifData?.length || 0} notifications`);
-    }
-
-    // 2. Mark actual messages in the conversation as read
-    const { data: msgData, error: msgError } = await client
+    const msgQuery = client
       .from("messages")
       .update({ is_read: true })
       .eq("conversation_id", conversationId)
@@ -149,16 +142,34 @@ export const markMessagesAsRead = async (
       .eq("is_read", false)
       .select();
 
-    if (msgError) {
-      console.error("[markMessagesAsRead] FAILED to update messages:", msgError.message, msgError.code);
-    } else {
-      console.log(`[markMessagesAsRead] Updated ${msgData?.length || 0} messages to is_read=true`);
-    }
+    // Timeout Promise (2000ms safety limit)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error("Database operation timed out")), 2000)
+    );
 
-    console.log("[markMessagesAsRead] END");
+    // Race against timeout
+    // Use Promise.all to run DB updates in parallel
+    const [notifResult, msgResult] = await Promise.race([
+      Promise.all([notifQuery, msgQuery]),
+      timeoutPromise
+    ]) as [any, any];
+
+    // Handle results
+    const { error: notifError, data: notifData } = notifResult;
+    const { error: msgError, data: msgData } = msgResult;
+
+    if (notifError) console.error("[markMessagesAsRead] Notifications update failed:", notifError.message);
+    else console.log(`[markMessagesAsRead] Updated ${notifData?.length || 0} notifications`);
+
+    if (msgError) console.error("[markMessagesAsRead] Messages update failed:", msgError.message);
+    else console.log(`[markMessagesAsRead] Updated ${msgData?.length || 0} messages`);
+
+    console.log("[markMessagesAsRead] END Success");
     return { success: !notifError && !msgError };
+
   } catch (error) {
     console.error(`[markMessagesAsRead] EXCEPTION: ${error instanceof Error ? error.message : error}`);
-    return { success: false, error: "Operation failed" };
+    // Return false but DO NOT THROW, so page loader continues loading
+    return { success: false, error: "Operation timed out or failed" };
   }
 };
