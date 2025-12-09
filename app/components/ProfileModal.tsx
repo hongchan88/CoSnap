@@ -46,7 +46,7 @@ export default function ProfileModal({
         return "bg-gradient-to-r from-gray-400 to-gray-500 text-white";
     }
   };
-  console.log("userFlags in ProfileModal:", userFlags);
+
 
   const getFocusTierEmoji = (tier: string) => {
     switch (tier) {

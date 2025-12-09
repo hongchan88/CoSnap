@@ -175,9 +175,9 @@ export async function action({ request }: Route.ActionArgs) {
 
     // Handle avatar upload if file provided
     if (avatarFile && avatarFile.size > 0) {
-      console.log("Avatar file received:", avatarFile.name, avatarFile.size);
+
       const uploadResult = await uploadAvatar(client, avatarFile, userId);
-      console.log("Upload result:", uploadResult);
+
 
       if (!uploadResult.success) {
         return {
@@ -187,7 +187,7 @@ export async function action({ request }: Route.ActionArgs) {
       }
       avatarUrl = uploadResult.url;
     } else {
-      console.log("No avatar file received or file is empty");
+
     }
 
     const { success, error } = await updateUserProfile(client, userId, {
@@ -200,7 +200,7 @@ export async function action({ request }: Route.ActionArgs) {
       avatarUrl,
     });
 
-    console.log("Update profile result:", { success, error, avatarUrl });
+
 
     if (!success)
       return { success: false, error: error || "Failed to update profile" };
@@ -243,7 +243,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?
       focusScore: 0,
     };
   }
-  console.log("Adapting user profile:", dbProfile);
+
   return {
     username: dbProfile.username,
     bio: dbProfile.bio || "",

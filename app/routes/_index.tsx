@@ -74,7 +74,7 @@ function HomeContent({ data }: { data: any }) {
   const { activeFlags, topProfiles, stats } = data;
 
   const handleMarkerClick = (city: string) => {
-    console.log("click handle marker click");
+
     // Navigate to explore page with location filter
     // If city is actually a country name (from country cluster), it works too
     navigate(`/explore?location=${encodeURIComponent(city)}`);

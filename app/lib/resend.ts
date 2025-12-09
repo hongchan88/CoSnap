@@ -21,7 +21,7 @@ export async function sendWelcomeEmail(
       react: WelcomeEmail({ username }),
     });
 
-    console.log(`✅ Welcome email sent successfully to ${to}`);
+
   } catch (error) {
     console.error(`❌ Failed to send welcome email to ${to}:`, error);
   }

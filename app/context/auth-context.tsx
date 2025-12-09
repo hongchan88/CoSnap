@@ -36,7 +36,7 @@ export async function signUp(
         return { error: { message: "Session establishment failed" } };
       }
 
-      console.log("Session established, inserting profile for:", session.user.id);
+
       const { error: profileError } = await supabase.client.from("profiles").insert({
         profile_id: data.user.id,
         username,
@@ -118,7 +118,7 @@ export async function getCurrentUser() {
     } = await supabase.client.auth.getUser();
 
     if (error) {
-      console.log(error, "error");
+
       return { user: null, error };
     }
 
