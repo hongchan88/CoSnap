@@ -169,6 +169,7 @@ export const flags = pgTable(
           and (${authUid} = offers.sender_id or ${authUid} = offers.receiver_id)
       )`,
     }),
+
     pgPolicy("flags_update_policy", {
       for: "update",
       to: authenticatedRole,
@@ -341,11 +342,12 @@ export const notifications = pgTable("notifications", {
       "offer_accepted",
       "offer_declined",
       "match_scheduled",
+      "message_received",
       "system",
     ],
   }).notNull(),
   referenceId: uuid("reference_id"), // ID of the related entity (offer_id, match_id)
-  referenceType: varchar("reference_type", { enum: ["offer", "match"] }),
+  referenceType: varchar("reference_type", { enum: ["offer", "match", "conversation"] }),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .defaultNow()
@@ -519,6 +521,16 @@ export const messages = pgTable("messages", {
   }),
   pgPolicy("messages_select_policy", {
     for: "select",
+    to: authenticatedRole,
+    as: "permissive",
+    using: sql`EXISTS (
+      SELECT 1 FROM conversations c
+      WHERE c.id = ${table.conversationId}
+      AND (c.user_a_id = ${authUid} OR c.user_b_id = ${authUid})
+    )`,
+  }),
+  pgPolicy("messages_update_policy", {
+    for: "update",
     to: authenticatedRole,
     as: "permissive",
     using: sql`EXISTS (

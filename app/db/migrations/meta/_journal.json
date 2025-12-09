@@ -162,6 +162,13 @@
       "when": 1765028777316,
       "tag": "0022_sweet_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1765256899507,
+      "tag": "0023_orange_william_stryker",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,7 @@ import {
 import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations, getUserAllFlags, getConversationDetails } from "~/users/queries";
 import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
+import { createNotification, markMessagesAsRead } from "~/lib/notifications";
 import type { ProfileWithStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
 import ChatWindow, { ChatWindowSkeleton } from "~/components/ChatWindow";
@@ -73,6 +74,14 @@ export async function loader({ request }: Route.LoaderArgs) {
        const result = await getConversationDetails(client, conversationId, userId);
        if (result.success) {
          activeConversation = result;
+         
+         // Mark notifications from this partner as read when entering the conversation
+         const partnerId = result.conversation.user_a_id === userId 
+           ? result.conversation.user_b_id 
+           : result.conversation.user_a_id;
+         if (partnerId) {
+           await markMessagesAsRead(client, userId, partnerId, conversationId);
+         }
        }
     }
 
@@ -148,6 +157,8 @@ export async function action({ request }: Route.ActionArgs) {
           return { success: false, error: "Missing required fields" };
       }
 
+      console.log("[ProfileAction] Sending message:", { conversationId, userId, contentLength: content.length });
+
       const { error } = await client
         .from("messages")
         .insert({
@@ -157,8 +168,66 @@ export async function action({ request }: Route.ActionArgs) {
         });
 
       if (error) {
+        console.error("[ProfileAction] Message insertion failed:", error);
         return { success: false, error: error.message };
       }
+      console.log("[ProfileAction] Message inserted successfully");
+
+      // --- SMART NOTE: Notification Logic ---
+      console.log("[SmartNotif] Starting notification logic for conversationId:", conversationId);
+      
+      const { data: conversation, error: convError } = await client
+        .from("conversations")
+        .select("user_a_id, user_b_id")
+        .eq("id", conversationId)
+        .single();
+      
+      console.log("[SmartNotif] Conversation query result:", { conversation, convError });
+      
+      if (!conversation) {
+        console.error("[SmartNotif] Could not find conversation - aborting notification");
+      } else {
+        const recipientId = conversation.user_a_id === userId ? conversation.user_b_id : conversation.user_a_id;
+        console.log("[SmartNotif] Calculated recipientId:", recipientId, "(sender userId:", userId, ")");
+        
+        // Check for existing UNREAD message notification from this sender to this recipient
+        const { data: existingNotif, error: checkError } = await client
+          .from("notifications")
+          .select("id")
+          .eq("recipient_id", recipientId)
+          .eq("sender_id", userId)
+          .eq("type", "message_received")
+          .eq("is_read", false)
+          .single();
+
+        console.log("[SmartNotif] Existing notification check:", { existingNotif, checkError });
+
+        if (existingNotif) {
+          console.log(`[SmartNotif] Updating existing notification ${existingNotif.id}`);
+          // DEBOUNCE: Update timestamp of existing notification
+          const { error: updateError } = await client
+            .from("notifications")
+            .update({ created_at: new Date().toISOString() })
+            .eq("id", existingNotif.id);
+          
+          if (updateError) console.error("[SmartNotif] Error updating:", updateError);
+          else console.log("[SmartNotif] Successfully updated notification timestamp");
+
+        } else {
+          console.log(`[SmartNotif] Creating new notification for recipient ${recipientId}`);
+          // CREATE NEW: No unread notification exists
+          const result = await createNotification(client, {
+            recipientId,
+            senderId: userId,
+            type: "message_received",
+            referenceId: conversationId,
+            referenceType: "conversation", 
+          });
+          console.log("[SmartNotif] createNotification result:", result);
+          if (!result.success) console.error("[SmartNotif] Error creating:", result.error);
+        }
+      }
+
       return { success: true };
   }
 

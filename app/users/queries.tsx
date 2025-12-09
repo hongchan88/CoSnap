@@ -718,7 +718,7 @@ export const getConversationDetails = async (
 
     // 3. Fetch related data (Manual joins for safety)
     const [partnerRes, offerRes, postRes] = await Promise.all([
-      client.from("profiles").select("username, avatar_url").eq("profile_id", partnerId).single(),
+      client.from("profiles").select("profile_id, username, avatar_url").eq("profile_id", partnerId).single(),
       conversation.offer_id 
         ? client.from("offers").select("id, status, price, currency").eq("id", conversation.offer_id).single() 
         : { data: null },

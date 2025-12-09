@@ -11,6 +11,7 @@ import { Badge } from "~/components/ui/badge";
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { createBrowserClient } from "@supabase/ssr";
+import { getSupabaseBrowserClient } from "~/lib/supabase";
 
 interface Notification {
   id: string;
@@ -34,10 +35,14 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   // Supabase client for realtime
   const [supabase] = useState(() => 
-    createBrowserClient(
+   { 
+    const client = createBrowserClient(
       import.meta.env.VITE_SUPABASE_URL!,
       import.meta.env.VITE_SUPABASE_ANON_KEY!
     )
+      if (!client) console.error("[NotificationBell] Failed to create client");
+    return client!;
+  }
   );
 
   // Load notifications
@@ -50,7 +55,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   // Update state when fetcher loads data
   useEffect(() => {
     if (fetcher.data && fetcher.data.success) {
-      const notifs = fetcher.data.notifications as Notification[];
+      const notifs = fetcher.data.notifications as Notification[] || [];
       setNotifications(notifs);
       setUnreadCount(notifs.filter(n => !n.is_read).length);
     }
@@ -58,24 +63,31 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   // Realtime subscription
   useEffect(() => {
+    if (!supabase) return;
+
+    console.log(`[NotificationBell] Subscribing to notifications for user ${userId}`);
     const channel = supabase
       .channel("notifications")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "notifications",
           filter: `recipient_id=eq.${userId}`,
         },
         (payload) => {
+          console.log("[NotificationBell] Received realtime event:", payload);
           // Refresh notifications when new one arrives
           fetcher.load("/api/notifications");
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[NotificationBell] Subscription status: ${status}`);
+      });
 
     return () => {
+      console.log("[NotificationBell] Cleaning up subscription");
       supabase.removeChannel(channel);
     };
   }, [userId, supabase, fetcher]);
@@ -116,6 +128,13 @@ export function NotificationBell({ userId }: { userId: string }) {
       }
     } else if (notification.type.includes("match")) {
       navigate("/profile?tab=messages");
+    } else if (notification.type === "message_received") {
+      // Navigate directly to the conversation
+      if (notification.reference_id) {
+        navigate(`/profile?tab=messages&conversationId=${notification.reference_id}`);
+      } else {
+        navigate("/profile?tab=messages");
+      }
     } else {
       // Default fallback
       navigate("/profile?tab=messages");
@@ -133,6 +152,8 @@ export function NotificationBell({ userId }: { userId: string }) {
         return `${senderName} declined your offer.`;
       case "match_scheduled":
         return `Match scheduled with ${senderName}.`;
+      case "message_received":
+        return `New message from ${senderName}`;
       default:
         return "New notification";
     }
