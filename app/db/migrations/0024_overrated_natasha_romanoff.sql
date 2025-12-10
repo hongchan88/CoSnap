@@ -1,0 +1,2 @@
+ALTER POLICY "notifications_select_policy" ON "notifications" TO authenticated USING ((select auth.uid()) = "notifications"."recipient_id" OR (select auth.uid()) = "notifications"."sender_id");--> statement-breakpoint
+ALTER POLICY "notifications_update_policy" ON "notifications" TO authenticated USING ((select auth.uid()) = "notifications"."recipient_id" OR (select auth.uid()) = "notifications"."sender_id") WITH CHECK ((select auth.uid()) = "notifications"."recipient_id" OR (select auth.uid()) = "notifications"."sender_id");

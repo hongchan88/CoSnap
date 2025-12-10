@@ -3,8 +3,9 @@ import { useFetcher, Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, CheckCheck, Check } from "lucide-react";
 import { getSupabaseBrowserClient } from "~/lib/supabase";
+import { markMessagesAsRead } from "~/lib/notifications";
 
 interface ChatWindowProps {
   conversation: any;
@@ -56,6 +57,7 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
   const scrollRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [messages, setMessages] = useState(initialMessages);
+  const [inputValue, setInputValue] = useState("");
 
   // Sync state with props if they change (e.g. switching conversations)
   useEffect(() => {
@@ -68,15 +70,30 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  useEffect(() => {
-    // Reset form after submission
-    if (fetcher.state === "submitting" && formRef.current) {
-      formRef.current.reset();
-    }
-  }, [fetcher.state]);
   
-  // Real-time subscription
+  // Derive partnerId robustly (fallback if partner.profile_id is missing)
+  const partnerId = partner?.profile_id || 
+    (conversation.user_a_id === userId ? conversation.user_b_id : conversation.user_a_id);
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    const formData = new FormData();
+    formData.append("intent", "send_message");
+    formData.append("conversationId", conversation.id);
+    formData.append("content", inputValue);
+
+    // Optimistically clear input
+    setInputValue("");
+    
+    // Submit
+    fetcher.submit(formData, { 
+      method: "post", 
+      action: actionUrl 
+    });
+  };
+
   // Real-time subscription
   useEffect(() => {
     const client = getSupabaseBrowserClient();
@@ -94,18 +111,37 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen to INSERT and UPDATE
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversation.id}`
         },
-        (payload: any) => {
+        async (payload: any) => {
           const newMessage = payload.new;
-          setMessages((prev) => {
-            // Avoid duplicates
-            if (prev.find(m => m.id === newMessage.id)) return prev;
-            return [...prev, newMessage];
-          });
+          
+          if (payload.eventType === 'INSERT') {
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.find(m => m.id === newMessage.id)) return prev;
+              return [...prev, newMessage];
+            });
+
+            // If the message is from the partner (not me), mark notifications as read
+            if (newMessage.sender_id !== userId && partnerId) {
+              try {
+                await markMessagesAsRead(client, userId, partnerId, conversation.id);
+                console.log("[ChatWindow] Auto-marked notifications & messages as read");
+              } catch (err) {
+                console.error("[ChatWindow] Failed to auto-mark as read:", err);
+              }
+            }
+          } 
+          else if (payload.eventType === 'UPDATE') {
+            console.log("[ChatWindow] Received UPDATE:", payload.new);
+            setMessages((prev) => prev.map(m => 
+              m.id === newMessage.id ? { ...m, ...newMessage } : m
+            ));
+          }
         }
       )
       .subscribe();
@@ -113,7 +149,22 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
     return () => {
       client.removeChannel(channel);
     };
-  }, [conversation.id]);
+  }, [conversation.id, userId, partnerId]);
+
+  // Mark conversation as read on mount (client-side fallback/enforcement)
+  useEffect(() => {
+    const markRead = async () => {
+      if (conversation.id && partnerId) {
+        const client = getSupabaseBrowserClient();
+        if (client) {
+          console.log(`[ChatWindow] Mounting: Marking conversation ${conversation.id} as read for sender ${partnerId}`);
+          await markMessagesAsRead(client, userId, partnerId, conversation.id);
+        }
+      }
+    };
+    
+    markRead();
+  }, [conversation.id, userId, partnerId]);
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -161,6 +212,9 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
             </div>
         ) : messages.map((msg: any) => {
           const isMe = msg.sender_id === userId;
+          // Robust check for read status (snake_case vs camelCase)
+          const isRead = msg.is_read === true || msg.isRead === true; 
+          
           return (
             <div
               key={msg.id}
@@ -174,9 +228,16 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                <span className={`text-[10px] block mt-1 text-right ${isMe ? "text-blue-100" : "text-gray-400"}`}>
-                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? "text-blue-100" : "text-gray-400"}`}>
+                  <span className="text-[10px]">
+                    {new Date(msg.created_at || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  {isMe && (
+                    isRead
+                      ? <CheckCheck className="w-3 h-3 text-blue-200" /> 
+                      : <Check className="w-3 h-3 text-blue-200/50" />
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -185,21 +246,19 @@ export default function ChatWindow({ conversation, messages: initialMessages, us
 
       {/* Input */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        <fetcher.Form method="post" action={actionUrl} className="flex gap-2" ref={formRef}>
-          {/* If posting to main profile route, distinguish intent */}
-          <input type="hidden" name="intent" value="send_message" />
-          <input type="hidden" name="conversationId" value={conversation.id} />
-          
+        <form onSubmit={handleSendMessage} className="flex gap-2">
           <Input
             name="content"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 focus-visible:ring-blue-500"
             autoComplete="off"
           />
-          <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700" disabled={fetcher.state === "submitting"}>
+          <Button type="submit" size="icon" className="bg-blue-600 hover:bg-blue-700">
             <Send className="w-4 h-4" />
           </Button>
-        </fetcher.Form>
+        </form>
       </div>
     </div>
   );

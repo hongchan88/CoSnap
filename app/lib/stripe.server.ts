@@ -5,7 +5,7 @@ export const createCheckoutSession = async (
   userId: string,
   planType: "premium_monthly" | "premium_yearly"
 ) => {
-  console.log(`[Mock Stripe] Creating checkout session for user ${userId} plan ${planType} (with 30-day trial)`);
+
   
   // Simulate a delay
   await new Promise((resolve) => setTimeout(resolve, 1000));

@@ -46,7 +46,7 @@ function LocationMarker({
     click(e) {
       if (disabled) return;
       const { lat, lng } = e.latlng;
-      console.log("[LocationMarker] map click", { lat, lng });
+
       setPosition([lat, lng]);
       onLocationSelect(lat, lng);
     },
@@ -58,7 +58,7 @@ function LocationMarker({
         const marker = markerRef.current;
         if (marker != null) {
           const { lat, lng } = marker.getLatLng();
-          console.log("[LocationMarker] dragend", { lat, lng });
+
           setPosition([lat, lng]);
           onLocationSelect(lat, lng);
         }
@@ -88,30 +88,24 @@ function MapSync({
   const map = useMapEvents({
     moveend() {
       const c = map.getCenter();
-      console.log("[MapSync] moveend", {
-        center: [c.lat, c.lng],
-        zoom: map.getZoom(),
-      });
+
+
       onMove([c.lat, c.lng], map.getZoom());
     },
     zoomend() {
       const c = map.getCenter();
-      console.log("[MapSync] zoomend", {
-        center: [c.lat, c.lng],
-        zoom: map.getZoom(),
-      });
+
+
       onMove([c.lat, c.lng], map.getZoom());
     },
   });
 
   useEffect(() => {
-    console.log("[MapSync] mount", map, mapRef, onMove);
+
     mapRef.current = map;
     const c = map.getCenter();
-    console.log("[MapSync] mount", {
-      center: [c.lat, c.lng],
-      zoom: map.getZoom(),
-    });
+
+
     onMove([c.lat, c.lng], map.getZoom());
   }, [map, mapRef, onMove]);
 
@@ -128,13 +122,8 @@ export default function LocationPickerMap({
   flyToRequest,
   disabled = false,
 }: LocationPickerMapProps) {
-  console.log("[LocationPickerMap] render start", {
-    city,
-    country,
-    initialLat,
-    initialLng,
-    flyToRequest,
-  });
+
+
   const [isClient, setIsClient] = useState(false);
   // Default to Seoul if no initial coords
   const defaultCenter: [number, number] =
@@ -152,7 +141,7 @@ export default function LocationPickerMap({
   // Auto-locate on mount if no initial coords
   useEffect(() => {
     if (!initialLat && !initialLng && navigator.geolocation) {
-      console.log("[LocationPickerMap] Auto-locating on mount");
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
@@ -193,7 +182,7 @@ export default function LocationPickerMap({
   const mapInstanceRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
-    console.log("[LocationPickerMap] setIsClient");
+
     setIsClient(true);
   }, []);
 
@@ -252,7 +241,7 @@ export default function LocationPickerMap({
 
   // Handle location selection (from click or drag)
   const handleLocationSelect = async (lat: number, lng: number) => {
-    console.log("[LocationPickerMap] handleLocationSelect", { lat, lng });
+
     if (onLocationSelect) {
       onLocationSelect(lat, lng);
     }
@@ -261,7 +250,7 @@ export default function LocationPickerMap({
   };
 
   const handleUseMyLocation = () => {
-    console.log("[LocationPickerMap] handleUseMyLocation");
+
     if (!navigator.geolocation) {
       console.warn("Geolocation not supported");
       return;

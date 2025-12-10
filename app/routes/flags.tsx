@@ -110,11 +110,11 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
       };
     }
 
-    console.log("=== FLAGS LOADER DEBUG ===");
-    console.log("User ID:", userId);
-    console.log("Page:", page);
-    console.log("User Flags Fetched:", flagsResult.flags.length);
-    console.log("Total User Flags:", flagsResult.count);
+
+
+
+
+
 
     return {
       flags: flagsResult.flags,

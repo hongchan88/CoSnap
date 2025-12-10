@@ -16,7 +16,7 @@ async function checkFlagStructure() {
   if (error) {
     console.error("Error:", error);
   } else {
-    console.log("Flag Structure:", data[0]);
+
   }
 }
 

@@ -97,7 +97,7 @@ export async function uploadAvatar(
 ): Promise<{ success: boolean; url?: string; error?: string }> {
   try {
     // Generate unique filename
-    console.log("uploadAvatar called with file:", file);
+
     if (!file || typeof file.name !== "string") {
       console.error("Invalid file object passed to uploadAvatar:", file);
       return { success: false, error: "유효하지 않은 파일입니다." };
@@ -133,7 +133,7 @@ export async function uploadAvatar(
     if (!urlData?.publicUrl) {
       return { success: false, error: "이미지 URL을 가져오는데 실패했습니다." };
     }
-    console.log(urlData, "data url");
+
     return { success: true, url: urlData.publicUrl };
   } catch (error) {
     console.error("Unexpected error uploading avatar:", error);

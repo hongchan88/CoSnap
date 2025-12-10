@@ -220,7 +220,7 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
             });
           },
           (err) => {
-            console.log("Geolocation permission denied or error:", err);
+
             setUserLocation(undefined);
           }
         );

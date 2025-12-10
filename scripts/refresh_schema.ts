@@ -12,9 +12,9 @@ async function main() {
   const sql = postgres(connectionString);
   const db = drizzle(sql);
 
-  console.log("Refreshing PostgREST schema cache...");
+
   await sql`NOTIFY pgrst, 'reload schema'`;
-  console.log("Done.");
+
 
   await sql.end();
 }

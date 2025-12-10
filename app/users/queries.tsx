@@ -4,8 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Auth query
 export const getLoggedInUserId = async (client: SupabaseClient) => {
   const { data, error } = await client.auth.getUser();
-  console.log(data, "data in getLoggedInUserId");
-  console.log(error, "error in getLoggedInUserId");
+
+
   if (error || data.user === null) {
     throw redirect("/login");
   }
@@ -100,7 +100,7 @@ export const getUserAllFlags = async (
       .eq("user_id", userId)
 
       .order("created_at", { ascending: false });
-    console.log(data, "data in getUserAllFlags");
+
     if (error) {
       console.error("Error fetching user all flags:", error);
       return { success: false, error: error.message, flags: [] };
@@ -718,7 +718,7 @@ export const getConversationDetails = async (
 
     // 3. Fetch related data (Manual joins for safety)
     const [partnerRes, offerRes, postRes] = await Promise.all([
-      client.from("profiles").select("username, avatar_url").eq("profile_id", partnerId).single(),
+      client.from("profiles").select("profile_id, username, avatar_url").eq("profile_id", partnerId).single(),
       conversation.offer_id 
         ? client.from("offers").select("id, status, price, currency").eq("id", conversation.offer_id).single() 
         : { data: null },

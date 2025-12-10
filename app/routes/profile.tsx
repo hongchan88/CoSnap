@@ -29,6 +29,7 @@ import {
 import { getLoggedInUserId, getUserProfile, getUserOffers, getUserConversations, getUserAllFlags, getConversationDetails } from "~/users/queries";
 import { updateUserProfile, acceptOffer, declineOffer, cancelOffer } from "~/users/mutations";
 import { uploadAvatar } from "~/lib/supabase";
+import { createNotification, markMessagesAsRead } from "~/lib/notifications";
 import type { ProfileWithStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
 import ChatWindow, { ChatWindowSkeleton } from "~/components/ChatWindow";
@@ -71,9 +72,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     if (conversationId) {
        const result = await getConversationDetails(client, conversationId, userId);
-       if (result.success) {
-         activeConversation = result;
-       }
+         if (result.success) {
+           activeConversation = result;
+           // Note: We leave marking messages as read to the client-side ChatWindow component
+           // to avoid blocking the page load or causing server timeouts.
+         }
     }
 
     // Also fetch inbox data like inbox.tsx does
@@ -148,6 +151,8 @@ export async function action({ request }: Route.ActionArgs) {
           return { success: false, error: "Missing required fields" };
       }
 
+      console.log("[ProfileAction] Sending message:", { conversationId, userId, contentLength: content.length });
+
       const { error } = await client
         .from("messages")
         .insert({
@@ -157,8 +162,66 @@ export async function action({ request }: Route.ActionArgs) {
         });
 
       if (error) {
+        console.error("[ProfileAction] Message insertion failed:", error);
         return { success: false, error: error.message };
       }
+      console.log("[ProfileAction] Message inserted successfully");
+
+      // --- SMART NOTE: Notification Logic ---
+      console.log("[SmartNotif] Starting notification logic for conversationId:", conversationId);
+      
+      const { data: conversation, error: convError } = await client
+        .from("conversations")
+        .select("user_a_id, user_b_id")
+        .eq("id", conversationId)
+        .single();
+      
+      console.log("[SmartNotif] Conversation query result:", { conversation, convError });
+      
+      if (!conversation) {
+        console.error("[SmartNotif] Could not find conversation - aborting notification");
+      } else {
+        const recipientId = conversation.user_a_id === userId ? conversation.user_b_id : conversation.user_a_id;
+        console.log("[SmartNotif] Calculated recipientId:", recipientId, "(sender userId:", userId, ")");
+        
+        // Check for existing UNREAD message notification from this sender to this recipient
+        const { data: existingNotif, error: checkError } = await client
+          .from("notifications")
+          .select("id")
+          .eq("recipient_id", recipientId)
+          .eq("sender_id", userId)
+          .eq("type", "message_received")
+          .eq("is_read", false)
+          .single();
+
+        console.log("[SmartNotif] Existing notification check:", { existingNotif, checkError });
+
+        if (existingNotif) {
+          console.log(`[SmartNotif] Updating existing notification ${existingNotif.id}`);
+          // DEBOUNCE: Update timestamp of existing notification
+          const { error: updateError } = await client
+            .from("notifications")
+            .update({ created_at: new Date().toISOString() })
+            .eq("id", existingNotif.id);
+          
+          if (updateError) console.error("[SmartNotif] Error updating:", updateError);
+          else console.log("[SmartNotif] Successfully updated notification timestamp");
+
+        } else {
+          console.log(`[SmartNotif] Creating new notification for recipient ${recipientId}`);
+          // CREATE NEW: No unread notification exists
+          const result = await createNotification(client, {
+            recipientId,
+            senderId: userId,
+            type: "message_received",
+            referenceId: conversationId,
+            referenceType: "conversation", 
+          });
+          console.log("[SmartNotif] createNotification result:", result);
+          if (!result.success) console.error("[SmartNotif] Error creating:", result.error);
+        }
+      }
+
       return { success: true };
   }
 
@@ -175,9 +238,9 @@ export async function action({ request }: Route.ActionArgs) {
 
     // Handle avatar upload if file provided
     if (avatarFile && avatarFile.size > 0) {
-      console.log("Avatar file received:", avatarFile.name, avatarFile.size);
+
       const uploadResult = await uploadAvatar(client, avatarFile, userId);
-      console.log("Upload result:", uploadResult);
+
 
       if (!uploadResult.success) {
         return {
@@ -187,7 +250,7 @@ export async function action({ request }: Route.ActionArgs) {
       }
       avatarUrl = uploadResult.url;
     } else {
-      console.log("No avatar file received or file is empty");
+
     }
 
     const { success, error } = await updateUserProfile(client, userId, {
@@ -200,7 +263,7 @@ export async function action({ request }: Route.ActionArgs) {
       avatarUrl,
     });
 
-    console.log("Update profile result:", { success, error, avatarUrl });
+
 
     if (!success)
       return { success: false, error: error || "Failed to update profile" };
@@ -243,7 +306,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?
       focusScore: 0,
     };
   }
-  console.log("Adapting user profile:", dbProfile);
+
   return {
     username: dbProfile.username,
     bio: dbProfile.bio || "",
@@ -259,15 +322,60 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?
 
 function ProfileSkeleton() {
   return (
-    <div className="space-y-8">
-      <div className="flex gap-6">
-        <div className="lg:w-64">
-          <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+    <div className="space-y-6">
+      {/* Profile Header Card */}
+      <div className="border border-gray-200 rounded-xl bg-white p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start gap-6">
+          {/* Avatar */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 animate-pulse shrink-0 border border-gray-100" />
+          
+          <div className="space-y-4 flex-1 w-full">
+            {/* Name and Badges */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                   <div className="h-8 w-40 bg-gray-200 rounded animate-pulse" />
+                   <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="h-10 w-28 bg-gray-200 rounded-lg animate-pulse" />
+            </div>
+            
+            {/* Bio */}
+            <div className="space-y-2 max-w-lg">
+              <div className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-[70%] bg-gray-200 rounded animate-pulse" />
+            </div>
+            
+            {/* Tags */}
+            <div className="flex gap-2 pt-1">
+              <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+              <div className="h-6 w-16 bg-gray-200 rounded-full animate-pulse" />
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-4" />
-          <div className="h-64 bg-gray-200 rounded-lg animate-pulse" />
-        </div>
+      </div>
+
+      {/* Grid Content Placeholder (Flags/Offers) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-48 bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
+             <div className="flex justify-between">
+                <div className="h-6 w-1/3 bg-gray-100 rounded animate-pulse" />
+                <div className="h-6 w-16 bg-gray-100 rounded-full animate-pulse" />
+             </div>
+             <div className="h-20 bg-gray-100 rounded animate-pulse" />
+             <div className="flex gap-2">
+                 <div className="h-8 w-8 bg-gray-100 rounded-full animate-pulse" />
+                 <div className="h-4 w-24 bg-gray-100 rounded animate-pulse self-center" />
+             </div>
+          </div>
+        ))}
       </div>
     </div>
   );
