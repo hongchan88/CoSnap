@@ -20,3 +20,17 @@
 - Exact-ID staging verification: users 6, profiles 6, flags 8, posts 4, offers 3, conversations 2, messages 6, matches 1, reviews 1; flag/message relations valid.
 - `npm run test:seed`: 1 passing.
 - `npm run typecheck`: passed after restoring missing lockfile dependencies with `npm ci`.
+
+## Seed Expansion Plan
+
+- [x] Confirm preferred expansion: both city/flag density and social activity.
+- [x] Add fixed-ID data and extend data-shape tests.
+- [x] Re-run staging seed and verify exact record counts plus relations.
+
+### Review
+
+- Expanded staging dataset to 12 profiles, 24 flags, 12 posts, 9 offers, 5 conversations, 18 messages, 3 matches, and 4 reviews.
+- Added map activity in Busan, Kyoto, Paris and more Seoul, Tokyo, Bangkok, Lisbon, and New York locations.
+- Covered all flag types and accepted/pending/declined offer states.
+- Re-ran seed twice; exact-ID counts and flag/message/match relations verified.
+- `npm run test:seed`: 1 passing. `npm run typecheck`: passed.

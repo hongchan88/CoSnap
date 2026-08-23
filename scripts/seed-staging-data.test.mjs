@@ -6,15 +6,18 @@ test("createSeedData provides linked, future-facing demo records", () => {
   const now = new Date("2026-01-15T00:00:00.000Z");
   const data = createSeedData(now);
 
-  assert.equal(data.users.length, 6);
-  assert.equal(data.profiles.length, 6);
-  assert.equal(data.flags.length, 8);
-  assert.equal(data.posts.length, 4);
-  assert.equal(data.offers.length, 3);
-  assert.equal(data.conversations.length, 2);
-  assert.equal(data.messages.length, 6);
-  assert.equal(data.matches.length, 1);
-  assert.equal(data.reviews.length, 1);
+  assert.equal(data.users.length, 12);
+  assert.equal(data.profiles.length, 12);
+  assert.equal(data.flags.length, 24);
+  assert.equal(data.posts.length, 12);
+  assert.equal(data.offers.length, 9);
+  assert.equal(data.conversations.length, 5);
+  assert.equal(data.messages.length, 18);
+  assert.equal(data.matches.length, 3);
+  assert.equal(data.reviews.length, 4);
+
+  assert.deepEqual(new Set(data.flags.map((flag) => flag.type)), new Set(["help", "emergency", "free", "meet", "photo", "offer"]));
+  assert.deepEqual(new Set(data.offers.map((offer) => offer.status)), new Set(["pending", "accepted", "declined"]));
 
   assert.ok(data.profiles.every((profile) => profile.avatarUrl.includes("images.unsplash.com")));
   assert.ok(data.flags.every((flag) => flag.startDate > now && flag.endDate > flag.startDate));
