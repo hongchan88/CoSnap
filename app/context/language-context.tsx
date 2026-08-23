@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
-
-type Language = "en" | "ko";
+import { DEFAULT_LANGUAGE, getStoredLanguage, type Language } from "~/lib/language";
 
 interface LanguageContextType {
   language: Language;
@@ -78,6 +77,16 @@ const translations: Record<Language, Record<string, string>> = {
     "home.cta.subtitle":
       "Meet new people and capture unforgettable moments together. Create your travel plan now!",
     "home.cta.getStarted": "Get Started for Free",
+    "home.whyCoSnap.focus.point1": "Verified users with ratings of 4.0 or higher",
+    "home.whyCoSnap.focus.point2": "Trusted user verification",
+    "home.whyCoSnap.focus.point3": "Transparent review and reputation system",
+    "home.whyCoSnap.planning.point1": "See activity live on the map",
+    "home.whyCoSnap.planning.point2": "Find nearby help, sharing, and meetups",
+    "home.whyCoSnap.planning.point3": "Connect through intuitive location-based discovery",
+    "home.reviewCount": "reviews",
+    "home.testimonial1": "I needed a pharmacy urgently, and a nearby traveler shared directions and helped translate right away. It was such a relief!",
+    "home.testimonial2": "While living in Chiang Mai for a month, I found a great dinner companion through a meetup. We shared food tips and had a wonderful time.",
+    "home.testimonial3": "I was nervous about getting around by scooter, but another traveler helped me navigate safely. I made a new friend too.",
 
     // Flag Card
     "flagCard.status.active": "Active",
@@ -337,6 +346,16 @@ const translations: Record<Language, Record<string, string>> = {
     "home.cta.subtitle":
       "새로운 사람들을 만나고 잊지 못할 순간들을 함께 담아보세요. 지금 바로 여행 계획을 만들어보세요!",
     "home.cta.getStarted": "무료로 시작하기",
+    "home.whyCoSnap.focus.point1": "평점 4.0 이상 검증된 유저",
+    "home.whyCoSnap.focus.point2": "신뢰할 수 있는 사용자 인증",
+    "home.whyCoSnap.focus.point3": "투명한 리뷰 및 평판 시스템",
+    "home.whyCoSnap.planning.point1": "지도 위에서 실시간 확인",
+    "home.whyCoSnap.planning.point2": "내 주변의 도움/나눔/만남 탐색",
+    "home.whyCoSnap.planning.point3": "직관적인 위치 기반 연결",
+    "home.reviewCount": "개의 리뷰",
+    "home.testimonial1": "급히 약국을 찾아야 했는데, 근처 여행자분이 위치와 통역까지 도와주셨어요. 정말 든든했습니다!",
+    "home.testimonial2": "치앙마이 한달살이 중 마음 맞는 동행을 만나 맛집 정보도 공유하고 즐거운 시간을 보냈습니다.",
+    "home.testimonial3": "스쿠터 이동이 걱정이었는데, 다른 여행자의 도움으로 안전하게 여행하고 새 친구도 사귀었어요.",
 
     // Flag Card
     "flagCard.status.active": "활성",
@@ -540,19 +559,15 @@ const translations: Record<Language, Record<string, string>> = {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>(() => {
-    // Check localStorage first, then default to Korean
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("language") as Language;
-      return saved || "ko";
+      return getStoredLanguage(localStorage.getItem("language"));
     }
-    return "ko";
+    return DEFAULT_LANGUAGE;
   });
 
   useEffect(() => {
-    // Save language preference to localStorage
-    if (typeof window !== "undefined") {
-      localStorage.setItem("language", language);
-    }
+    localStorage.setItem("language", language);
+    document.documentElement.lang = language;
   }, [language]);
 
   const t = (key: string): string => {

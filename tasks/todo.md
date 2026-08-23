@@ -34,3 +34,19 @@
 - Covered all flag types and accepted/pending/declined offer states.
 - Re-ran seed twice; exact-ID counts and flag/message/match relations verified.
 - `npm run test:seed`: 1 passing. `npm run typecheck`: passed.
+
+## Translation Repair Plan
+
+- [x] Add language-state validation and English first-visit default; keep explicit user choice in local storage.
+- [x] Keep document language attribute synced with selected language.
+- [x] Replace landing-page hardcoded Korean/English strings with translation keys; navigation already used `t()`.
+- [x] Convert all staging seed labels, profiles, flags, posts, offers, chats, and reviews to English; verify no Korean seed text.
+- [x] Add focused translation checks and run typecheck.
+
+### Review
+
+- First visit now defaults to English. Only valid stored `en`/`ko` selections persist; invalid values fall back to English.
+- `document.documentElement.lang` follows active language.
+- Landing page now localizes feature bullets, date formatting, review label, and testimonials.
+- Staging seed was re-run: 12 profiles, 24 flags, 12 posts, 9 offers, 5 conversations, 18 messages, 3 matches, and 4 reviews.
+- Language test: 2 passing. Seed test: 1 passing. `npm run typecheck`: passed.

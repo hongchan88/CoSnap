@@ -35,4 +35,5 @@ test("createSeedData provides linked, future-facing demo records", () => {
   assert.ok(data.messages.every((message) => profileIds.has(message.senderId)));
   assert.ok(data.matches.every((match) => offerIds.has(match.offerId) && flagIds.has(match.flagId)));
   assert.ok(data.reviews.every((review) => profileIds.has(review.authorId) && profileIds.has(review.targetId)));
+  assert.doesNotMatch(JSON.stringify(data), /[가-힣]/);
 });

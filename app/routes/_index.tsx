@@ -70,7 +70,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 function HomeContent({ data }: { data: any }) {
   const navigate = useNavigate();
   const contentRef = useRef<HTMLDivElement>(null);
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { activeFlags, topProfiles, stats } = data;
 
   const handleMarkerClick = (city: string) => {
@@ -271,15 +271,15 @@ function HomeContent({ data }: { data: any }) {
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  평점 4.0 이상 검증된 유저
+                  {t("home.whyCoSnap.focus.point1")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  신뢰할 수 있는 사용자 인증
+                  {t("home.whyCoSnap.focus.point2")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
-                  투명한 리뷰 및 평판 시스템
+                  {t("home.whyCoSnap.focus.point3")}
                 </li>
               </ul>
             </motion.div>
@@ -300,15 +300,15 @@ function HomeContent({ data }: { data: any }) {
               <ul className="text-sm text-gray-600 space-y-2">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  지도 위에서 실시간 확인
+                  {t("home.whyCoSnap.planning.point1")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  내 주변의 도움/나눔/만남 탐색
+                  {t("home.whyCoSnap.planning.point2")}
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  직관적인 위치 기반 연결
+                  {t("home.whyCoSnap.planning.point3")}
                 </li>
               </ul>
             </motion.div>
@@ -381,8 +381,8 @@ function HomeContent({ data }: { data: any }) {
                       </h3>
                     </div>
                     <p className="text-sm text-gray-600">
-                      {new Date(flag.startDate).toLocaleDateString("ko-KR")} -{" "}
-                      {new Date(flag.endDate).toLocaleDateString("ko-KR")}
+                      {new Date(flag.startDate).toLocaleDateString(language === "ko" ? "ko-KR" : "en-US")} -{" "}
+                      {new Date(flag.endDate).toLocaleDateString(language === "ko" ? "ko-KR" : "en-US")}
                     </p>
                   </div>
                   {flag.profile && (
@@ -483,7 +483,7 @@ function HomeContent({ data }: { data: any }) {
                         ⭐ {profile.rating || "5.0"}
                       </span>
                       <span className="text-xs text-gray-500">
-                        ({profile.reviewCount || Math.floor(Math.random() * 50) + 1} reviews)
+                        ({profile.reviewCount || Math.floor(Math.random() * 50) + 1} {t("home.reviewCount")})
                       </span>
                     </div>
                   </div>
@@ -591,10 +591,7 @@ function HomeContent({ data }: { data: any }) {
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
-              <p className="text-gray-700 text-sm">
-                "배탈이 나서 급히 약국을 찾아야 했는데, CoSnap Connect에 올리자마자
-                근처 여행자분이 약국 위치와 통역까지 도와주셨어요. 정말 든든했습니다!"
-              </p>
+              <p className="text-gray-700 text-sm">"{t("home.testimonial1")}"</p>
             </motion.div>
 
             <motion.div
@@ -609,10 +606,7 @@ function HomeContent({ data }: { data: any }) {
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
-              <p className="text-gray-700 text-sm">
-                "치앙마이 한달살기 중 혼자 밥 먹기 싫어 '번개'를 올렸더니, 마음 맞는
-                동행을 만났어요. 서로 맛집 정보도 공유하고 즐거운 시간을 보냈습니다."
-              </p>
+              <p className="text-gray-700 text-sm">"{t("home.testimonial2")}"</p>
             </motion.div>
 
             <motion.div
@@ -627,10 +621,7 @@ function HomeContent({ data }: { data: any }) {
                 </div>
               </div>
               <div className="text-yellow-400 mb-3">⭐⭐⭐⭐</div>
-              <p className="text-gray-700 text-sm">
-                "스쿠터 운전이 서툴러서 이동이 걱정이었는데, 오퍼 기능을 통해 스쿠터
-                운전 가능한 분의 도움을 받았어요. 안전하게 여행하면서 새로운 친구도 사귀었네요."
-              </p>
+              <p className="text-gray-700 text-sm">"{t("home.testimonial3")}"</p>
             </motion.div>
           </motion.div>
         </div>
