@@ -25,7 +25,8 @@ export default function FlagListItem({
   isHighlighted,
 }: FlagListItemProps) {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
 
   const getTypeLabel = (type?: string) => {
     switch (type) {
@@ -58,14 +59,14 @@ export default function FlagListItem({
             </span>
           )}
           <h3 className="font-bold text-gray-900 text-lg leading-tight mb-1">
-            {flag.title || `${flag.city} 여행`}
+            {flag.title || `${flag.city} ${language === "ko" ? "여행" : "trip"}`}
           </h3>
           <div className="text-sm text-gray-600 font-medium">
             {flag.city}, {flag.country}
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            {new Date(flag.start_date).toLocaleDateString()} -{" "}
-            {new Date(flag.end_date).toLocaleDateString()}
+            {new Date(flag.start_date).toLocaleDateString(locale)} -{" "}
+            {new Date(flag.end_date).toLocaleDateString(locale)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -148,10 +149,10 @@ export default function FlagListItem({
             <h4 className="text-sm font-semibold text-gray-700 mb-2">{t("explore.travelDetails")}</h4>
             <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
               <div>
-                <span className="font-medium">{t("explore.startDate")}</span> {new Date(flag.start_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                <span className="font-medium">{t("explore.startDate")}</span> {new Date(flag.start_date).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
               <div>
-                <span className="font-medium">{t("explore.endDate")}</span> {new Date(flag.end_date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                <span className="font-medium">{t("explore.endDate")}</span> {new Date(flag.end_date).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
               <div>
                 <span className="font-medium">{t("explore.duration")}</span> {Math.ceil((new Date(flag.end_date).getTime() - new Date(flag.start_date).getTime()) / (1000 * 60 * 60 * 24))} {t("explore.days")}

@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { Alert, AlertDescription } from "./alert";
 import { Button } from "./button";
 
@@ -32,6 +33,7 @@ const typeStyles = {
 };
 
 export default function Notification({ type, message, onClose, autoClose = true }: NotificationProps) {
+  const { co } = useComponentTranslation();
   const styles = typeStyles[type];
 
   return (
@@ -54,7 +56,7 @@ export default function Notification({ type, message, onClose, autoClose = true 
           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
-          <span className="sr-only">닫기</span>
+          <span className="sr-only">{co("닫기")}</span>
         </Button>
       )}
     </Alert>

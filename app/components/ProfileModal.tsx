@@ -1,3 +1,5 @@
+import { useLanguage } from "~/context/language-context";
+import { profileText, profilePhotoStyle } from "~/lib/profile-copy";
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -34,6 +36,9 @@ export default function ProfileModal({
   profile,
   userFlags = [],
 }: ProfileModalProps) {
+  const { language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
   const getFocusTierColor = (tier: string) => {
     switch (tier) {
       case "Crystal":
@@ -66,7 +71,7 @@ export default function ProfileModal({
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            프로필 정보
+            {p("프로필 정보")}
             {profile.is_verified && <span className="text-blue-500">✓</span>}
           </DialogTitle>
         </DialogHeader>
@@ -107,7 +112,7 @@ export default function ProfileModal({
             {profile.bio && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                  소개
+                  {p("소개")}
                 </h4>
                 <p className="text-sm text-gray-600 leading-relaxed">
                   {profile.bio}
@@ -118,7 +123,7 @@ export default function ProfileModal({
             {profile.camera_gear && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                  카메라 장비
+                  {p("카메라 장비")}
                 </h4>
                 <p className="text-sm text-gray-600">{profile.camera_gear}</p>
               </div>
@@ -127,7 +132,7 @@ export default function ProfileModal({
             {profile.languages && profile.languages.length > 0 && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                  언어
+                  {p("언어")}
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {profile.languages.map((lang, idx) => (
@@ -135,7 +140,7 @@ export default function ProfileModal({
                       key={idx}
                       className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs"
                     >
-                      {lang}
+                      {language === "en" && /^[a-z]{2}$/.test(lang) ? new Intl.DisplayNames([locale], { type: "language" }).of(lang) : lang}
                     </span>
                   ))}
                 </div>
@@ -144,7 +149,7 @@ export default function ProfileModal({
 
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-1">
-                Focus 점수
+                {p("Focus 점수")}
               </h4>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
@@ -155,7 +160,7 @@ export default function ProfileModal({
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                현재 점수: {profile.focus_score}점
+                {p("현재 점수:")} {profile.focus_score}{language === "ko" ? "점" : " points"}
               </p>
             </div>
           </div>
@@ -164,10 +169,10 @@ export default function ProfileModal({
           {userFlags && userFlags.length > 0 && (
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                여행 플래그 기록 ({userFlags.length}개)
+                {language === "ko" ? `여행 플래그 기록 (${userFlags.length}개)` : `Travel flag history (${userFlags.length})`}
               </h4>
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {userFlags
+                {[...userFlags]
                   .sort(
                     (a, b) =>
                       new Date(b.start_date).getTime() -
@@ -184,16 +189,16 @@ export default function ProfileModal({
                       if (flag.visibility_status) {
                         switch (flag.visibility_status) {
                           case "active":
-                            return isCurrent ? "진행중" : isUpcoming ? "예정" : "만료됨";
+                            return isCurrent ? p("진행중") : isUpcoming ? p("예정") : p("만료됨");
                           case "hidden":
-                            return "숨김";
+                            return p("숨김");
                           case "expired":
-                            return "만료됨";
+                            return p("만료됨");
                           default:
-                            return "알 수 없음";
+                            return p("알 수 없음");
                         }
                       }
-                      return isCurrent ? "진행중" : isUpcoming ? "예정" : "완료";
+                      return isCurrent ? p("진행중") : isUpcoming ? p("예정") : p("완료");
                     };
 
                     const getStatusColor = () => {
@@ -230,11 +235,11 @@ export default function ProfileModal({
                             </h5>
                             <p className="text-xs text-gray-500">
                               {new Date(flag.start_date).toLocaleDateString(
-                                "ko-KR"
+                                locale
                               )}{" "}
                               -{" "}
                               {new Date(flag.end_date).toLocaleDateString(
-                                "ko-KR"
+                                locale
                               )}
                             </p>
                           </div>
@@ -247,8 +252,8 @@ export default function ProfileModal({
                               }`}
                             >
                               {flag.source_policy_type === "premium"
-                                ? "프리미엄"
-                                : "무료"}
+                                ? p("프리미엄")
+                                : p("무료")}
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor()}`}>
                               {getStatus()}
@@ -269,7 +274,7 @@ export default function ProfileModal({
                                 key={idx}
                                 className="text-xs bg-white px-2 py-1 rounded border border-gray-200"
                               >
-                                {style}
+                                {profilePhotoStyle(language, style)}
                               </span>
                             ))}
                             {flag.styles.length > 3 && (
@@ -286,7 +291,7 @@ export default function ProfileModal({
                 {userFlags.length > 10 && (
                   <div className="text-center py-2">
                     <p className="text-xs text-gray-500">
-                      최근 10개의 플래그만 표시됩니다 (총 {userFlags.length}개)
+                      {language === "ko" ? `최근 10개의 플래그만 표시됩니다 (총 ${userFlags.length}개)` : `Showing the latest 10 flags (${userFlags.length} total)`}
                     </p>
                   </div>
                 )}
@@ -297,7 +302,7 @@ export default function ProfileModal({
           {/* Actions */}
           <div className="flex gap-2 pt-4 border-t">
             <Button onClick={onClose} className="flex-1">
-              닫기
+              {p("닫기")}
             </Button>
           </div>
         </div>

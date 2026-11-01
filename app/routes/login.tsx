@@ -1,7 +1,7 @@
 import type { Route } from "./+types/login";
 import { useState } from "react";
 import { redirect } from "react-router";
-import { useActionData, Form, useNavigation } from "react-router";
+import { useActionData, Form, useNavigation, useSearchParams } from "react-router";
 import { signInWithGoogle } from "../context/auth-context";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -15,50 +15,30 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { createSupabaseClient } from "../lib/supabase";
-import * as z from "zod";
+import { useLanguage } from "~/context/language-context";
+import { validateAuthForm, getAuthErrorKey, type AuthErrorKey } from "~/lib/auth-translations";
 
-const formSchema = z.object({
-  email: z.string({}).email("유효한 이메일 주소를 입력해주세요."),
-  password: z.string({}).min(6, "비밀번호는 최소 6자 이상이어야 합니다."),
-});
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-
+  const { language, values, errorKey } = validateAuthForm(formData, "login");
+  if (errorKey) return { errorKey, language };
   try {
-    const { success, data: parsedData, error } = formSchema.safeParse(
-      Object.fromEntries(formData)
-    );
-    if (!success) {
-      return { formErrors: error.flatten().fieldErrors };
-    }
-
-    const { email, password } = parsedData;
     const { client, headers } = createSupabaseClient(request);
-
-    const { data: logindata, error: loginError } =
-      await client.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-    if (loginError) {
-      return { error: loginError.message || "로그인에 실패했습니다." };
-    }
-
-    // 로그인 성공 시 홈으로 리디렉션 with headers
+    const { error } = await client.auth.signInWithPassword({ email: values.email, password: values.password });
+    if (error) return { errorKey: getAuthErrorKey(error, "login"), language };
     return redirect("/", { headers });
-  } catch (error) {
-    return { error: "로그인 중 오류가 발생했습니다." };
+  } catch {
+    return { errorKey: "auth.error.login" as AuthErrorKey, language };
   }
 }
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "로그인 - CoSnap" },
+    { title: "Log in - CoSnap" },
     {
       name: "description",
-      content: "CoSnap에 로그인하여 여행자들과 사진을 교환하세요.",
+      content: "Log in to CoSnap and connect with fellow travelers.",
     },
   ];
 }
@@ -66,20 +46,24 @@ export function meta({}: Route.MetaArgs) {
 export default function LoginPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const { language, t } = useLanguage();
+  const [query] = useSearchParams();
+  const [googleError, setGoogleError] = useState<AuthErrorKey | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const isSubmitting = navigation.state === "submitting";
   const controlsDisabled = isSubmitting || isGoogleLoading;
 
   const handleGoogleSignIn = async () => {
+    setGoogleError(null);
     setIsGoogleLoading(true);
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        console.error("Google 로그인 오류:", error);
+        setGoogleError(getAuthErrorKey(error, "google"));
       }
     } catch (error) {
-      console.error("Google 로그인 오류:", error);
+      setGoogleError(getAuthErrorKey(error, "google"));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -89,40 +73,42 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">로그인</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t("auth.login")}</CardTitle>
           <CardDescription>
-            CoSnap 계정에 로그인하여 여행 계획을 공유하세요
+            {t("auth.loginDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Form method="post" className="space-y-4">
+          {query.get("message") === "signup_success" && <Alert><AlertDescription>{t("auth.signupSuccess")}</AlertDescription></Alert>}
+          <Form method="post" noValidate className="space-y-4">
+            <input type="hidden" name="language" value={language} />
             <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="이메일 주소를 입력하세요"
+                placeholder={t("auth.emailPlaceholder")}
                 required
                 disabled={controlsDisabled}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="비밀번호를 입력하세요"
+                placeholder={t("auth.passwordPlaceholder")}
                 required
                 disabled={controlsDisabled}
               />
             </div>
 
-            {actionData?.error && (
+            {(actionData?.errorKey || googleError || query.has("error")) && (
               <Alert variant="destructive">
-                <AlertDescription>{actionData.error}</AlertDescription>
+                <AlertDescription>{t(actionData?.errorKey || googleError || "auth.error.callback")}</AlertDescription>
               </Alert>
             )}
 
@@ -131,7 +117,7 @@ export default function LoginPage() {
               className="w-full"
               disabled={controlsDisabled}
             >
-              {isSubmitting ? "로그인 중..." : "로그인"}
+              {t(isSubmitting ? "auth.loggingIn" : "auth.login")}
             </Button>
           </Form>
 
@@ -141,7 +127,7 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                또는
+                {t("auth.or")}
               </span>
             </div>
           </div>
@@ -170,16 +156,16 @@ export default function LoginPage() {
                 fill="#EA4335"
               />
             </svg>
-            {isGoogleLoading ? "Google로 로그인 중..." : "Google로 로그인"}
+            {t(isGoogleLoading ? "auth.googleLoading" : "auth.googleLogin")}
           </Button>
 
           <div className="text-center text-sm text-gray-600">
-            계정이 없으신가요?{" "}
+            {t("auth.noAccount")}{" "}
             <a
               href="/signup"
               className="font-medium text-blue-600 hover:text-blue-500"
             >
-              회원가입
+              {t("auth.signup")}
             </a>
           </div>
         </CardContent>

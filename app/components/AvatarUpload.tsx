@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { useState, useRef, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { Upload, X } from "lucide-react";
@@ -18,6 +19,7 @@ export default function AvatarUpload({
   disabled = false,
   className = "",
 }: AvatarUploadProps) {
+  const { co } = useComponentTranslation();
   const [preview, setPreview] = useState<string | null>(currentAvatar || null);
   const [isDragging, setIsDragging] = useState(false);
   const [hasSelectedFile, setHasSelectedFile] = useState(false);
@@ -36,7 +38,7 @@ export default function AvatarUpload({
     if (!allowedTypes.includes(file.type)) {
       return {
         valid: false,
-        error: "JPEG, PNG, 또는 WebP 형식의 이미지만 업로드할 수 있습니다.",
+        error: co("JPEG, PNG, 또는 WebP 형식의 이미지만 업로드할 수 있습니다."),
       };
     }
 
@@ -45,7 +47,7 @@ export default function AvatarUpload({
     if (file.size > maxSize) {
       return {
         valid: false,
-        error: "이미지 크기는 5MB 이하여야 합니다.",
+        error: co("이미지 크기는 5MB 이하여야 합니다."),
       };
     }
 
@@ -159,7 +161,7 @@ export default function AvatarUpload({
               disabled={disabled}
             >
               <Upload className="w-4 h-4 mr-2" />
-              사진 선택
+              {co("사진 선택")}
             </Button>
 
             {preview && (
@@ -170,16 +172,16 @@ export default function AvatarUpload({
                 disabled={disabled}
               >
                 <X className="w-4 h-4 mr-2" />
-                제거
+                {co("제거")}
               </Button>
             )}
           </div>
 
           {/* Instructions */}
           <div className="text-xs text-gray-500 text-center space-y-1">
-            <p>• JPEG, PNG, WebP 형식</p>
-            <p>• 최대 5MB</p>
-            <p>• 드래그 앤 드롭 가능</p>
+            <p>{co("• JPEG, PNG, WebP 형식")}</p>
+            <p>{co("• 최대 5MB")}</p>
+            <p>{co("• 드래그 앤 드롭 가능")}</p>
           </div>
         </div>
       </CardContent>

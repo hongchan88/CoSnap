@@ -15,11 +15,11 @@ const MapView = lazy(() => import("~/components/MapView"));
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "CoSnap Connect - 서로 의지하는 여행자 커뮤니티" },
+    { title: "CoSnap Connect - A Community for Travelers" },
     {
       name: "description",
       content:
-        "여행 중 겪는 어려움, 도움, 조언, 그리고 취미 생활까지. 현지인과 여행자가 서로 돕는 따뜻한 커뮤니티, CoSnap입니다.",
+        "Travel help, advice, and shared experiences. Connect with travelers and locals on CoSnap.",
     },
   ];
 }
@@ -587,7 +587,7 @@ function HomeContent({ data }: { data: any }) {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
-                  <div className="font-semibold">김민준</div>
+                  <div className="font-semibold">{language === "ko" ? "김민준" : "Minjun Kim"}</div>
                   <div className="text-sm text-yellow-500">⭐ 5.0 (Review 42)</div>
                 </div>
               </div>
@@ -602,7 +602,7 @@ function HomeContent({ data }: { data: any }) {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
-                  <div className="font-semibold">이서아</div>
+                  <div className="font-semibold">{language === "ko" ? "이서아" : "Seoa Lee"}</div>
                   <div className="text-sm text-yellow-500">⭐ 4.9 (Review 28)</div>
                 </div>
               </div>
@@ -617,7 +617,7 @@ function HomeContent({ data }: { data: any }) {
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
-                  <div className="font-semibold">박철민</div>
+                  <div className="font-semibold">{language === "ko" ? "박철민" : "Cheolmin Park"}</div>
                   <div className="text-sm text-yellow-500">⭐ 4.8 (Review 15)</div>
                 </div>
               </div>

@@ -1,3 +1,5 @@
+import { useLanguage } from "~/context/language-context";
+import { profileText, profilePhotoStyle } from "~/lib/profile-copy";
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader } from './card';
 import { Badge } from './badge';
@@ -87,6 +89,9 @@ export default function MatchCard({
   className = '',
   isCompact = false
 }: MatchCardProps) {
+  const { language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
   const statusConfig = statusVariants[status];
   const StatusIcon = statusConfig.icon;
 
@@ -109,15 +114,15 @@ export default function MatchCard({
                 <h3 className="font-semibold text-gray-900">{matchName}</h3>
                 <p className="text-sm text-gray-500">
                   {status === 'scheduled' && dateTime}
-                  {status === 'pending' && '시간 확정 중'}
-                  {status === 'completed' && '완료됨'}
-                  {status === 'cancelled' && '취소됨'}
-                  {status === 'no_show' && '노쇼 처리됨'}
+                  {status === 'pending' && p('시간 확정 중')}
+                  {status === 'completed' && p('완료됨')}
+                  {status === 'cancelled' && p('취소됨')}
+                  {status === 'no_show' && p('노쇼 처리됨')}
                 </p>
               </div>
             </div>
             <Badge variant="secondary" className={`${statusConfig.textColor} ${statusConfig.bgColor}`}>
-              {statusConfig.label}
+              {p(statusConfig.label)}
             </Badge>
           </div>
         </CardHeader>
@@ -141,32 +146,32 @@ export default function MatchCard({
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-gray-600" />
               <span className="text-sm text-gray-600">
-                {new Date(travelDates.start).toLocaleDateString('ko-KR')} - {' '}
-                {new Date(travelDates.end).toLocaleDateString('ko-KR')}
+                {new Date(travelDates.start).toLocaleDateString(locale)} - {' '}
+                {new Date(travelDates.end).toLocaleDateString(locale)}
               </span>
             </div>
 
             {!isCompact && (
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">사진 스타일:</span>
+                  <span className="text-gray-500">{p("사진 스타일:")}</span>
                   <div className="flex flex-wrap gap-1">
                     {photoStyles.map((style, index) => (
                       <Badge key={index} variant="outline" className="text-xs">
-                        {style}
+                        {profilePhotoStyle(language, style)}
                       </Badge>
                     ))}
                   </div>
                 </div>
                 {estimatedTime && (
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">예상 시간:</span>
+                    <span className="text-gray-500">{p("예상 시간:")}</span>
                     <span>{estimatedTime}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-500">Focus 보상:</span>
-                  <span className="font-medium text-green-600">+{focusReward}점</span>
+                  <span className="text-gray-500">{p("Focus 보상:")}</span>
+                  <span className="font-medium text-green-600">+{focusReward}{language === "ko" ? "점" : " points"}</span>
                 </div>
               </div>
             )}
@@ -176,7 +181,7 @@ export default function MatchCard({
           {status === 'pending' && (
             <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
               <p className="text-sm text-yellow-800">
-                ⏰ 시간 조율이 필요합니다. 서로 가능한 시간을 제안해주세요.
+                {p("⏰ 시간 조율이 필요합니다. 서로 가능한 시간을 제안해주세요.")}
               </p>
             </div>
           )}
@@ -191,7 +196,7 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  메시지 보내기
+                  {p("메시지 보내기")}
                 </Button>
                 <Button
                   variant="outline"
@@ -199,7 +204,7 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                 >
                   <MapPin className="w-4 h-4 mr-2" />
-                  위치 확인
+                  {p("위치 확인")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -207,7 +212,7 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                   className="text-red-600 hover:text-red-800"
                 >
-                  매치 취소
+                  {p("매치 취소")}
                 </Button>
               </>
             )}
@@ -220,7 +225,7 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                 >
                   <Clock className="w-4 h-4 mr-2" />
-                  시간 제안하기
+                  {p("시간 제안하기")}
                 </Button>
                 <Button
                   variant="outline"
@@ -228,7 +233,7 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                 >
                   <MessageCircle className="w-4 h-4 mr-2" />
-                  메시지 보내기
+                  {p("메시지 보내기")}
                 </Button>
                 <Button
                   variant="ghost"
@@ -236,20 +241,20 @@ export default function MatchCard({
                   size={isCompact ? 'sm' : 'default'}
                   className="text-red-600 hover:text-red-800"
                 >
-                  매치 취소
+                  {p("매치 취소")}
                 </Button>
               </>
             )}
 
             {status === 'completed' && (
               <div className="text-center py-2">
-                <p className="text-sm text-gray-600 mb-2">✨ CoSnap 완료</p>
+                <p className="text-sm text-gray-600 mb-2">{p("✨ CoSnap 완료")}</p>
                 <Button
                   variant="outline"
                   onClick={onMessage}
                   size={isCompact ? 'sm' : 'default'}
                 >
-                  다시 만나기
+                  {p("다시 만나기")}
                 </Button>
               </div>
             )}

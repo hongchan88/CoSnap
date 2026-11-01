@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { useState, useEffect } from 'react';
 import { useFetcher } from 'react-router';
 import Modal from './ui/Modal';
@@ -34,6 +35,7 @@ interface OfferFormData {
 export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProps) {
   const fetcher = useFetcher();
   const { t } = useLanguage();
+  const { co, language: componentLanguage } = useComponentTranslation();
 
   const [formData, setFormData] = useState<OfferFormData>({
     message: '',
@@ -102,8 +104,8 @@ export default function OfferModal({ isOpen, onClose, flagData }: OfferModalProp
 ${formData.message}
 
 ---
-📍 희망 장소: ${formData.location}
-📅 희망 날짜: ${formData.preferredDates.join(', ')}
+${componentLanguage === "ko" ? "📍 희망 장소:" : "📍 Preferred location:"} ${formData.location}
+${componentLanguage === "ko" ? "📅 희망 날짜:" : "📅 Preferred dates:"} ${formData.preferredDates.join(', ')}
     `.trim();
 
     fetcher.submit(
@@ -138,7 +140,7 @@ ${formData.message}
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dateStr = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('ko-KR', {
+      const label = d.toLocaleDateString((componentLanguage === "ko" ? "ko-KR" : "en-US"), {
         month: 'long',
         day: 'numeric',
         weekday: 'short'
@@ -162,11 +164,11 @@ ${formData.message}
                 📍 {flagData.destination}, {flagData.country}
               </h4>
               <p className="text-sm text-gray-600">
-                {new Date(flagData.startDate).toLocaleDateString('ko-KR')} - {' '}
-                {new Date(flagData.endDate).toLocaleDateString('ko-KR')}
+                {new Date(flagData.startDate).toLocaleDateString((componentLanguage === "ko" ? "ko-KR" : "en-US"))} - {' '}
+                {new Date(flagData.endDate).toLocaleDateString((componentLanguage === "ko" ? "ko-KR" : "en-US"))}
               </p>
               <p className="text-sm text-gray-600">
-                {flagData.ownerName} 님에게 오퍼 보내기
+                {componentLanguage === "ko" ? `${flagData.ownerName} 님에게 오퍼 보내기` : `Send an offer to ${flagData.ownerName}`}
               </p>
             </CardContent>
           </Card>
@@ -193,7 +195,7 @@ ${formData.message}
                 id="message"
                 value={formData.message}
                 onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
-                placeholder="안녕하세요! 같이 멋진 사진 찍어봐요. 어떤 사진을 선호하시나요?"
+                placeholder={co("안녕하세요! 같이 멋진 사진 찍어봐요. 어떤 사진을 선호하시나요?")}
                 className={errors.message ? 'border-red-500' : ''}
                 rows={4}
                 disabled={isSubmitting}
@@ -241,7 +243,7 @@ ${formData.message}
                 type="text"
                 value={formData.location}
                 onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="예: 강남역, 명동, 신주쿠 등"
+                placeholder={co("예: 강남역, 명동, 신주쿠 등")}
                 className={errors.location ? 'border-red-500' : ''}
                 disabled={isSubmitting}
               />

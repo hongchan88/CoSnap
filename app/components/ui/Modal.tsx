@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ const sizeClasses = {
 };
 
 export default function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+  const { co } = useComponentTranslation();
   if (!isOpen) return null;
 
   return (
@@ -37,7 +39,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
             onClick={onClose}
             className="absolute right-4 top-4"
           >
-            <span className="sr-only">닫기</span>
+            <span className="sr-only">{co("닫기")}</span>
           </Button>
         </DialogHeader>
         <div className="mt-4">
