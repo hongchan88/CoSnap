@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { createSupabaseClient } from "../lib/supabase";
+import { PUBLIC_DEMO_ACCOUNT } from "~/lib/demo-account";
 import { useLanguage } from "~/context/language-context";
 import { validateAuthForm, getAuthErrorKey, type AuthErrorKey } from "~/lib/auth-translations";
 
@@ -50,6 +51,7 @@ export default function LoginPage() {
   const [query] = useSearchParams();
   const [googleError, setGoogleError] = useState<AuthErrorKey | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [credentials, setCredentials] = useState({ email: "", password: "" });
 
   const isSubmitting = navigation.state === "submitting";
   const controlsDisabled = isSubmitting || isGoogleLoading;
@@ -80,6 +82,16 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="space-y-6">
           {query.get("message") === "signup_success" && <Alert><AlertDescription>{t("auth.signupSuccess")}</AlertDescription></Alert>}
+          <section aria-labelledby="demo-account-heading" className="rounded-lg border border-blue-100 bg-blue-50 p-4 space-y-3">
+            <h2 id="demo-account-heading" className="font-semibold text-blue-950">{t("auth.demo.title")}</h2>
+            <p className="text-sm text-blue-900">{t("auth.demo.description")}</p>
+            <dl className="text-sm break-all space-y-1">
+              <div><dt className="inline font-medium">{t("auth.email")}: </dt><dd className="inline">{PUBLIC_DEMO_ACCOUNT.email}</dd></div>
+              <div><dt className="inline font-medium">{t("auth.password")}: </dt><dd className="inline">{PUBLIC_DEMO_ACCOUNT.password}</dd></div>
+            </dl>
+            <Button type="button" variant="outline" disabled={controlsDisabled} onClick={() => setCredentials({ ...PUBLIC_DEMO_ACCOUNT })}>{t("auth.demo.fill")}</Button>
+            <p className="text-xs text-blue-900">{t("auth.demo.hint")}</p>
+          </section>
           <Form method="post" noValidate className="space-y-4">
             <input type="hidden" name="language" value={language} />
             <div className="space-y-2">
@@ -88,6 +100,8 @@ export default function LoginPage() {
                 id="email"
                 name="email"
                 type="email"
+                value={credentials.email}
+                onChange={event => setCredentials(previous => ({ ...previous, email: event.target.value }))}
                 placeholder={t("auth.emailPlaceholder")}
                 required
                 disabled={controlsDisabled}
@@ -100,6 +114,8 @@ export default function LoginPage() {
                 id="password"
                 name="password"
                 type="password"
+                value={credentials.password}
+                onChange={event => setCredentials(previous => ({ ...previous, password: event.target.value }))}
                 placeholder={t("auth.passwordPlaceholder")}
                 required
                 disabled={controlsDisabled}

@@ -2,6 +2,10 @@ import { getStoredLanguage } from "./language.ts";
 
 export const authTranslations = {
   en: {
+    "auth.demo.title": "Try the portfolio demo",
+    "auth.demo.description": "Explore with a shared demo account. Other visitors can see its activity; please do not enter personal or sensitive information.",
+    "auth.demo.fill": "Fill demo account",
+    "auth.demo.hint": "This fills the form only. Choose Log in when you are ready.",
     "auth.login": "Log in",
     "auth.signup": "Sign up",
     "auth.loginDescription": "Log in to CoSnap to share your travel plans.",
@@ -41,6 +45,10 @@ export const authTranslations = {
     "auth.error.callback": "Sign-in could not be completed. Please try again.",
   },
   ko: {
+    "auth.demo.title": "포트폴리오 데모 체험",
+    "auth.demo.description": "공유 데모 계정으로 둘러보세요. 다른 방문자도 활동을 볼 수 있으니 개인정보나 민감한 내용은 입력하지 마세요.",
+    "auth.demo.fill": "데모 계정 채우기",
+    "auth.demo.hint": "입력란만 채웁니다. 준비되면 로그인을 눌러 주세요.",
     "auth.login": "로그인",
     "auth.signup": "회원가입",
     "auth.loginDescription": "CoSnap 계정에 로그인하여 여행 계획을 공유하세요.",

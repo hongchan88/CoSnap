@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { renderToString } from "react-dom/server";
 import { useRef } from "react";
 import { POPULAR_DESTINATIONS } from "~/lib/constants";
+import { canReportMapViewport } from "~/lib/map-viewport";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -67,19 +68,34 @@ function MapController({
   } | null>(null);
   const map = useMapEvents({
     zoomend() {
-      onZoomChange(map.getZoom());
-      onBoundsChange?.(map.getBounds());
+      reportBounds();
     },
     moveend() {
-      onBoundsChange?.(map.getBounds());
+      reportBounds();
     },
   });
 
+  const reportBounds = useCallback(() => {
+    const container = map.getContainer();
+    const bounds = map.getBounds();
+    if (!canReportMapViewport(container.clientWidth, container.clientHeight,
+      bounds.getSouth(), bounds.getNorth(), bounds.getWest(), bounds.getEast())) return false;
+    onBoundsChange?.(bounds);
+    onZoomChange(map.getZoom());
+    return true;
+  }, [map, onBoundsChange, onZoomChange]);
+
   useEffect(() => {
-    const observer = new ResizeObserver(() => map.invalidateSize());
-    observer.observe(map.getContainer());
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      // Hiding the mobile map must retain the last visible viewport and results.
+      if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
+      map.invalidateSize({ pan: false });
+      reportBounds();
+    });
+    observer.observe(container);
     return () => observer.disconnect();
-  }, [map]);
+  }, [map, reportBounds]);
 
   useEffect(() => {
     const prev = lastPropsRef.current;
@@ -93,11 +109,9 @@ function MapController({
     }
 
     if (!hasReportedInitialState.current) {
-      onBoundsChange?.(map.getBounds());
-      onZoomChange(map.getZoom());
-      hasReportedInitialState.current = true;
+      hasReportedInitialState.current = reportBounds();
     }
-  }, [center, zoom, map, onBoundsChange, onZoomChange]);
+  }, [center, zoom, map, reportBounds]);
 
   return null;
 }

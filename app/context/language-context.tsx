@@ -75,14 +75,16 @@ const translations: Record<Language, Record<string, string>> = {
     "home.activeFlags.premium": "Premium",
     "home.activeFlags.regular": "Regular",
 
-    "home.topProfiles.title": "Top Reviewed Users",
-    "home.topProfiles.subtitle": "Trusted users with high ratings and reviews",
+    "home.topProfiles.title": "Community Profiles",
+    "home.topProfiles.subtitle": "Explore traveler profiles and their interests",
     "home.topProfiles.equipment": "Equipment:",
     "home.topProfiles.style": "Style:",
     "home.topProfiles.languages": "Languages:",
 
-    "home.testimonials.title": "CoSnap User Reviews",
-    "home.testimonials.subtitle": "Real experiences from actual users",
+    "home.testimonials.sample": "Demo example",
+    "home.topProfiles.score": "Focus score",
+    "home.testimonials.title": "Example Travel Connections",
+    "home.testimonials.subtitle": "Fictional examples created for this portfolio demo, not real user reviews.",
 
     "home.cta.title": "Add CoSnap to Your Next Trip",
     "home.cta.subtitle":
@@ -352,15 +354,17 @@ const translations: Record<Language, Record<string, string>> = {
     "home.activeFlags.premium": "프리미엄",
     "home.activeFlags.regular": "일반",
 
-    "home.topProfiles.title": "베스트 리뷰 유저",
+    "home.topProfiles.title": "커뮤니티 프로필",
     "home.topProfiles.subtitle":
-      "좋은 평판과 많은 리뷰를 보유한 신뢰할 수 있는 사용자들",
+      "여행자들의 프로필과 관심사를 둘러보세요",
     "home.topProfiles.equipment": "장비:",
     "home.topProfiles.style": "스타일:",
     "home.topProfiles.languages": "언어:",
 
-    "home.testimonials.title": "CoSnap 사용자 후기",
-    "home.testimonials.subtitle": "실제 사용자들의 생생한 경험담",
+    "home.testimonials.sample": "데모 예시",
+    "home.topProfiles.score": "Focus 점수",
+    "home.testimonials.title": "여행 연결 예시",
+    "home.testimonials.subtitle": "포트폴리오 데모를 위해 만든 가상 사례이며 실제 사용자 후기가 아닙니다.",
 
     "home.cta.title": "당신의 다음 여행에 CoSnap을 더하세요",
     "home.cta.subtitle":

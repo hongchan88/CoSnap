@@ -202,7 +202,7 @@ function ExploreContent({ flags, error, loaderSearchParams, currentUserId }: { f
   
     // Derived State
     const flagsInView = useMemo(() => {
-      if (!mapBounds) return [];
+      if (!mapBounds) return flags;
   
       return flags.filter((flag) => {
         const lat = (flag as any).latitude ?? (flag as any).lat;
