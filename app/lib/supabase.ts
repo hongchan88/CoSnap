@@ -21,6 +21,14 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 
 // Supabase 클라이언트를 안전하게 생성하는 함수 (SSR & CSR 호환)
 export function createSupabaseClient(request?: Request) {
+  // Browser callers must use Vite/public configuration before accessing any
+  // Node-only globals, and share the SSR-compatible cookie session.
+  if (typeof window !== "undefined") {
+    const client = getSupabaseBrowserClient();
+    if (!client) throw new Error("Missing public Supabase configuration.");
+    return { client, headers: new Headers() };
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
   const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY!;
 
@@ -31,10 +39,10 @@ export function createSupabaseClient(request?: Request) {
   }
 
   // 클라이언트 사이드에서는 간단한 클라이언트 생성
-  if (typeof window !== "undefined" || !request) {
+  if (!request) {
     // Browser environment or no request provided
     const client = createClient(supabaseUrl, supabaseAnonKey);
-    return { client };
+    return { client, headers: new Headers() };
   }
 
   // 서버 사이드에서는 쿠키 처리

@@ -118,7 +118,8 @@ export const getAllActiveFlags = async (
   client: SupabaseClient,
   limit: number = 20,
   bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number },
-  type?: string | null
+  type?: string | null,
+  dates?: { start: string | null; end: string | null }
 ) => {
   try {
     let query = client
@@ -138,16 +139,18 @@ export const getAllActiveFlags = async (
       .limit(limit);
 
     if (bounds) {
-      query = query
-        .gte("latitude", bounds.minLat)
-        .lte("latitude", bounds.maxLat)
-        .gte("longitude", bounds.minLng)
-        .lte("longitude", bounds.maxLng);
+      query = query.gte("latitude", bounds.minLat).lte("latitude", bounds.maxLat);
+      query = bounds.minLng <= bounds.maxLng
+        ? query.gte("longitude", bounds.minLng).lte("longitude", bounds.maxLng)
+        : query.or(`longitude.gte.${bounds.minLng},longitude.lte.${bounds.maxLng}`);
     }
 
     if (type && type !== "all") {
       query = query.eq("type", type);
     }
+    // Include trips that overlap any part of the requested date window.
+    if (dates?.start) query = query.gte("end_date", dates.start);
+    if (dates?.end) query = query.lte("start_date", dates.end);
 
     const { data, error } = await query;
 
@@ -569,11 +572,10 @@ export const getAllActivePosts = async (
       .limit(limit);
 
     if (bounds) {
-      query = query
-        .gte("latitude", bounds.minLat)
-        .lte("latitude", bounds.maxLat)
-        .gte("longitude", bounds.minLng)
-        .lte("longitude", bounds.maxLng);
+      query = query.gte("latitude", bounds.minLat).lte("latitude", bounds.maxLat);
+      query = bounds.minLng <= bounds.maxLng
+        ? query.gte("longitude", bounds.minLng).lte("longitude", bounds.maxLng)
+        : query.or(`longitude.gte.${bounds.minLng},longitude.lte.${bounds.maxLng}`);
     }
 
     const { data, error } = await query;

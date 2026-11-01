@@ -10,7 +10,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // 오류가 있는 경우
   if (error) {
-    return redirect('/?error=auth_error');
+    return redirect('/?error=auth_error', { headers: supabase.headers });
   }
 
   // 인증 코드가 있는 경우
@@ -20,7 +20,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
       if (error) {
         console.error('인증 코드 교환 오류:', error);
-        return redirect('/?error=auth_exchange_error');
+        return redirect('/?error=auth_exchange_error', { headers: supabase.headers });
       }
 
       if (data.user) {
@@ -52,11 +52,11 @@ export async function loader({ request }: Route.LoaderArgs) {
       }
     } catch (error) {
       console.error('OAuth 콜백 처리 중 오류:', error);
-      return redirect('/?error=auth_callback_error');
+      return redirect('/?error=auth_callback_error', { headers: supabase.headers });
     }
   }
 
-  return redirect('/');
+  return redirect('/', { headers: supabase.headers });
 }
 
 export default function AuthCallback() {

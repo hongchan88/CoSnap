@@ -399,12 +399,6 @@ export const subscriptions = pgTable("subscriptions", {
     .defaultNow()
     .notNull(),
 }, (table) => [
-  pgPolicy("subscriptions_insert_policy", {
-    for: "insert",
-    to: authenticatedRole,
-    as: "permissive",
-    withCheck: sql`true`, // Allow users to create subscriptions (mock flow)
-  }),
   pgPolicy("subscriptions_select_policy", {
     for: "select",
     to: authenticatedRole,

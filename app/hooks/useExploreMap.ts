@@ -22,7 +22,7 @@ export function useExploreMap(flags: any[], searchParams: { location: string | n
       (d) => d.city.toLowerCase() === paramLoc
     );
     return cityMatch ? cityMatch.city : null;
-  }, [searchParams]);
+  }, [searchParams.location]);
 
   // Determine map center based on search location, or fall back to default
   const initialCenter = useMemo(() => {
@@ -63,18 +63,18 @@ export function useExploreMap(flags: any[], searchParams: { location: string | n
       }
     }
     return { lat: 37.5665, lng: 126.978 };
-  }, [searchParams, flags]);
+  }, [searchParams.location, flags]);
 
   const [mapCenter, setMapCenter] = useState(initialCenter);
-  const [mapZoom, setMapZoom] = useState(searchParams.location ? 5 : 3);
+  const [mapZoom, setMapZoom] = useState(searchParams.location ? 8 : 3);
 
   // Update map center when URL param changes
   useEffect(() => {
     setMapCenter(initialCenter);
     if (searchParams.location) {
-      setMapZoom(5);
+      setMapZoom(8);
     }
-  }, [initialCenter, searchParams]);
+  }, [initialCenter.lat, initialCenter.lng, searchParams.location]);
 
   // Center to user GPS on mount if available, BUT ONLY if no location param
   useEffect(() => {
@@ -90,7 +90,7 @@ export function useExploreMap(flags: any[], searchParams: { location: string | n
       () => {},
       { timeout: 5000 }
     );
-  }, [searchParams]);
+  }, [searchParams.location]);
 
   return {
     mapCenter,

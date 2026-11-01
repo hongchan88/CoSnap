@@ -51,7 +51,7 @@ export default function PricingPage() {
         </p>
       </div>
 
-      {success && (
+      {success === "downgrade" && (
         <div className="max-w-md mx-auto mb-8 p-4 bg-green-50 text-green-700 rounded-md border border-green-200 text-center">
           {success === "downgrade" 
             ? "Your plan has been downgraded to Free." 
@@ -131,7 +131,7 @@ export default function PricingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold mb-2">$9.99<span className="text-lg font-normal text-gray-500">/mo</span></div>
-            <div className="text-sm text-green-600 font-medium mb-6">First 30 days free!</div>
+            <div className="text-sm text-green-600 font-medium mb-6">Payments are not available yet.</div>
             <ul className="space-y-3">
               <li className="flex items-center gap-2">
                 <Check className="h-5 w-5 text-blue-500" />
@@ -166,9 +166,9 @@ export default function PricingPage() {
                 <Button 
                   type="submit" 
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={isSubmitting || !userId}
+                  disabled
                 >
-                  {isSubmitting ? "Processing..." : userId ? "Start Free Trial" : "Log in to Start Trial"}
+                  Premium signup unavailable
                 </Button>
               </Form>
             )}
