@@ -1,5 +1,6 @@
 import { useLanguage } from "~/context/language-context";
 import { profileText } from "~/lib/profile-copy";
+import { normalizeProfileLanguages } from "~/lib/profile-languages";
 import { useState, useEffect } from 'react';
 import LoadingSpinner from './ui/LoadingSpinner';
 import Notification from './ui/Notification';
@@ -63,7 +64,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
     bio: initialData?.bio || '',
     cameraGear: initialData?.cameraGear || '',
     photoStyles: initialData?.photoStyles || [],
-    languages: initialData?.languages || ['ko'],
+    languages: normalizeProfileLanguages(initialData?.languages ?? ['ko']),
     location: initialData?.location || '',
     avatarFile: null,
     avatarUrl: initialData?.avatarUrl || null,
@@ -75,7 +76,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
     bio: initialData?.bio || '',
     cameraGear: initialData?.cameraGear || '',
     photoStyles: initialData?.photoStyles || [],
-    languages: initialData?.languages || ['ko'],
+    languages: normalizeProfileLanguages(initialData?.languages ?? ['ko']),
     location: initialData?.location || '',
     avatarFile: null,
     avatarUrl: initialData?.avatarUrl || null,

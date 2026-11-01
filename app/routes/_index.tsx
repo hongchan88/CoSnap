@@ -481,11 +481,9 @@ function HomeContent({ data }: { data: any }) {
                     </h3>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-yellow-500 font-medium">
-                        ⭐ {profile.rating || "5.0"}
+                        {t("home.topProfiles.score")}: {profile.focus_score ?? 0}
                       </span>
-                      <span className="text-xs text-gray-500">
-                        ({profile.reviewCount || Math.floor(Math.random() * 50) + 1} {t("home.reviewCount")})
-                      </span>
+
                     </div>
                   </div>
                   <div
@@ -564,12 +562,10 @@ function HomeContent({ data }: { data: any }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div className="text-center mb-16" {...fadeInUp}>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              {t ? t("home.testimonials.title") : "CoSnap 사용자 후기"}
+              {t("home.testimonials.title")}
             </h2>
             <p className="text-gray-600">
-              {t
-                ? t("home.testimonials.subtitle")
-                : "실제 사용자들의 생생한 경험담"}
+              {t("home.testimonials.subtitle")}
             </p>
           </motion.div>
 
@@ -588,10 +584,9 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">{language === "ko" ? "김민준" : "Minjun Kim"}</div>
-                  <div className="text-sm text-yellow-500">⭐ 5.0 (Review 42)</div>
+                  <div className="text-sm text-blue-700">{t("home.testimonials.sample")}</div>
                 </div>
               </div>
-              <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">"{t("home.testimonial1")}"</p>
             </motion.div>
 
@@ -603,10 +598,9 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">{language === "ko" ? "이서아" : "Seoa Lee"}</div>
-                  <div className="text-sm text-yellow-500">⭐ 4.9 (Review 28)</div>
+                  <div className="text-sm text-blue-700">{t("home.testimonials.sample")}</div>
                 </div>
               </div>
-              <div className="text-yellow-400 mb-3">⭐⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">"{t("home.testimonial2")}"</p>
             </motion.div>
 
@@ -618,10 +612,9 @@ function HomeContent({ data }: { data: any }) {
                 <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
                 <div>
                   <div className="font-semibold">{language === "ko" ? "박철민" : "Cheolmin Park"}</div>
-                  <div className="text-sm text-yellow-500">⭐ 4.8 (Review 15)</div>
+                  <div className="text-sm text-blue-700">{t("home.testimonials.sample")}</div>
                 </div>
               </div>
-              <div className="text-yellow-400 mb-3">⭐⭐⭐⭐</div>
               <p className="text-gray-700 text-sm">"{t("home.testimonial3")}"</p>
             </motion.div>
           </motion.div>
