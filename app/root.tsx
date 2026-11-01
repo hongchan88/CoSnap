@@ -6,6 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
+  useRouteLoaderData,
   data,
 } from "react-router";
 
@@ -44,6 +45,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const rootData = useRouteLoaderData<typeof loader>("root");
+  const publicEnv = JSON.stringify(rootData?.ENV ?? {}).replace(/</g, "\\u003c");
   return (
     <html lang="en">
       <head>
@@ -55,15 +58,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body>
         {children}
         <ScrollRestoration />
-        <Scripts />
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(
-              // @ts-ignore
-              data.ENV
-            )}`,
+            __html: `window.ENV = ${publicEnv};`,
           }}
         />
+        <Scripts />
       </body>
     </html>
   );

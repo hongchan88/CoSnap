@@ -9,6 +9,7 @@ import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getTopProfiles, getCommunityStats } from "~/users/queries";
 import { useLanguage } from "~/context/language-context";
 import { Skeleton } from "~/components/ui/skeleton";
+import { formatTravelDate } from "~/lib/travel-date";
 
 const MapView = lazy(() => import("~/components/MapView"));
 
@@ -381,8 +382,8 @@ function HomeContent({ data }: { data: any }) {
                       </h3>
                     </div>
                     <p className="text-sm text-gray-600">
-                      {new Date(flag.startDate).toLocaleDateString(language === "ko" ? "ko-KR" : "en-US")} -{" "}
-                      {new Date(flag.endDate).toLocaleDateString(language === "ko" ? "ko-KR" : "en-US")}
+                      {formatTravelDate(flag.start_date, language)} -{" "}
+                      {formatTravelDate(flag.end_date, language)}
                     </p>
                   </div>
                   {flag.profile && (

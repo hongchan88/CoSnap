@@ -50,3 +50,17 @@
 - Landing page now localizes feature bullets, date formatting, review label, and testimonials.
 - Staging seed was re-run: 12 profiles, 24 flags, 12 posts, 9 offers, 5 conversations, 18 messages, 3 matches, and 4 reviews.
 - Language test: 2 passing. Seed test: 1 passing. `npm run typecheck`: passed.
+
+## English UI Completion Plan
+
+- [ ] Add English/Korean keys for login and signup UI plus server validation errors.
+- [ ] Replace login/signup hardcoded text with `t()` so default English and Korean toggle both work.
+- [ ] Audit remaining user-facing Korean literals; replace high-traffic profile, flags, and shared component text with translations.
+- [x] Guest access: public browse; mutations and private inbox/profile remain login-protected.
+- [ ] Serve public profile fields through server endpoint without exposing private profile columns.
+- [ ] Add one English seed flag for every `POPULAR_DESTINATIONS` location lacking one.
+- [ ] Verify default English, Korean toggle, seed location coverage, and typecheck.
+
+### Review
+
+Pending approval.

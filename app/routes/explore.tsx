@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, Suspense, lazy } from "react";
-import { useLoaderData, useNavigation, redirect, useSearchParams, useFetcher, Await } from "react-router";
+import { useLoaderData, useNavigation, useRevalidator, data, redirect, useSearchParams, useFetcher, Await } from "react-router";
 import { createSupabaseClient } from "~/lib/supabase";
 import { getAllActiveFlags, getLoggedInUserId, getOfferCountByFlag, getUserOffers, getUserConversations } from "~/users/queries";
 import type { Route } from "./+types/explore";
@@ -14,6 +14,10 @@ import { Skeleton } from "~/components/ui/skeleton";
 import ExploreFilters from "~/components/explore/ExploreFilters";
 import FlagList from "~/components/explore/FlagList";
 import { useExploreMap } from "~/hooks/useExploreMap";
+import { ClientOnly } from "~/components/ClientOnly";
+import { parseExploreDates } from "~/lib/explore-dates";
+import { normalizeExploreBounds, containsExplorePoint } from "~/lib/explore-bounds";
+import { useLanguage } from "~/context/language-context";
 
 // Lazy load MapView to avoid SSR issues with Leaflet
 const MapView = lazy(() => import("~/components/MapView"));
@@ -38,14 +42,16 @@ export async function loader({ request }: Route.LoaderArgs) {
   const minLng = parseFloat(url.searchParams.get("minLng") || "");
   const maxLng = parseFloat(url.searchParams.get("maxLng") || "");
 
-  const bounds = (!isNaN(minLat) && !isNaN(maxLat) && !isNaN(minLng) && !isNaN(maxLng))
+  const bounds = ([minLat, maxLat, minLng, maxLng].every(Number.isFinite) && minLat >= -90 && maxLat <= 90 && minLat <= maxLat && minLng >= -180 && minLng <= 180 && maxLng >= -180 && maxLng <= 180)
     ? { minLat, maxLat, minLng, maxLng }
     : undefined;
 
   // Promise for flags data
   const flagsPromise = (async () => {
     try {
-        const { success, flags, error } = await getAllActiveFlags(client, 100, bounds, type);
+        const dates = parseExploreDates(startDate, endDate);
+        if (!dates.valid) return { flags: [], error: "invalid_dates" };
+        const { success, flags, error } = await getAllActiveFlags(client, 100, bounds, type, dates);
         
         if (!success) {
             console.error("❌ Failed to fetch flags:", error);
@@ -100,18 +106,18 @@ export async function loader({ request }: Route.LoaderArgs) {
             })
           );
         }
-        return flagsWithCounts;
+        return { flags: flagsWithCounts, error: null };
     } catch (error) {
         console.error("💥 Unexpected error in explore loader:", error);
-        return [];
+        return { flags: [], error: "load_failed" };
     }
   })();
 
-  return {
+  return data({
     flags: flagsPromise,
     searchParams: { location, startDate, endDate, travelers, type },
     currentUserId: userId,
-  };
+  }, { headers });
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -164,9 +170,14 @@ export async function action({ request }: Route.ActionArgs) {
   return null;
 }
 
-function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: any[], loaderSearchParams: any, currentUserId: string | null }) {
+function ExploreContent({ flags, error, loaderSearchParams, currentUserId }: { flags: any[], error: string | null, loaderSearchParams: any, currentUserId: string | null }) {
     // Hooks
-    const [, setSearchParams] = useSearchParams();
+    const [urlSearchParams, setSearchParams] = useSearchParams();
+    const { language, t } = useLanguage();
+    const navigation = useNavigation();
+    const revalidator = useRevalidator();
+    const [mobileMapOpen, setMobileMapOpen] = useState(false);
+    const [locationError, setLocationError] = useState(false);
     const profileFetcher = useFetcher<any>();
     const {
       mapCenter,
@@ -198,10 +209,26 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
         const lng = (flag as any).longitude ?? (flag as any).lng;
   
         if (typeof lat !== "number" || typeof lng !== "number") return false;
-        return mapBounds.contains({ lat, lng });
+        return containsExplorePoint(normalizeExploreBounds(mapBounds.getSouth(), mapBounds.getNorth(), mapBounds.getWest(), mapBounds.getEast()), lat, lng);
       });
     }, [flags, mapBounds]);
   
+    // Debounce map requests; rounded bounds avoid subpixel revalidation loops.
+    useEffect(() => {
+      if (!mapBounds) return;
+      const normalized = normalizeExploreBounds(mapBounds.getSouth(), mapBounds.getNorth(), mapBounds.getWest(), mapBounds.getEast());
+      const bounds = Object.fromEntries(Object.entries(normalized).map(([key, value]) => [key, value.toFixed(4)]));
+      if (Object.entries(bounds).every(([key, value]) => urlSearchParams.get(key) === value)) return;
+      const timer = setTimeout(() => {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          Object.entries(bounds).forEach(([key, value]) => next.set(key, value));
+          return next;
+        }, { replace: true, preventScrollReset: true });
+      }, 400);
+      return () => clearTimeout(timer);
+    }, [mapBounds, urlSearchParams, setSearchParams]);
+
     // Effects
     useEffect(() => {
       if (initialCity) {
@@ -321,6 +348,14 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
       const handeCityChange = (value: string) => {
         setSelectedCity(value);
       };
+
+      const handleDateChange = (key: "startDate" | "endDate", value: string) => {
+        setSearchParams(prev => {
+          const next = new URLSearchParams(prev);
+          if (value) next.set(key, value); else next.delete(key);
+          return next;
+        }, { preventScrollReset: true });
+      };
     
       const handleTypeChange = (value: string) => {
         setSelectedType(value);
@@ -342,12 +377,19 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
           );
           if (dest) {
             setMapCenter({ lat: dest.lat, lng: dest.lng });
-            setMapZoom(5);
+            setMapZoom(8);
+            setSearchParams(prev => {
+              const next = new URLSearchParams(prev);
+              next.set("location", selectedCity);
+              ["minLat", "maxLat", "minLng", "maxLng"].forEach(key => next.delete(key));
+              return next;
+            }, { preventScrollReset: true });
           }
         }
       };
     
       const handleCurrentLocation = () => {
+        setLocationError(false);
         if (navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -356,16 +398,18 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
               setMapZoom(12);
               setUserLocation({ lat: latitude, lng: longitude }); // Update user location here too
             },
-            (err) => console.error(err),
-            { enableHighAccuracy: true }
+            () => setLocationError(true),
+            { enableHighAccuracy: true, timeout: 10000 }
           );
+        } else {
+          setLocationError(true);
         }
       };
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-white flex flex-col md:flex-row">
         {/* Left Panel - Search & List */}
-        <div className="w-full md:w-[60%] lg:w-[65%] flex flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden">
+        <div className={`${mobileMapOpen ? "hidden md:flex" : "flex"} w-full md:w-[60%] lg:w-[65%] flex-col border-r border-gray-200 h-[calc(100vh-4rem)] overflow-hidden`}>
         
         <ExploreFilters
             selectedCity={selectedCity}
@@ -374,7 +418,17 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
             onTypeChange={handleTypeChange}
             onGoToMap={handleGoToMap}
             onCurrentLocation={handleCurrentLocation}
+            startDate={loaderSearchParams.startDate || ""}
+            endDate={loaderSearchParams.endDate || ""}
+            onDateChange={handleDateChange}
         />
+        {locationError && <p role="status" className="px-4 py-2 text-sm text-amber-800">{language === "ko" ? "위치를 가져올 수 없습니다. 도시를 선택해 주세요." : "Location unavailable. Please select a city instead."}</p>}
+        {navigation.state !== "idle" && <p role="status" className="px-4 py-2 text-sm">{language === "ko" ? "검색 중…" : "Searching…"}</p>}
+        {error && <div role="alert" className="m-4 rounded-lg border border-red-200 p-4 text-sm text-red-800">
+          <p>{error === "invalid_dates" ? (language === "ko" ? "시작일과 종료일을 확인해 주세요." : "Please check your start and end dates.") : (language === "ko" ? "일정을 불러오지 못했습니다." : "Could not load travel plans.")}</p>
+          {error !== "invalid_dates" && <Button variant="outline" className="mt-2" onClick={() => revalidator.revalidate()} disabled={revalidator.state !== "idle"}>{language === "ko" ? "다시 시도" : "Try again"}</Button>}
+        </div>}
+        {!error && <>
 
         <FlagList
             flags={flagsInView}
@@ -387,12 +441,15 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
             onSendOffer={handleSendOffer}
             highlightedFlagId={highlightedFlagId}
         />
+        {flags.length >= 100 && <p className="px-4 pb-4 text-sm text-gray-600">{language === "ko" ? "현재 지역의 최대 100개 결과입니다. 지도를 확대하거나 날짜를 선택해 주세요." : "Showing up to 100 results. Zoom in or select dates to narrow your search."}</p>}
+        </>}
         </div>
 
         {/* Right Panel - Map */}
-        <div className="hidden md:block w-[40%] lg:w-[35%] bg-gray-100 relative">
+        <div className={`${mobileMapOpen ? "block w-full h-[calc(100dvh-4rem)]" : "hidden"} md:block md:w-[40%] lg:w-[35%] bg-gray-100 relative`}>
         <div className="absolute inset-0 p-4">
-            <Suspense
+            <ClientOnly fallback={<div className="p-4 text-gray-500">{t("explore.loadingMap")}</div>}>
+            {() => <Suspense
             fallback={
                 <div className="w-full h-full flex items-center justify-center text-gray-400">
                 Loading Map...
@@ -409,13 +466,14 @@ function ExploreContent({ flags, loaderSearchParams, currentUserId }: { flags: a
                 selectedFlagId={expandedFlagId}
                 onMarkerHover={setHighlightedFlagId}
             />
-            </Suspense>
+            </Suspense>}
+            </ClientOnly>
         </div>
         </div>
         
         {/* Floating Action Button for Mobile (if needed) */}
-        <div className="absolute bottom-8 right-8 md:hidden">
-        <Button className="rounded-full shadow-lg w-12 h-12 p-0">🗺️</Button>
+        <div className="fixed bottom-8 right-8 z-[1000] md:hidden">
+        <Button aria-label={mobileMapOpen ? t("explore.travelPlansInArea") : t("explore.goToMap")} aria-pressed={mobileMapOpen} onClick={() => setMobileMapOpen(open => !open)} className="rounded-full shadow-lg px-5">{mobileMapOpen ? (language === "ko" ? "목록 보기" : "Show list") : (language === "ko" ? "지도 보기" : "Show map")}</Button>
         </div>
 
         {/* Offer Modal */}
@@ -465,7 +523,7 @@ function ExploreSkeleton() {
                     ))}
                 </div>
             </div>
-             <div className="hidden md:block w-[40%] lg:w-[35%] bg-gray-100 relative">
+             <div className="hidden md:block md:w-[40%] lg:w-[35%] bg-gray-100 relative">
                  <Skeleton className="w-full h-full" />
              </div>
         </div>
@@ -478,7 +536,7 @@ export default function Explore() {
   return (
     <Suspense fallback={<ExploreSkeleton />}>
         <Await resolve={flags}>
-            {(resolvedFlags) => <ExploreContent flags={resolvedFlags} loaderSearchParams={searchParams} currentUserId={currentUserId} />}
+            {(result) => <ExploreContent flags={result.flags} error={result.error} loaderSearchParams={searchParams} currentUserId={currentUserId} />}
         </Await>
     </Suspense>
   );

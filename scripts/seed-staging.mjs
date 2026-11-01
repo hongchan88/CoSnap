@@ -19,9 +19,20 @@ function assertStagingTarget() {
 }
 
 async function seed() {
+  const data = createSeedData();
+  if (process.argv.includes("--dry-run")) {
+    console.log(JSON.stringify({ dryRun: true,
+      counts: Object.fromEntries(Object.entries(data).map(([table, rows]) => [table, rows.length])),
+      flagStates: Object.fromEntries(["active", "hidden", "expired"].map(state => [state, data.flags.filter(flag => flag.visibilityStatus === state).length])),
+      roles: Object.fromEntries(["free", "premium"].map(role => [role, data.profiles.filter(profile => profile.role === role).length])),
+    }, null, 2));
+    return;
+  }
+  if (!process.argv.includes("--write")) {
+    throw new Error("No data changed. Inspect with --dry-run; --write explicitly enables approved staging writes.");
+  }
   assertStagingTarget();
   const sql = postgres(process.env.DATABASE_URL, { prepare: false });
-  const data = createSeedData();
 
   try {
     await sql.begin(async (tx) => {
@@ -48,7 +59,7 @@ async function seed() {
             profile_id, username, role, focus_score, focus_tier, cocredit_balance,
             camera_gear, styles, languages, bio, avatar_url, is_verified, updated_at
           ) values (
-            ${profile.id}, ${profile.username}, 'premium', ${profile.focusScore}, ${profile.focusTier}, 120,
+            ${profile.id}, ${profile.username}, ${profile.role}, ${profile.focusScore}, ${profile.focusTier}, 120,
             ${profile.cameraGear}, ${profile.styles}, ${profile.languages}, ${profile.bio}, ${profile.avatarUrl}, ${profile.isVerified}, now()
           )
           on conflict (profile_id) do update set
@@ -76,7 +87,7 @@ async function seed() {
           ) values (
             ${flag.id}, ${flag.userId}, ${flag.city}, ${flag.country}, ${flag.latitude}, ${flag.longitude}, ${flag.styles}, ${flag.languages},
             ${flag.type}, ${flag.title}, ${flag.meetupCategory}, ${flag.startDate}, ${flag.endDate}, ${flag.note},
-            'active', 'premium', 'premium_pinned', now()
+            ${flag.visibilityStatus}, ${flag.sourcePolicyType}, ${flag.exposurePolicy}, now()
           )
           on conflict (id) do update set
             user_id = excluded.user_id, city = excluded.city, country = excluded.country,

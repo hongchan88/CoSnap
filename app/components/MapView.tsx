@@ -76,6 +76,12 @@ function MapController({
   });
 
   useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
+  useEffect(() => {
     const prev = lastPropsRef.current;
     const centerChanged =
       !prev || prev.center.lat !== center.lat || prev.center.lng !== center.lng;
