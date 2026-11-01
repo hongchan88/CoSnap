@@ -1,20 +1,20 @@
 import postgres from "postgres";
 import { createSeedData } from "./seed-staging-data.mjs";
 
-const STAGING_PROJECT_REF = "aimbymevuzcuumthafkx";
+const APPROVED_DEMO_PROJECT_REF = "aimbymevuzcuumthafkx";
 const DEMO_PASSWORD = "CoSnapDemo2026!";
 
-function assertStagingTarget() {
+function assertApprovedDemoTarget() {
   if (!process.env.DATABASE_URL || !process.env.SUPABASE_URL) {
     throw new Error("DATABASE_URL and SUPABASE_URL must be set.");
   }
 
   const databaseUrl = new URL(process.env.DATABASE_URL);
   const supabaseUrl = new URL(process.env.SUPABASE_URL);
-  const expectedHost = `${STAGING_PROJECT_REF}.supabase.co`;
+  const expectedHost = `${APPROVED_DEMO_PROJECT_REF}.supabase.co`;
 
-  if (supabaseUrl.hostname !== expectedHost || !databaseUrl.username.endsWith(`.${STAGING_PROJECT_REF}`)) {
-    throw new Error("Seed refused: configured project is not approved staging project.");
+  if (supabaseUrl.hostname !== expectedHost || !databaseUrl.username.endsWith(`.${APPROVED_DEMO_PROJECT_REF}`)) {
+    throw new Error("Seed refused: configured project is not the approved demo database.");
   }
 }
 
@@ -29,9 +29,9 @@ async function seed() {
     return;
   }
   if (!process.argv.includes("--write")) {
-    throw new Error("No data changed. Inspect with --dry-run; --write explicitly enables approved staging writes.");
+    throw new Error("No data changed. Inspect with --dry-run; --write explicitly enables approved demo database writes.");
   }
-  assertStagingTarget();
+  assertApprovedDemoTarget();
   const sql = postgres(process.env.DATABASE_URL, { prepare: false });
 
   try {
@@ -39,18 +39,36 @@ async function seed() {
       for (const user of data.users) {
         await tx`
           insert into auth.users (
-            id, aud, role, email, encrypted_password, email_confirmed_at,
+            id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+            confirmation_token, recovery_token, email_change_token_new, email_change,
             raw_app_meta_data, raw_user_meta_data, created_at, updated_at
           ) values (
-            ${user.id}, 'authenticated', 'authenticated', ${user.email},
-            crypt(${DEMO_PASSWORD}, gen_salt('bf')), now(),
+            ${user.id}, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', ${user.email},
+            crypt(${DEMO_PASSWORD}, gen_salt('bf')), now(), '', '', '', '',
             jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email')),
             jsonb_build_object('username', ${user.username}::text), now(), now()
           )
           on conflict (id) do update set
-            email = excluded.email,
+            instance_id = excluded.instance_id,
+            encrypted_password = excluded.encrypted_password,
+            email_confirmed_at = excluded.email_confirmed_at,
+            confirmation_token = '', recovery_token = '', email_change_token_new = '', email_change = '',
             updated_at = now()
+          where auth.users.email = excluded.email
+          returning id
         `;
+        // Supabase Auth requires an email identity and the default instance ID.
+        // Only touch the known synthetic ID/email pair, never a conflicting user.
+        const [demoUser] = await tx`select id from auth.users where id = ${user.id} and email = ${user.email}`;
+        if (!demoUser) throw new Error("Seed refused: synthetic user ID/email collision.");
+        const [identity] = await tx`
+          insert into auth.identities (provider_id, user_id, identity_data, provider, created_at, updated_at)
+          values (${user.id}, ${user.id}, jsonb_build_object('sub', ${user.id}::text, 'email', ${user.email}::text, 'email_verified', true), 'email', now(), now())
+          on conflict (provider_id, provider) do update set identity_data = excluded.identity_data, updated_at = now()
+          where auth.identities.user_id = excluded.user_id
+          returning user_id
+        `;
+        if (identity?.user_id !== user.id) throw new Error("Seed refused: synthetic identity collision.");
       }
 
       for (const profile of data.profiles) {
@@ -175,7 +193,7 @@ async function seed() {
 
     console.log(JSON.stringify({
       seeded: Object.fromEntries(Object.entries(data).map(([table, rows]) => [table, rows.length])),
-      demoLogin: "mina.kim.demo@cosnap.staging / CoSnapDemo2026!",
+      demoAuthRecordsSeeded: true,
     }, null, 2));
   } finally {
     await sql.end();

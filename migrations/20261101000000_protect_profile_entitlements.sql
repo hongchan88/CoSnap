@@ -1,6 +1,5 @@
--- MANUAL REVIEW REQUIRED. Not applied by this change.
--- Run in a disposable/staging Supabase database first; then verify the checklist
--- in docs/security-and-demo-validation.md before scheduling a production migration.
+-- Protect entitlements in the explicitly authorized CoSnap demo database.
+-- Back up auth/public before applying; see docs/security-and-demo-validation.md.
 BEGIN;
 
 CREATE OR REPLACE FUNCTION public.protect_profile_entitlements()
@@ -40,6 +39,8 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS subscriptions_insert_policy ON public.subscriptions;
 -- The only subscription writes should come from a verified server-side provider.
-REVOKE INSERT, UPDATE, DELETE ON public.subscriptions FROM anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.subscriptions FROM PUBLIC, anon, authenticated;
+-- TRUNCATE bypasses RLS, and user-created triggers must not provide a bypass.
+REVOKE TRUNCATE, REFERENCES, TRIGGER ON public.profiles FROM PUBLIC, anon, authenticated;
 
 COMMIT;
