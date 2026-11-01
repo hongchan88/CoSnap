@@ -90,7 +90,8 @@ function MapController({
     const observer = new ResizeObserver(() => {
       // Hiding the mobile map must retain the last visible viewport and results.
       if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
-      map.invalidateSize({ pan: false });
+      // Compensate for the new viewport size so the geographic center stays put.
+      map.invalidateSize({ pan: true, animate: false });
       reportBounds();
     });
     observer.observe(container);
