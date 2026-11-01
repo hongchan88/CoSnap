@@ -1,3 +1,4 @@
+import { profileText, profilePhotoStyle } from "~/lib/profile-copy";
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/profile";
 import { useState, Suspense, useEffect } from "react";
@@ -36,10 +37,10 @@ import ChatWindow, { ChatWindowSkeleton } from "~/components/ChatWindow";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "프로필 - CoSnap" },
+    { title: "Profile - CoSnap" },
     {
       name: "description",
-      content: "프로필을 관리하고 Focus 점수를 확인하세요",
+      content: "Manage your profile and check your Focus score",
     },
   ];
 }
@@ -63,7 +64,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     const activeFlag = flags?.find(f => f.visibility_status === 'active');
     const location = activeFlag 
       ? `${activeFlag.city}, ${activeFlag.country}` 
-      : "위치 정보 미설정"; // "Location not set"
+      : ""; // "Location not set"
     
     // Check for active conversation param
     const url = new URL(request.url);
@@ -301,7 +302,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?
       cameraGear: "",
       photoStyles: [],
       languages: [],
-      location: locationFromFlags || "위치 정보 미설정",
+      location: locationFromFlags || "",
       isPremium: false,
       focusScore: 0,
     };
@@ -313,7 +314,7 @@ const adaptUserProfile = (dbProfile: ProfileWithStats | null, locationFromFlags?
     cameraGear: dbProfile.camera_gear || "",
     photoStyles: dbProfile.styles || [],
     languages: dbProfile.languages || [],
-    location: locationFromFlags || "위치 정보 미설정", 
+    location: locationFromFlags || "",
     isPremium: dbProfile.role === "premium",
     focusScore: dbProfile.focus_score || 0,
     avatarUrl: dbProfile.avatar_url,
@@ -385,7 +386,9 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
   const fetcher = useFetcher();
   const navigate = useNavigate();
   const navigation = useNavigation();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
 
   const isNavigatingToChat = navigation.state === "loading" && 
       new URLSearchParams(navigation.location.search).has("conversationId");
@@ -399,9 +402,9 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
       case "declined":
         return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">{t ? t("inbox.status.declined") : "거절됨"}</Badge>;
       case "cancelled":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">{t ? t("inbox.status.cancelled") : "취소됨"}</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">{t ? t("inbox.status.cancelled") : p("취소됨")}</Badge>;
       case "expired":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">{t ? t("inbox.status.expired") : "만료됨"}</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">{t ? t("inbox.status.expired") : p("만료됨")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -434,7 +437,7 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
         ) : (
         <Tabs defaultValue="messages" className="w-full h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-3 mb-6 flex-none">
-            <TabsTrigger value="messages">메시지 ({conversations?.length || 0})</TabsTrigger>
+            <TabsTrigger value="messages">{p("메시지")} ({conversations?.length || 0})</TabsTrigger>
             <TabsTrigger value="received">{t ? t("inbox.receivedOffers") : "받은 오퍼"} ({received.length})</TabsTrigger>
             <TabsTrigger value="sent">{t ? t("inbox.sentOffers") : "보낸 오퍼"} ({sent.length})</TabsTrigger>
           </TabsList>
@@ -443,9 +446,9 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
           <TabsContent value="messages" className="space-y-4 m-0">
             {conversations && conversations.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">아직 대화가 없습니다.</p>
+                <p className="text-gray-500">{p("아직 대화가 없습니다.")}</p>
                 <Button variant="link" asChild className="mt-2">
-                  <Link to="/explore">여행지 둘러보기</Link>
+                  <Link to="/explore">{p("여행지 둘러보기")}</Link>
                 </Button>
               </div>
             ) : (
@@ -461,11 +464,11 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
                         <div className="flex justify-between items-start mb-1">
                           <h3 className="font-semibold text-gray-900 truncate">{conv.partner?.username}</h3>
                           <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            {conv.last_message ? new Date(conv.last_message.created_at).toLocaleDateString() : new Date(conv.updated_at).toLocaleDateString()}
+                            {conv.last_message ? new Date(conv.last_message.created_at).toLocaleDateString(locale) : new Date(conv.updated_at).toLocaleDateString(locale)}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 truncate">
-                          {conv.last_message?.content || "대화를 시작해보세요."}
+                          {conv.last_message?.content || p("대화를 시작해보세요.")}
                         </p>
                       </div>
                     </CardContent>
@@ -493,7 +496,7 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
                         <div>
                           <div className="font-semibold">{offer.sender?.username}</div>
                           <div className="text-xs text-gray-500">
-                            {new Date(offer.sent_at).toLocaleDateString()}
+                            {new Date(offer.sent_at).toLocaleDateString(locale)}
                           </div>
                         </div>
                       </div>
@@ -504,7 +507,7 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
                     <div className="mb-4">
                       <div className="text-sm font-medium text-gray-500 mb-1">{t ? t("inbox.destination") : "여행지"}</div>
                       <div className="text-gray-900">
-                        {offer.flag?.city}, {offer.flag?.country} ({new Date(offer.flag?.start_date || "").toLocaleDateString()} - {new Date(offer.flag?.end_date || "").toLocaleDateString()})
+                        {offer.flag?.city}, {offer.flag?.country} ({new Date(offer.flag?.start_date || "").toLocaleDateString(locale)} - {new Date(offer.flag?.end_date || "").toLocaleDateString(locale)})
                       </div>
                     </div>
 
@@ -541,7 +544,7 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">{t ? t("inbox.noSentOffers") : "아직 보낸 오퍼가 없습니다."}</p>
                 <Button variant="link" asChild className="mt-2">
-                  <Link to="/explore">{t ? t("inbox.exploreDestinations") : "여행지 둘러보기"}</Link>
+                  <Link to="/explore">{t ? t("inbox.exploreDestinations") : p("여행지 둘러보기")}</Link>
                 </Button>
               </div>
             ) : (
@@ -557,7 +560,7 @@ function MessagesContent({ sent, received, conversations, userId, activeConversa
                         <div>
                           <div className="font-semibold">{t ? t("inbox.to") : "To:"} {offer.receiver?.username}</div>
                           <div className="text-xs text-gray-500">
-                            {new Date(offer.sent_at).toLocaleDateString()}
+                            {new Date(offer.sent_at).toLocaleDateString(locale)}
                           </div>
                         </div>
                       </div>
@@ -624,7 +627,9 @@ function ProfileContent({
   const submit = useSubmit();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
   // Note: activeTab is now controlled by parent, but TabsContent requires being inside Tabs.
   // We rely on the parent ProfilePage wrapping this in <Tabs>.
 
@@ -654,14 +659,19 @@ function ProfileContent({
 
   const getLanguageNames = (languages: string[]): string => {
     const languageMap: { [key: string]: string } = {
-      ko: "한국어",
+      ko: p("한국어"),
       en: "English",
       ja: "日本語",
       zh: "中文",
       fr: "Français",
       es: "Español",
     };
-    return languages.map((lang) => languageMap[lang] || lang).join(", ");
+    return languages.map((lang) => {
+      if (language === "en" && /^[a-z]{2}$/.test(lang)) {
+        return new Intl.DisplayNames([locale], { type: "language" }).of(lang) || lang;
+      }
+      return languageMap[lang] || lang;
+    }).join(", ");
   };
 
   return (
@@ -672,9 +682,9 @@ function ProfileContent({
           <Notification
             type={actionData.success ? "success" : "error"}
             message={
-              (actionData && "error" in actionData ? actionData.error : undefined) ||
+              (actionData && "error" in actionData ? (language === "ko" ? "요청을 처리하지 못했습니다. 다시 시도해주세요." : "Unable to complete the request. Please try again.") : undefined) ||
               (actionData && "action" in actionData && actionData.action === "updateProfile"
-                ? "프로필이 업데이트되었습니다."
+                ? p("프로필이 업데이트되었습니다.")
                 : "")
             }
             onClose={() => {}}
@@ -687,7 +697,7 @@ function ProfileContent({
       <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>프로필 편집</DialogTitle>
+            <DialogTitle>{p("프로필 편집")}</DialogTitle>
           </DialogHeader>
           <ProfileForm
              onSubmit={handleUpdateProfile}
@@ -715,7 +725,7 @@ function ProfileContent({
                 <Avatar
                   src={profile.avatarUrl}
                   size="lg"
-                  alt={`${profile.username}의 프로필 사진`}
+                  alt={language === "ko" ? `${profile.username}의 프로필 사진` : `${profile.username} profile photo`}
                 />
                 <div className="flex-1 w-full">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3">
@@ -723,13 +733,13 @@ function ProfileContent({
                       @{profile.username}
                     </h2>
                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 w-fit">
-                      프리미엄
+                      {p("프리미엄")}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2 mb-3 sm:mb-4">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     <p className="text-sm sm:text-base text-gray-600">
-                      {profile.location}
+                      {profile.location || p("위치 정보 미설정")}
                     </p>
                     {profile.cameraGear && (
                       <>
@@ -752,7 +762,7 @@ function ProfileContent({
                         variant="secondary"
                         className="text-xs sm:text-sm"
                       >
-                        {style}
+                        {profilePhotoStyle(language, style)}
                       </Badge>
                     ))}
                     <Badge variant="outline" className="text-xs sm:text-sm">
@@ -768,10 +778,10 @@ function ProfileContent({
                     {isLoading ? (
                       <>
                         <LoadingSpinner size="sm" color="white" />
-                        로딩 중...
+                        {p("로딩 중...")}
                       </>
                     ) : (
-                      "프로필 편집"
+                      p("프로필 편집")
                     )}
                   </Button>
                 </div>
@@ -782,7 +792,7 @@ function ProfileContent({
           {/* 설정 */}
           <Card>
             <CardHeader>
-              <h3 className="text-lg font-semibold text-gray-900">설정</h3>
+              <h3 className="text-lg font-semibold text-gray-900">{p("설정")}</h3>
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
@@ -796,10 +806,10 @@ function ProfileContent({
                       </div>
                       <div className="text-left">
                         <div className="font-medium text-sm sm:text-base">
-                          알림 설정
+                          {p("알림 설정")}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-500">
-                          새 오퍼, 메시지, 매치 알림
+                          {p("새 오퍼, 메시지, 매치 알림")}
                         </div>
                       </div>
                     </div>
@@ -816,10 +826,10 @@ function ProfileContent({
                       </div>
                       <div className="text-left">
                         <div className="font-medium text-sm sm:text-base">
-                          개인정보 보호
+                          {p("개인정보 보호")}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-500">
-                          프로필 공개 설정, 데이터 관리
+                          {p("프로필 공개 설정, 데이터 관리")}
                         </div>
                       </div>
                     </div>
@@ -836,10 +846,10 @@ function ProfileContent({
                       </div>
                       <div className="text-left">
                         <div className="font-medium text-sm sm:text-base">
-                          구독 관리
+                          {p("구독 관리")}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-500">
-                          프리미엄 구독, 결제 정보
+                          {p("프리미엄 구독, 결제 정보")}
                         </div>
                       </div>
                     </div>
@@ -856,10 +866,10 @@ function ProfileContent({
                       </div>
                       <div className="text-left">
                         <div className="font-medium text-sm sm:text-base">
-                          로그아웃
+                          {p("로그아웃")}
                         </div>
                         <div className="text-xs sm:text-sm text-gray-500">
-                          계정에서 로그아웃
+                          {p("계정에서 로그아웃")}
                         </div>
                       </div>
                     </div>
@@ -885,12 +895,16 @@ function ProfileContent({
 
   export default function ProfilePage() {
     const { data } = useLoaderData<typeof loader>();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
     const [searchParams, setSearchParams] = useSearchParams();
     
     // Initialize activeTab from URL search param or default to "profile"
     const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "profile");
   
+    useEffect(() => { document.title = `${language === "ko" ? "프로필" : "Profile"} - CoSnap`; }, [language]);
+
     // Sync state with URL param if it changes (e.g. from navigation)
     useEffect(() => {
       const tab = searchParams.get("tab");

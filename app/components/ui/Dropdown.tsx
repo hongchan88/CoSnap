@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import {
   Select,
   SelectContent,
@@ -26,16 +27,17 @@ export default function Dropdown({
   options,
   value,
   onChange,
-  placeholder = '선택하세요',
+  placeholder,
   disabled = false,
   className = '',
 }: DropdownProps) {
+  const { co } = useComponentTranslation();
   const selectedOption = options.find(option => option.value === value);
 
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className={className}>
-        <SelectValue placeholder={placeholder}>
+        <SelectValue placeholder={placeholder ?? co("선택하세요")}>
           {selectedOption && (
             <div className="flex items-center gap-2">
               {selectedOption.icon && <span>{selectedOption.icon}</span>}
@@ -47,7 +49,7 @@ export default function Dropdown({
       <SelectContent>
         {options.length === 0 ? (
           <div className="px-3 py-2 text-gray-500 text-sm">
-            옵션이 없습니다
+            {co("옵션이 없습니다")}
           </div>
         ) : (
           options.map((option) => (

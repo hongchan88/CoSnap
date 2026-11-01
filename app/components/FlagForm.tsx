@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { useState, Suspense, lazy, useId } from "react";
 import LoadingSpinner from "./ui/LoadingSpinner";
 import Notification from "./ui/Notification";
@@ -53,23 +54,24 @@ export default function FlagForm({
 }: FlagFormProps) {
   // Use a safe default for t function to avoid SSR issues
   const { t } = useLanguage();
+  const { co, language: componentLanguage } = useComponentTranslation();
 
   // Define options inside component to have access to t function
   const countryOptions = [
-    { value: "JP", label: t("flagForm.country.japan") || "🇯🇵 일본" },
-    { value: "KR", label: t("flagForm.country.korea") || "🇰🇷 한국" },
-    { value: "US", label: t("flagForm.country.usa") || "🇺🇸 미국" },
-    { value: "FR", label: t("flagForm.country.france") || "🇫🇷 프랑스" },
-    { value: "IT", label: t("flagForm.country.italy") || "🇮🇹 이탈리아" },
-    { value: "GB", label: t("flagForm.country.uk") || "🇬🇧 영국" },
-    { value: "CN", label: t("flagForm.country.china") || "🇨🇳 중국" },
-    { value: "TH", label: t("flagForm.country.thailand") || "🇹🇭 태국" },
-    { value: "VN", label: t("flagForm.country.vietnam") || "🇻🇳 베트남" },
-    { value: "TW", label: t("flagForm.country.taiwan") || "🇹🇼 대만" },
+    { value: "JP", label: t("flagForm.country.japan") || co("🇯🇵 일본") },
+    { value: "KR", label: t("flagForm.country.korea") || co("🇰🇷 한국") },
+    { value: "US", label: t("flagForm.country.usa") || co("🇺🇸 미국") },
+    { value: "FR", label: t("flagForm.country.france") || co("🇫🇷 프랑스") },
+    { value: "IT", label: t("flagForm.country.italy") || co("🇮🇹 이탈리아") },
+    { value: "GB", label: t("flagForm.country.uk") || co("🇬🇧 영국") },
+    { value: "CN", label: t("flagForm.country.china") || co("🇨🇳 중국") },
+    { value: "TH", label: t("flagForm.country.thailand") || co("🇹🇭 태국") },
+    { value: "VN", label: t("flagForm.country.vietnam") || co("🇻🇳 베트남") },
+    { value: "TW", label: t("flagForm.country.taiwan") || co("🇹🇼 대만") },
   ];
 
   const languageOptions = [
-    { value: "ko", label: t("flagForm.language.korean") || "한국어" },
+    { value: "ko", label: t("flagForm.language.korean") || co("한국어") },
     { value: "en", label: t("flagForm.language.english") || "English" },
     { value: "ja", label: t("flagForm.language.japanese") || "日本語" },
     { value: "zh", label: t("flagForm.language.chinese") || "中文" },
@@ -114,7 +116,7 @@ export default function FlagForm({
     startDate: "",
     endDate: "",
     note: "",
-    languages: ["ko"], // 기본 언어는 한국어
+    languages: [componentLanguage], // Start with the selected interface language.
     latitude: null,
     longitude: null,
     type: "meet",
@@ -163,11 +165,11 @@ export default function FlagForm({
     const newErrors: Partial<Record<keyof FlagFormData, string>> = {};
 
     if (!formData.city.trim()) {
-      newErrors.city = t("flagForm.error.cityRequired") || "도시를 입력해주세요";
+      newErrors.city = t("flagForm.error.cityRequired") || co("도시를 입력해주세요");
     }
 
     if (!formData.title.trim()) {
-      newErrors.title = t("flagForm.error.titleRequired") || "제목을 입력해주세요";
+      newErrors.title = t("flagForm.error.titleRequired") || co("제목을 입력해주세요");
     }
 
     if (!formData.latitude || !formData.longitude) {
@@ -179,15 +181,15 @@ export default function FlagForm({
     }
 
     if (!formData.country) {
-      newErrors.country = t("flagForm.error.countryRequired") || "국가를 선택해주세요";
+      newErrors.country = t("flagForm.error.countryRequired") || co("국가를 선택해주세요");
     }
 
     if (!formData.startDate) {
-      newErrors.startDate = t("flagForm.error.startDateRequired") || "시작일을 선택해주세요";
+      newErrors.startDate = t("flagForm.error.startDateRequired") || co("시작일을 선택해주세요");
     }
 
     if (!formData.endDate) {
-      newErrors.endDate = t("flagForm.error.endDateRequired") || "종료일을 선택해주세요";
+      newErrors.endDate = t("flagForm.error.endDateRequired") || co("종료일을 선택해주세요");
     }
 
     if (formData.startDate && formData.endDate) {
@@ -197,11 +199,11 @@ export default function FlagForm({
       today.setHours(0, 0, 0, 0);
 
       if (start <= today) {
-        newErrors.startDate = t("flagForm.error.startDateFuture") || "시작일은 오늘 이후여야 합니다";
+        newErrors.startDate = t("flagForm.error.startDateFuture") || co("시작일은 오늘 이후여야 합니다");
       }
 
       if (end <= start) {
-        newErrors.endDate = t("flagForm.error.endDateAfterStart") || "종료일은 시작일 이후여야 합니다";
+        newErrors.endDate = t("flagForm.error.endDateAfterStart") || co("종료일은 시작일 이후여야 합니다");
       }
 
       const diffTime = Math.abs(end.getTime() - start.getTime());
@@ -212,7 +214,7 @@ export default function FlagForm({
       if (diffDays > maxDays) {
         newErrors.endDate = formData.type === "offer" 
           ? "Offer duration cannot exceed 7 days"
-          : t("flagForm.error.maxDuration") || "여행 기간은 3일을 초과할 수 없습니다";
+          : t("flagForm.error.maxDuration") || co("여행 기간은 3일을 초과할 수 없습니다");
       }
     }
 
@@ -231,11 +233,11 @@ export default function FlagForm({
     }
 
     if (formData.languages.length === 0) {
-      newErrors.languages = t("flagForm.error.languagesRequired") || "사용 가능 언어를 최소 1개 이상 선택해주세요";
+      newErrors.languages = t("flagForm.error.languagesRequired") || co("사용 가능 언어를 최소 1개 이상 선택해주세요");
     }
 
     if (formData.note && formData.note.length > 500) {
-      newErrors.note = t("flagForm.error.noteTooLong") || "설명은 500자를 초과할 수 없습니다";
+      newErrors.note = t("flagForm.error.noteTooLong") || co("설명은 500자를 초과할 수 없습니다");
     }
 
     setErrors(newErrors);
@@ -295,10 +297,10 @@ export default function FlagForm({
         message: isEditing
           ? t
             ? t("flagForm.success.updated")
-            : "Flag가 수정되었습니다!"
+            : co("Flag가 수정되었습니다!")
           : t
           ? t("flagForm.success.created")
-          : "Flag가 생성되었습니다!",
+          : co("Flag가 생성되었습니다!"),
       });
     } catch (error) {
       console.error("Flag form submission error:", error);
@@ -307,10 +309,10 @@ export default function FlagForm({
         message: isEditing
           ? t
             ? t("flagForm.error.updateFailed") + t("flagForm.error.failedSuffix")
-            : "수정에 실패했습니다. 다시 시도해주세요."
+            : co("수정에 실패했습니다. 다시 시도해주세요.")
           : t
           ? t("flagForm.error.createFailed") + t("flagForm.error.failedSuffix")
-          : "생성에 실패했습니다. 다시 시도해주세요.",
+          : co("생성에 실패했습니다. 다시 시도해주세요."),
       });
     } finally {
       setIsSubmitting(false);
@@ -352,8 +354,8 @@ export default function FlagForm({
                     }
                   `}
                 >
-                  <div className="font-medium text-sm text-gray-900">{option.label}</div>
-                  <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+                  <div className="font-medium text-sm text-gray-900">{co(option.label)}</div>
+                  <div className="text-xs text-gray-500 mt-1">{co(option.description)}</div>
                 </div>
               ))}
             </div>
@@ -374,7 +376,7 @@ export default function FlagForm({
                 <option value="">Select a category</option>
                 {meetupCategoryOptions.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {co(option.label)}
                   </option>
                 ))}
               </select>
@@ -400,7 +402,7 @@ export default function FlagForm({
                         }
                       `}
                     >
-                      <span className="font-medium text-sm">{option.label}</span>
+                      <span className="font-medium text-sm">{co(option.label)}</span>
                     </div>
                   ))}
                 </div>
@@ -422,7 +424,7 @@ export default function FlagForm({
                         }
                       `}
                     >
-                      <span className="font-medium text-sm">{option.label}</span>
+                      <span className="font-medium text-sm">{co(option.label)}</span>
                     </div>
                   ))}
                 </div>
@@ -572,7 +574,7 @@ export default function FlagForm({
                       }
                     }}
                   />
-                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-sm font-medium">{co(option.label)}</span>
                 </div>
               ))}
             </div>

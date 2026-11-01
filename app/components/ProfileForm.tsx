@@ -1,3 +1,5 @@
+import { useLanguage } from "~/context/language-context";
+import { profileText } from "~/lib/profile-copy";
 import { useState, useEffect } from 'react';
 import LoadingSpinner from './ui/LoadingSpinner';
 import Notification from './ui/Notification';
@@ -53,6 +55,9 @@ const languageOptions = [
 ];
 
 export default function ProfileForm({ onSubmit, onCancel, initialData }: ProfileFormProps) {
+  const { language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
   const [formData, setFormData] = useState<ProfileFormData>(() => ({
     username: initialData?.username || '',
     bio: initialData?.bio || '',
@@ -81,6 +86,8 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
+  useEffect(() => { setErrors({}); setNotification(null); }, [language]);
+
   // Detect changes by comparing current form data with initial values
   useEffect(() => {
     const checkForChanges = () => {
@@ -92,8 +99,8 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
         formData.avatarUrl !== initialValues.avatarUrl;
 
       const hasArrayChanges =
-        JSON.stringify(formData.photoStyles.sort()) !== JSON.stringify(initialValues.photoStyles.sort()) ||
-        JSON.stringify(formData.languages.sort()) !== JSON.stringify(initialValues.languages.sort());
+        JSON.stringify([...formData.photoStyles].sort()) !== JSON.stringify([...initialValues.photoStyles].sort()) ||
+        JSON.stringify([...formData.languages].sort()) !== JSON.stringify([...initialValues.languages].sort());
 
       const hasAvatarFile = formData.avatarFile !== null;
 
@@ -107,33 +114,33 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
     const newErrors: Partial<Record<keyof ProfileFormData, string>> = {};
 
     if (!formData.username.trim()) {
-      newErrors.username = '사용자 이름을 입력해주세요';
+      newErrors.username = p('사용자 이름을 입력해주세요');
     } else if (formData.username.length < 2) {
-      newErrors.username = '사용자 이름은 최소 2자 이상이어야 합니다';
+      newErrors.username = p('사용자 이름은 최소 2자 이상이어야 합니다');
     } else if (formData.username.length > 20) {
-      newErrors.username = '사용자 이름은 20자를 초과할 수 없습니다';
+      newErrors.username = p('사용자 이름은 20자를 초과할 수 없습니다');
     } else if (!/^[a-zA-Z0-9가-힣_]+$/.test(formData.username)) {
-      newErrors.username = '사용자 이름은 영문, 숫자, 한글, 밑줄만 사용 가능합니다';
+      newErrors.username = p('사용자 이름은 영문, 숫자, 한글, 밑줄만 사용 가능합니다');
     }
 
     if (formData.bio && formData.bio.length > 500) {
-      newErrors.bio = '자기소개는 500자를 초과할 수 없습니다';
+      newErrors.bio = p('자기소개는 500자를 초과할 수 없습니다');
     }
 
     if (formData.cameraGear && formData.cameraGear.length > 200) {
-      newErrors.cameraGear = '카메라 장비 정보는 200자를 초과할 수 없습니다';
+      newErrors.cameraGear = p('카메라 장비 정보는 200자를 초과할 수 없습니다');
     }
 
     if (formData.photoStyles.length === 0) {
-      newErrors.photoStyles = '선호 사진 스타일을 최소 1개 이상 선택해주세요';
+      newErrors.photoStyles = p('선호 사진 스타일을 최소 1개 이상 선택해주세요');
     }
 
     if (formData.languages.length === 0) {
-      newErrors.languages = '사용 가능 언어를 최소 1개 이상 선택해주세요';
+      newErrors.languages = p('사용 가능 언어를 최소 1개 이상 선택해주세요');
     }
 
     if (formData.location && formData.location.length > 100) {
-      newErrors.location = '위치 정보는 100자를 초과할 수 없습니다';
+      newErrors.location = p('위치 정보는 100자를 초과할 수 없습니다');
     }
 
     setErrors(newErrors);
@@ -151,7 +158,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
 
     try {
       await onSubmit(formData);
-      setNotification({ type: 'success', message: '프로필이 성공적으로 업데이트되었습니다!' });
+      setNotification({ type: 'success', message: p('프로필이 성공적으로 업데이트되었습니다!') });
 
       setTimeout(() => {
         onCancel();
@@ -161,7 +168,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
     } catch (error) {
       setNotification({
         type: 'error',
-        message: error instanceof Error ? error.message : '프로필 업데이트에 실패했습니다. 다시 시도해주세요.'
+        message: p('프로필 업데이트에 실패했습니다. 다시 시도해주세요.')
       });
     } finally {
       setIsSubmitting(false);
@@ -216,7 +223,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 프로필 사진 */}
           <div className="space-y-2">
-            <Label>프로필 사진</Label>
+            <Label>{p("프로필 사진")}</Label>
             <div className="flex justify-center">
               <AvatarUpload
                 currentAvatar={formData.avatarUrl}
@@ -229,14 +236,14 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           {/* 사용자 이름 */}
           <div className="space-y-2">
             <Label htmlFor="username">
-              사용자 이름 <span className="text-red-500">*</span>
+              {p("사용자 이름")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="username"
               type="text"
               value={formData.username}
               onChange={(e) => handleInputChange('username', e.target.value)}
-              placeholder="2-20자, 영문/숫자/한글/밑줄"
+              placeholder={p("2-20자, 영문/숫자/한글/밑줄")}
               className={errors.username ? 'border-red-500' : ''}
               disabled={isSubmitting}
             />
@@ -248,14 +255,14 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           {/* 위치 */}
           <div className="space-y-2">
             <Label htmlFor="location">
-              위치
+              {p("위치")}
             </Label>
             <Input
               id="location"
               type="text"
               value={formData.location}
               onChange={(e) => handleInputChange('location', e.target.value)}
-              placeholder="예: 서울, 한국"
+              placeholder={p("예: 서울, 한국")}
               className={errors.location ? 'border-red-500' : ''}
               disabled={isSubmitting}
             />
@@ -267,13 +274,13 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           {/* 자기소개 */}
           <div className="space-y-2">
             <Label htmlFor="bio">
-              자기소개
+              {p("자기소개")}
             </Label>
             <Textarea
               id="bio"
               value={formData.bio}
               onChange={(e) => handleInputChange('bio', e.target.value)}
-              placeholder="여행을 사랑하는 사진 작가입니다. 새로운 사람들을 만나고 멋진 순간들을 함께 담는 것을 좋아해요."
+              placeholder={p("여행을 사랑하는 사진 작가입니다. 새로운 사람들을 만나고 멋진 순간들을 함께 담는 것을 좋아해요.")}
               className={`resize-none ${errors.bio ? 'border-red-500' : ''}`}
               rows={4}
               disabled={isSubmitting}
@@ -282,21 +289,21 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
               {errors.bio && (
                 <p className="text-sm text-red-600">{errors.bio}</p>
               )}
-              <p className="text-sm text-gray-500">{formData.bio.length}/500자</p>
+              <p className="text-sm text-gray-500">{formData.bio.length}/500 {language === "ko" ? "자" : "characters"}</p>
             </div>
           </div>
 
           {/* 카메라 장비 */}
           <div className="space-y-2">
             <Label htmlFor="cameraGear">
-              카메라 장비
+              {p("카메라 장비")}
             </Label>
             <Input
               id="cameraGear"
               type="text"
               value={formData.cameraGear}
               onChange={(e) => handleInputChange('cameraGear', e.target.value)}
-              placeholder="예: Canon EOS R6, iPhone 15 Pro"
+              placeholder={p("예: Canon EOS R6, iPhone 15 Pro")}
               className={errors.cameraGear ? 'border-red-500' : ''}
               disabled={isSubmitting}
             />
@@ -308,7 +315,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           {/* 사진 스타일 */}
           <div className="space-y-3">
             <Label>
-              선호 사진 스타일 <span className="text-red-500">*</span>
+              {p("선호 사진 스타일")} <span className="text-red-500">*</span>
             </Label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {photoStyleOptions.map(option => (
@@ -330,7 +337,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
                     disabled={isSubmitting}
                   />
                   <span className="text-lg">{option.icon}</span>
-                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-sm font-medium">{p(option.label)}</span>
                 </label>
               ))}
             </div>
@@ -342,7 +349,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
           {/* 언어 */}
           <div className="space-y-3">
             <Label>
-              사용 가능 언어 <span className="text-red-500">*</span>
+              {p("사용 가능 언어")} <span className="text-red-500">*</span>
             </Label>
             <div className="flex flex-wrap gap-3">
               {languageOptions.map(option => (
@@ -363,7 +370,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
                     onCheckedChange={() => handleLanguageToggle(option.value)}
                     disabled={isSubmitting}
                   />
-                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-sm font-medium">{language === "en" ? new Intl.DisplayNames([locale], { type: "language" }).of(option.value) : option.label}</span>
                 </label>
               ))}
             </div>
@@ -377,7 +384,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
             {hasChanges && (
               <div className="text-center">
                 <span className="text-sm text-blue-600 font-medium">
-                  💾 저장되지 않은 변경사항이 있습니다
+                  {p("💾 저장되지 않은 변경사항이 있습니다")}
                 </span>
               </div>
             )}
@@ -389,7 +396,7 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
               disabled={isSubmitting}
               className="flex-1"
             >
-              취소
+              {p("취소")}
             </Button>
             <Button
               type="submit"
@@ -399,12 +406,12 @@ export default function ProfileForm({ onSubmit, onCancel, initialData }: Profile
               {isSubmitting ? (
                 <>
                   <LoadingSpinner size="sm" color="white" />
-                  저장 중...
+                  {p("저장 중...")}
                 </>
               ) : hasChanges ? (
-                '저장하기'
+                p('저장하기')
               ) : (
-                '변경된 내용이 없습니다'
+                p('변경된 내용이 없습니다')
               )}
             </Button>
             </div>

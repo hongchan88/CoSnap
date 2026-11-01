@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import L from "leaflet";
@@ -122,6 +123,7 @@ export default function LocationPickerMap({
   flyToRequest,
   disabled = false,
 }: LocationPickerMapProps) {
+  const { co } = useComponentTranslation();
 
 
   const [isClient, setIsClient] = useState(false);
@@ -365,11 +367,11 @@ export default function LocationPickerMap({
             onClick={handleUseMyLocation}
             className="bg-white/90 px-3 py-1 rounded text-xs text-gray-700 shadow border border-gray-200 hover:bg-white"
           >
-            내 위치로 이동
+            {co("내 위치로 이동")}
           </button>
         )}
         <div className="bg-white/90 px-2 py-1 rounded text-xs text-gray-600 pointer-events-none border border-gray-200">
-          {disabled ? "프리미엄으로 업그레이드하면 위치를 선택할 수 있습니다" : "지도 클릭 또는 마커 드래그로 위치 설정"}
+          {disabled ? co("프리미엄으로 업그레이드하면 위치를 선택할 수 있습니다") : co("지도 클릭 또는 마커 드래그로 위치 설정")}
         </div>
       </div>
     </div>

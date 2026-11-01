@@ -1,6 +1,7 @@
 import type { Route } from './+types/auth.callback';
 import { redirect } from 'react-router';
 import { createSupabaseClient } from '../lib/supabase';
+import { useLanguage } from '~/context/language-context';
 
 export async function loader({ request }: Route.LoaderArgs) {
   const { searchParams } = new URL(request.url);
@@ -10,7 +11,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   // 오류가 있는 경우
   if (error) {
-    return redirect('/?error=auth_error', { headers: supabase.headers });
+    return redirect('/login?error=auth_error', { headers: supabase.headers });
   }
 
   // 인증 코드가 있는 경우
@@ -20,7 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
       if (error) {
         console.error('인증 코드 교환 오류:', error);
-        return redirect('/?error=auth_exchange_error', { headers: supabase.headers });
+        return redirect('/login?error=auth_exchange_error', { headers: supabase.headers });
       }
 
       if (data.user) {
@@ -52,7 +53,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       }
     } catch (error) {
       console.error('OAuth 콜백 처리 중 오류:', error);
-      return redirect('/?error=auth_callback_error', { headers: supabase.headers });
+      return redirect('/login?error=auth_callback_error', { headers: supabase.headers });
     }
   }
 
@@ -60,12 +61,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function AuthCallback() {
+  const { t } = useLanguage();
   // 이 컴포넌트는 렌더링되지 않음 (리디렉션만 발생)
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
-        <h2 className="text-xl font-semibold mb-2">인증 처리 중...</h2>
-        <p className="text-gray-600">잠시만 기다려주세요.</p>
+        <h2 className="text-xl font-semibold mb-2">{t("auth.processing")}</h2>
+        <p className="text-gray-600">{t("auth.pleaseWait")}</p>
       </div>
     </div>
   );

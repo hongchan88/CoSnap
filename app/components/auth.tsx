@@ -7,6 +7,8 @@ import { Label } from './ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
+import { useLanguage } from '~/context/language-context';
+import { getAuthErrorKey, validateAuthForm, type AuthErrorKey } from '~/lib/auth-translations';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -14,10 +16,12 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const { language, t } = useLanguage();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const loginFetcher = useFetcher();
   const signupFetcher = useFetcher();
   
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthErrorKey | null>(null);
 
   // Reset error when modal opens/closes
   useEffect(() => {
@@ -31,8 +35,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     if (loginFetcher.data?.success) {
       onClose();
       window.location.reload(); // Reload to update UI with new session
-    } else if (loginFetcher.data?.error) {
-      setError(loginFetcher.data.error);
+    } else if (loginFetcher.data?.errorKey) {
+      setError(loginFetcher.data.errorKey);
     }
   }, [loginFetcher.data, onClose]);
 
@@ -41,8 +45,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     if (signupFetcher.data?.success) {
       onClose();
       window.location.reload(); // Reload to update UI with new session
-    } else if (signupFetcher.data?.error) {
-      setError(signupFetcher.data.error);
+    } else if (signupFetcher.data?.errorKey) {
+      setError(signupFetcher.data.errorKey);
     }
   }, [signupFetcher.data, onClose]);
 
@@ -64,61 +68,58 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     e.preventDefault();
     setError(null);
 
-    // 비밀번호 확인
-    if (signUpData.password !== signUpData.confirmPassword) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    // 비밀번호 길이 확인
-    if (signUpData.password.length < 6) {
-      setError('비밀번호는 최소 6자 이상이어야 합니다.');
-      return;
-    }
-
-    signupFetcher.submit(signUpData, { method: "post", action: "/signup" });
+    const form = new FormData();
+    Object.entries({ ...signUpData, language }).forEach(([key, value]) => form.set(key, value));
+    const result = validateAuthForm(form, "signup");
+    if (result.errorKey) { setError(result.errorKey); return; }
+    signupFetcher.submit(form, { method: "post", action: "/signup" });
   };
 
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    loginFetcher.submit(signInData, { method: "post", action: "/login" });
+    loginFetcher.submit({ ...signInData, language }, { method: "post", action: "/login" });
   };
 
   const handleGoogleSignIn = async () => {
     setError(null);
-    const { error } = await signInWithGoogle();
-    if (error) {
-      setError((error as any)?.message || 'Google 로그인에 실패했습니다.');
+    setIsGoogleLoading(true);
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) setError(getAuthErrorKey(error, "google"));
+    } catch (error) {
+      setError(getAuthErrorKey(error, "google"));
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
-  const isLoading = loginFetcher.state === "submitting" || signupFetcher.state === "submitting";
+  const isLoading = isGoogleLoading || loginFetcher.state === "submitting" || signupFetcher.state === "submitting";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-xl font-bold">
-            CoSnap에 오신 것을 환영합니다!
+            {t("auth.welcome")}
           </DialogTitle>
         </DialogHeader>
 
         <Tabs defaultValue="signin" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="signin">로그인</TabsTrigger>
-            <TabsTrigger value="signup">회원가입</TabsTrigger>
+            <TabsTrigger value="signin">{t("auth.login")}</TabsTrigger>
+            <TabsTrigger value="signup">{t("auth.signup")}</TabsTrigger>
           </TabsList>
 
           {/* 로그인 탭 */}
           <TabsContent value="signin" className="space-y-4">
-            <form onSubmit={handleSignIn} className="space-y-4">
+            <form noValidate onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="signin-email">이메일</Label>
+                <Label htmlFor="signin-email">{t("auth.email")}</Label>
                 <Input
                   id="signin-email"
                   type="email"
-                  placeholder="이메일을 입력하세요"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={signInData.email}
                   onChange={(e) =>
                     setSignInData({ ...signInData, email: e.target.value })
@@ -128,11 +129,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signin-password">비밀번호</Label>
+                <Label htmlFor="signin-password">{t("auth.password")}</Label>
                 <Input
                   id="signin-password"
                   type="password"
-                  placeholder="비밀번호를 입력하세요"
+                  placeholder={t("auth.passwordPlaceholder")}
                   value={signInData.password}
                   onChange={(e) =>
                     setSignInData({ ...signInData, password: e.target.value })
@@ -143,7 +144,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{t(error)}</AlertDescription>
                 </Alert>
               )}
 
@@ -152,7 +153,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? '로그인 중...' : '로그인'}
+                {t(isLoading ? "auth.loggingIn" : "auth.login")}
               </Button>
             </form>
 
@@ -162,7 +163,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  또는
+                  {t("auth.or")}
                 </span>
               </div>
             </div>
@@ -191,19 +192,19 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   fill="#EA4335"
                 />
               </svg>
-              Google로 로그인
+              {t(isGoogleLoading ? "auth.googleLoading" : "auth.googleLogin")}
             </Button>
           </TabsContent>
 
           {/* 회원가입 탭 */}
           <TabsContent value="signup" className="space-y-4">
-            <form onSubmit={handleSignUp} className="space-y-4">
+            <form noValidate onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="signup-username">사용자 이름</Label>
+                <Label htmlFor="signup-username">{t("auth.username")}</Label>
                 <Input
                   id="signup-username"
                   type="text"
-                  placeholder="사용자 이름을 입력하세요"
+                  placeholder={t("auth.usernamePlaceholder")}
                   value={signUpData.username}
                   onChange={(e) =>
                     setSignUpData({ ...signUpData, username: e.target.value })
@@ -213,11 +214,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signup-email">이메일</Label>
+                <Label htmlFor="signup-email">{t("auth.email")}</Label>
                 <Input
                   id="signup-email"
                   type="email"
-                  placeholder="이메일을 입력하세요"
+                  placeholder={t("auth.emailPlaceholder")}
                   value={signUpData.email}
                   onChange={(e) =>
                     setSignUpData({ ...signUpData, email: e.target.value })
@@ -227,11 +228,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signup-password">비밀번호</Label>
+                <Label htmlFor="signup-password">{t("auth.password")}</Label>
                 <Input
                   id="signup-password"
                   type="password"
-                  placeholder="비밀번호 (최소 6자)"
+                  placeholder={t("auth.newPasswordPlaceholder")}
                   value={signUpData.password}
                   onChange={(e) =>
                     setSignUpData({ ...signUpData, password: e.target.value })
@@ -241,11 +242,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signup-confirm">비밀번호 확인</Label>
+                <Label htmlFor="signup-confirm">{t("auth.confirmPassword")}</Label>
                 <Input
                   id="signup-confirm"
                   type="password"
-                  placeholder="비밀번호를 다시 입력하세요"
+                  placeholder={t("auth.confirmPlaceholder")}
                   value={signUpData.confirmPassword}
                   onChange={(e) =>
                     setSignUpData({ ...signUpData, confirmPassword: e.target.value })
@@ -256,7 +257,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
               {error && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{t(error)}</AlertDescription>
                 </Alert>
               )}
 
@@ -265,7 +266,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 className="w-full"
                 disabled={isLoading}
               >
-                {isLoading ? '가입 중...' : '회원가입'}
+                {t(isLoading ? "auth.signingUp" : "auth.signup")}
               </Button>
             </form>
 
@@ -275,7 +276,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
               <div className="relative flex justify-center text-xs uppercase">
                 <span className="bg-background px-2 text-muted-foreground">
-                  또는
+                  {t("auth.or")}
                 </span>
               </div>
             </div>
@@ -304,7 +305,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   fill="#EA4335"
                 />
               </svg>
-              Google로 가입
+              {t(isGoogleLoading ? "auth.googleLoading" : "auth.googleSignup")}
             </Button>
           </TabsContent>
         </Tabs>

@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
-import { DEFAULT_LANGUAGE, getStoredLanguage, type Language } from "~/lib/language";
+import { useLocation } from "react-router";
+import { authTranslations } from "~/lib/auth-translations";
+import { DEFAULT_LANGUAGE, readStoredLanguage, persistLanguage, localizedPageTitle, type Language } from "~/lib/language";
 
 interface LanguageContextType {
   language: Language;
@@ -15,6 +17,15 @@ const LanguageContext = createContext<LanguageContextType | undefined>(
 // Translation dictionary
 const translations: Record<Language, Record<string, string>> = {
   en: {
+    ...authTranslations.en,
+    "focusMeter.tier.blurry": "Blurry",
+    "focusMeter.tier.focusing": "Focusing",
+    "focusMeter.tier.clear": "Clear",
+    "focusMeter.tier.crystal": "Crystal",
+    "focusMeter.nextTierPoints": "Points to the next tier: ",
+    "focusMeter.points": " points",
+    "flagForm.error.titleRequired": "Please enter a title.",
+    "flagCard.premium": "Premium",
     // Navigation (already exists above in English section)
     "lang.korean": "한국어",
     "lang.english": "English",
@@ -190,12 +201,12 @@ const translations: Record<Language, Record<string, string>> = {
     "flagForm.country.thailand": "🇹🇭 Thailand",
     "flagForm.country.vietnam": "🇻🇳 Vietnam",
     "flagForm.country.taiwan": "🇹🇼 Taiwan",
-    "flagForm.language.korean": "한국어",
+    "flagForm.language.korean": "Korean",
     "flagForm.language.english": "English",
-    "flagForm.language.japanese": "日本語",
-    "flagForm.language.chinese": "中文",
-    "flagForm.language.french": "Français",
-    "flagForm.language.spanish": "Español",
+    "flagForm.language.japanese": "Japanese",
+    "flagForm.language.chinese": "Chinese",
+    "flagForm.language.french": "French",
+    "flagForm.language.spanish": "Spanish",
     "flagForm.error.cityRequired": "Please enter a city",
     "flagForm.error.countryRequired": "Please select a country",
     "flagForm.error.startDateRequired": "Please select a start date",
@@ -284,6 +295,15 @@ const translations: Record<Language, Record<string, string>> = {
     "flagType.other": "Other",
   },
   ko: {
+    ...authTranslations.ko,
+    "focusMeter.tier.blurry": "흐림",
+    "focusMeter.tier.focusing": "초점 맞추는 중",
+    "focusMeter.tier.clear": "선명함",
+    "focusMeter.tier.crystal": "아주 선명함",
+    "focusMeter.nextTierPoints": "다음 등급까지: ",
+    "focusMeter.points": "점",
+    "flagForm.error.titleRequired": "제목을 입력해 주세요.",
+    "flagCard.premium": "프리미엄",
     // Navigation (already exists above)
     "lang.korean": "한국어",
     "lang.english": "English",
@@ -558,17 +578,23 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => {
-    if (typeof window !== "undefined") {
-      return getStoredLanguage(localStorage.getItem("language"));
-    }
-    return DEFAULT_LANGUAGE;
-  });
+  // Server and first client render share English; restore preference after hydration.
+  const [language, setLanguage] = useState<Language>(DEFAULT_LANGUAGE);
+  const [preferenceLoaded, setPreferenceLoaded] = useState(false);
+  const { pathname } = useLocation();
 
   useEffect(() => {
-    localStorage.setItem("language", language);
+    try { setLanguage(readStoredLanguage(window.localStorage)); } catch { /* Storage can be unavailable. */ }
+    setPreferenceLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!preferenceLoaded) return;
+    try { persistLanguage(window.localStorage, language); } catch { /* Keep the current in-memory selection. */ }
     document.documentElement.lang = language;
-  }, [language]);
+    const title = localizedPageTitle(pathname, language);
+    if (title) document.title = title;
+  }, [language, pathname, preferenceLoaded]);
 
   const t = (key: string): string => {
     if (!translations[language]) {

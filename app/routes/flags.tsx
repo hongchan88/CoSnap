@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { createSupabaseClient } from "~/lib/supabase";
 import type { Route } from "./+types/flags";
 import { useState, Suspense, useMemo, useEffect } from "react";
@@ -266,6 +267,7 @@ function FlagsContent({
   userId: string;
 }) {
   const { t } = useLanguage();
+  const { co, language: componentLanguage } = useComponentTranslation();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const [isCreatingFlag, setIsCreatingFlag] = useState(false);
@@ -327,16 +329,16 @@ function FlagsContent({
 
   const getCountryName = (countryCode: string): string => {
     const names: { [key: string]: string } = {
-      JP: "일본",
-      KR: "한국",
-      US: "미국",
-      FR: "프랑스",
-      IT: "이탈리아",
-      GB: "영국",
-      CN: "중국",
-      TH: "태국",
-      VN: "베트남",
-      TW: "대만",
+      JP: co("일본"),
+      KR: co("한국"),
+      US: co("미국"),
+      FR: co("프랑스"),
+      IT: co("이탈리아"),
+      GB: co("영국"),
+      CN: co("중국"),
+      TH: co("태국"),
+      VN: co("베트남"),
+      TW: co("대만"),
     };
     return names[countryCode] || countryCode;
   };

@@ -1,8 +1,9 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Edit, Trash2, Mail, Calendar } from "lucide-react";
-import { PHOTO_STYLE_ICONS_RECORD } from "~/lib/constants";
+import { PHOTO_STYLE_ICONS_RECORD, getPhotoStyleLabel } from "~/lib/constants";
 import { useLanguage } from "~/context/language-context";
 
 interface FlagCardProps {
@@ -55,11 +56,12 @@ export default function FlagCard({
   serviceLevel,
 }: FlagCardProps) {
   const { t } = useLanguage();
+  const { co, language: componentLanguage } = useComponentTranslation();
 
   const statusLabels = {
-    active: t ? t("flagCard.status.active") : "활성",
-    hidden: t ? t("flagCard.status.hidden") : "숨김",
-    expired: t ? t("flagCard.status.expired") : "만료",
+    active: t ? t("flagCard.status.active") : co("활성"),
+    hidden: t ? t("flagCard.status.hidden") : co("숨김"),
+    expired: t ? t("flagCard.status.expired") : co("만료"),
   };
 
   const getTypeLabel = (type?: string) => {
@@ -98,8 +100,8 @@ export default function FlagCard({
               <div className="flex items-center gap-2 text-sm text-gray-500 mt-2">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  {new Date(startDate).toLocaleDateString("ko-KR")} -{" "}
-                  {new Date(endDate).toLocaleDateString("ko-KR")}
+                  {new Date(startDate).toLocaleDateString(componentLanguage === "ko" ? "ko-KR" : "en-US")} -{" "}
+                  {new Date(endDate).toLocaleDateString(componentLanguage === "ko" ? "ko-KR" : "en-US")}
                 </span>
               </div>
             </div>
@@ -113,7 +115,7 @@ export default function FlagCard({
         {/* Description / Note */}
         {note && (
           <div>
-            <h4 className="sr-only">설명</h4>
+            <h4 className="sr-only">{co("설명")}</h4>
             <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">
               {note}
             </p>
@@ -125,7 +127,7 @@ export default function FlagCard({
           <div className="flex gap-1 flex-wrap pt-2 border-t border-gray-100">
             {languages.map(lang => (
               <Badge key={lang} variant="secondary" className="text-xs bg-gray-100 hover:bg-gray-200">
-                {lang === 'ko' ? '🇰🇷 한국어' : lang === 'en' ? '🇺🇸 English' : lang}
+                {lang === 'ko' ? co("🇰🇷 한국어") : lang === 'en' ? '🇺🇸 English' : lang}
               </Badge>
             ))}
           </div>
@@ -135,7 +137,7 @@ export default function FlagCard({
         {styles && styles.length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">
-              {t ? t("flagCard.photoStyle") : "선호 사진 스타일"}
+              {t ? t("flagCard.photoStyle") : co("선호 사진 스타일")}
             </h4>
             <div className="flex flex-wrap gap-2">
               {styles.map((style, index) => (
@@ -145,7 +147,7 @@ export default function FlagCard({
                   className="text-xs flex items-center gap-1"
                 >
                   <span>{PHOTO_STYLE_ICONS_RECORD[style] || "📷"}</span>
-                  {style}
+                  {co(getPhotoStyleLabel(style))}
                 </Badge>
               ))}
             </div>
@@ -161,15 +163,15 @@ export default function FlagCard({
                 {isSentOfferFlag
                   ? t
                     ? t("flagCard.sentOffers")
-                    : "보낸 오퍼"
+                    : co("보낸 오퍼")
                   : t
                     ? t("flagCard.receivedOffers")
-                    : "받은 오퍼"}
+                    : co("받은 오퍼")}
               </span>
             </div>
             <Badge variant="secondary" className="font-semibold">
               {offerCount}
-              {t ? t("flagCard.count") : "개"}
+              {t ? t("flagCard.count") : co("개")}
             </Badge>
           </div>
 
@@ -202,7 +204,7 @@ export default function FlagCard({
                     {offer.message}
                   </p>
                   <div className="text-xs text-gray-400 mt-1 text-right">
-                    {new Date(offer.sent_at).toLocaleDateString()}
+                    {new Date(offer.sent_at).toLocaleDateString(componentLanguage === "ko" ? "ko-KR" : "en-US")}
                   </div>
                 </div>
               ))}
@@ -224,7 +226,7 @@ export default function FlagCard({
                 className="flex-1"
               >
                 <Edit className="w-4 h-4 mr-2" />
-                {t ? t("flagCard.edit") : "수정하기"}
+                {t ? t("flagCard.edit") : co("수정하기")}
               </Button>
               <Button
                 variant="outline"
@@ -236,7 +238,7 @@ export default function FlagCard({
                 className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                {t ? t("flagCard.delete") : "삭제하기"}
+                {t ? t("flagCard.delete") : co("삭제하기")}
               </Button>
             </>
           )}

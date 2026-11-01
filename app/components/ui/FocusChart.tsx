@@ -1,3 +1,5 @@
+import { useLanguage } from "~/context/language-context";
+import { profileText } from "~/lib/profile-copy";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader } from './card';
@@ -14,18 +16,20 @@ interface FocusChartProps {
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
+  const { language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
       <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
         <p className="text-sm font-medium text-gray-900">
-          {new Date(label).toLocaleDateString('ko-KR', {
+          {new Date(label).toLocaleDateString(locale, {
             month: 'short',
             day: 'numeric'
           })}
         </p>
         <p className="text-lg font-bold text-blue-600">
-          Focus: {data.score}점
+          Focus: {data.score}{language === "ko" ? "점" : " points"}
         </p>
         {data.event && (
           <p className="text-xs text-gray-500 mt-1">
@@ -39,6 +43,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function FocusChart({ data, className = '' }: FocusChartProps) {
+  const { language } = useLanguage();
+  const locale = language === "ko" ? "ko-KR" : "en-US";
+  const p = (text: string) => profileText(language, text);
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -48,8 +55,8 @@ export default function FocusChart({ data, className = '' }: FocusChartProps) {
     >
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-semibold text-gray-900">Focus 점수 변화</h3>
-          <p className="text-sm text-gray-600">최근 30일간의 Focus 점수 추이</p>
+          <h3 className="text-lg font-semibold text-gray-900">{p("Focus 점수 변화")}</h3>
+          <p className="text-sm text-gray-600">{p("최근 30일간의 Focus 점수 추이")}</p>
         </CardHeader>
         <CardContent>
           <div className="h-64 w-full">
@@ -68,7 +75,7 @@ export default function FocusChart({ data, className = '' }: FocusChartProps) {
                   dataKey="date"
                   tickFormatter={(value) => {
                     const date = new Date(value);
-                    return date.toLocaleDateString('ko-KR', {
+                    return date.toLocaleDateString(locale, {
                       month: 'short',
                       day: 'numeric'
                     });

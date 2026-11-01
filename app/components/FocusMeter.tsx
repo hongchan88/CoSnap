@@ -1,3 +1,4 @@
+import { useComponentTranslation } from "~/lib/component-translations";
 import { useLanguage } from '../context/language-context';
 
 interface FocusMeterProps {
@@ -16,6 +17,7 @@ export default function FocusMeter({
   animated = true,
 }: FocusMeterProps) {
   const { t } = useLanguage();
+  const { co, language: componentLanguage } = useComponentTranslation();
 
   // Define focusTiers inside component to have access to t function
   const focusTiers = [
@@ -91,13 +93,13 @@ export default function FocusMeter({
       {size === 'lg' && (
         <div className="mt-4 text-center max-w-xs">
           <div className={`font-medium ${currentTier.textColor} mb-1`}>
-            {currentTier.name} 레벨
+            {currentTier.name} {componentLanguage === "ko" ? "레벨" : "level"}
           </div>
           <div className="text-xs text-gray-600">
-            {currentTier.name === 'Blurry' && '이제 막 CoSnap을 시작했어요'}
-            {currentTier.name === 'Focusing' && '꾸준히 활동하고 있어요'}
-            {currentTier.name === 'Clear' && '신뢰할 수 있는 CoSnapper'}
-            {currentTier.name === 'Crystal' && '최고의 CoSnap 전문가'}
+            {currentTier === focusTiers[0] && co("이제 막 CoSnap을 시작했어요")}
+            {currentTier === focusTiers[1] && co("꾸준히 활동하고 있어요")}
+            {currentTier === focusTiers[2] && co("신뢰할 수 있는 CoSnapper")}
+            {currentTier === focusTiers[3] && co("최고의 CoSnap 전문가")}
           </div>
         </div>
       )}

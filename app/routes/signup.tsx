@@ -1,7 +1,7 @@
 import type { Route } from "./+types/signup";
 import { useState } from "react";
 import { redirect } from "react-router";
-import { useActionData, Form, useNavigation } from "react-router";
+import { useActionData, Form, useNavigation, useSearchParams } from "react-router";
 import { signInWithGoogle } from "../context/auth-context";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -15,82 +15,34 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { createSupabaseClient } from "../lib/supabase";
+import { useLanguage } from "~/context/language-context";
+import { validateAuthForm, getAuthErrorKey, type AuthErrorKey } from "~/lib/auth-translations";
 import { sendWelcomeEmail } from "../lib/resend";
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const confirmPassword = formData.get("confirmPassword") as string;
-  const username = formData.get("username") as string;
-
-  // 유효성 검사
-  if (!email || !password || !confirmPassword || !username) {
-    return { error: "모든 필드를 입력해주세요." };
-  }
-
-  if (password !== confirmPassword) {
-    return { error: "비밀번호가 일치하지 않습니다." };
-  }
-
-  if (password.length < 6) {
-    return { error: "비밀번호는 최소 6자 이상이어야 합니다." };
-  }
-
+  const { language, values, errorKey } = validateAuthForm(formData, "signup");
+  if (errorKey) return { errorKey, language };
   try {
     const { client, headers } = createSupabaseClient(request);
-    const { data: signUpData, error } = await client.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          full_name: username,
-        },
-      },
+    const { error } = await client.auth.signUp({
+      email: values.email, password: values.password,
+      options: { data: { username: values.username, full_name: values.username } },
     });
-
-    if (error) {
-      return { error: error.message || "회원가입에 실패했습니다." };
-    }
-    // 수퍼베이스에서 트리거로 프로파일 생성하도록 변파경됨
-    // 사용자 프로필 생성
-    // if (signUpData.user) {
-    //   const { error: profileError } = await client
-    //     .from('profiles')
-    //     .insert({
-    //       profile_id: signUpData.user.id,
-    //       username: username,
-    //       role: 'free',
-    //       focus_score: 0,
-    //       focus_tier: 'Blurry',
-    //       cocredit_balance: 0,
-    //       styles: [],
-    //       languages: [],
-    //       is_verified: false,
-    //     });
-
-    //   if (profileError) {
-    //     console.error('프로필 생성 오류:', profileError);
-    //     return { error: "프로필 생성에 실패했습니다. 다시 시도해주세요." };
-    //   }
-    // }
-
-    await sendWelcomeEmail(email, username);
-
-    // 회원가입 성공 시 로그인 페이지로 리디렉션 (환영 이메일 발송됨)
-    return redirect("/login?message=signup_success");
-  } catch (error) {
-    return { error: "회원가입 중 오류가 발생했습니다." };
+    if (error) return { errorKey: getAuthErrorKey(error, "signup"), language };
+    await sendWelcomeEmail(values.email, values.username);
+    return redirect("/login?message=signup_success", { headers });
+  } catch {
+    return { errorKey: "auth.error.signup" as AuthErrorKey, language };
   }
 }
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "회원가입 - CoSnap" },
+    { title: "Sign up - CoSnap" },
     {
       name: "description",
-      content: "CoSnap에 가입하여 전 세계 여행자들과 사진을 교환하세요.",
+      content: "Join CoSnap and connect with travelers around the world.",
     },
   ];
 }
@@ -98,20 +50,24 @@ export function meta({}: Route.MetaArgs) {
 export default function SignupPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
+  const { language, t } = useLanguage();
+  const [query] = useSearchParams();
+  const [googleError, setGoogleError] = useState<AuthErrorKey | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const isSubmitting = navigation.state === "submitting";
   const controlsDisabled = isSubmitting || isGoogleLoading;
 
   const handleGoogleSignIn = async () => {
+    setGoogleError(null);
     setIsGoogleLoading(true);
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        console.error("Google 가입 오류:", error);
+        setGoogleError(getAuthErrorKey(error, "google"));
       }
     } catch (error) {
-      console.error("Google 가입 오류:", error);
+      setGoogleError(getAuthErrorKey(error, "google"));
     } finally {
       setIsGoogleLoading(false);
     }
@@ -121,44 +77,45 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">회원가입</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t("auth.signup")}</CardTitle>
           <CardDescription>
-            CoSnap에 가입하여 새로운 여행 친구들을 만나보세요
+            {t("auth.signupDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <Form method="post" className="space-y-4">
+          <Form method="post" noValidate className="space-y-4">
+            <input type="hidden" name="language" value={language} />
             <div className="space-y-2">
-              <Label htmlFor="username">사용자 이름</Label>
+              <Label htmlFor="username">{t("auth.username")}</Label>
               <Input
                 id="username"
                 name="username"
                 type="text"
-                placeholder="사용자 이름을 입력하세요"
+                placeholder={t("auth.usernamePlaceholder")}
                 required
                 disabled={controlsDisabled}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">이메일</Label>
+              <Label htmlFor="email">{t("auth.email")}</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="이메일 주소를 입력하세요"
+                placeholder={t("auth.emailPlaceholder")}
                 required
                 disabled={controlsDisabled}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">비밀번호</Label>
+              <Label htmlFor="password">{t("auth.password")}</Label>
               <Input
                 id="password"
                 name="password"
                 type="password"
-                placeholder="비밀번호 (최소 6자)"
+                placeholder={t("auth.newPasswordPlaceholder")}
                 required
                 disabled={controlsDisabled}
                 minLength={6}
@@ -166,21 +123,21 @@ export default function SignupPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">비밀번호 확인</Label>
+              <Label htmlFor="confirmPassword">{t("auth.confirmPassword")}</Label>
               <Input
                 id="confirmPassword"
                 name="confirmPassword"
                 type="password"
-                placeholder="비밀번호를 다시 입력하세요"
+                placeholder={t("auth.confirmPlaceholder")}
                 required
                 disabled={controlsDisabled}
                 minLength={6}
               />
             </div>
 
-            {actionData?.error && (
+            {(actionData?.errorKey || googleError || query.has("error")) && (
               <Alert variant="destructive">
-                <AlertDescription>{actionData.error}</AlertDescription>
+                <AlertDescription>{t(actionData?.errorKey || googleError || "auth.error.callback")}</AlertDescription>
               </Alert>
             )}
 
@@ -189,7 +146,7 @@ export default function SignupPage() {
               className="w-full"
               disabled={controlsDisabled}
             >
-              {isSubmitting ? "가입 중..." : "회원가입"}
+              {t(isSubmitting ? "auth.signingUp" : "auth.signup")}
             </Button>
           </Form>
 
@@ -199,7 +156,7 @@ export default function SignupPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                또는
+                {t("auth.or")}
               </span>
             </div>
           </div>
@@ -228,16 +185,16 @@ export default function SignupPage() {
                 fill="#EA4335"
               />
             </svg>
-            {isGoogleLoading ? "Google로 가입 중..." : "Google로 가입"}
+            {t(isGoogleLoading ? "auth.googleLoading" : "auth.googleSignup")}
           </Button>
 
           <div className="text-center text-sm text-gray-600">
-            이미 계정이 있으신가요?{" "}
+            {t("auth.hasAccount")}{" "}
             <a
               href="/login"
               className="font-medium text-blue-600 hover:text-blue-500"
             >
-              로그인
+              {t("auth.login")}
             </a>
           </div>
         </CardContent>
